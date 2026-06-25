@@ -1,0 +1,46 @@
+<div class="config-container">
+
+    <div class="file-row">
+        <label>Upload Test File</label>
+
+        <input
+            type="file"
+            #jmxFile
+            hidden
+            accept=".jmx"
+            (change)="onJmxSelected($event)"
+        >
+
+        <button (click)="jmxFile.click()">Browse</button>
+    </div>
+
+    <div class="file-row">
+        <label>Upload CSV File</label>
+
+        <input
+            type="file"
+            #csvFile
+            hidden
+            accept=".csv"
+            (change)="onCsvSelected($event)"
+        >
+
+        <button (click)="csvFile.click()">Browse</button>
+    </div>
+
+    <div class="input-row">
+        <label>Users</label>
+        <input type="number" [(ngModel)]="users">
+    </div>
+
+    <div class="input-row">
+        <label>Ramp Up Time</label>
+        <input type="number" [(ngModel)]="rampUp">
+    </div>
+
+    <div class="input-row">
+        <label>Duration</label>
+        <input type="number" [(ngModel)]="duration">
+    </div>
+
+</div>

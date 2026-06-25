@@ -1,0 +1,27 @@
+.config-container{
+    width:60%;
+    margin:30px auto;
+}
+
+.file-row,
+.input-row{
+    display:flex;
+    align-items:center;
+    margin:20px 0;
+}
+
+label{
+    width:180px;
+    font-size:20px;
+}
+
+input{
+    flex:1;
+    padding:10px;
+    font-size:18px;
+}
+
+button{
+    margin-left:15px;
+    padding:10px 25px;
+}

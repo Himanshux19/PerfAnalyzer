@@ -1,11 +1,21 @@
-.header{
-    background:#d9d9d9;
-    padding:20px;
-    text-align:center;
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 16px 30px;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow);
+  border-radius: 0 0 8px 8px;
 }
 
-.header h1{
-    margin:0;
-    font-size:48px;
-    font-weight:400;
+.header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }

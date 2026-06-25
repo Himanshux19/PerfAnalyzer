@@ -1,46 +1,42 @@
 <div class="config-container">
+  <div class="input-row">
+    <label>Number of Threads (Users)</label>
+    <input type="number" [(ngModel)]="users" />
+  </div>
 
-    <div class="file-row">
-        <label>Upload Test File</label>
+  <div class="input-row">
+    <label>Ramp Up Time (Seconds)</label>
+    <input type="number" [(ngModel)]="rampUp" />
+  </div>
 
-        <input
-            type="file"
-            #jmxFile
-            hidden
-            accept=".jmx"
-            (change)="onJmxSelected($event)"
-        >
+  <div class="input-row">
+    <label>Duration (Seconds)</label>
+    <input type="number" [(ngModel)]="duration" />
+  </div>
+  <div class="file-row">
+    <label>Upload Test File</label>
+    <input
+      class="form-control"
+      type="file"
+      id="formFile"
+      #jmxFile
+      accept=".jmx"
+      (change)="onJmxSelected($event)"
+    />
+  </div>
 
-        <button (click)="jmxFile.click()">Browse</button>
-    </div>
-
-    <div class="file-row">
-        <label>Upload CSV File</label>
-
-        <input
-            type="file"
-            #csvFile
-            hidden
-            accept=".csv"
-            (change)="onCsvSelected($event)"
-        >
-
-        <button (click)="csvFile.click()">Browse</button>
-    </div>
-
-    <div class="input-row">
-        <label>Users</label>
-        <input type="number" [(ngModel)]="users">
-    </div>
-
-    <div class="input-row">
-        <label>Ramp Up Time</label>
-        <input type="number" [(ngModel)]="rampUp">
-    </div>
-
-    <div class="input-row">
-        <label>Duration</label>
-        <input type="number" [(ngModel)]="duration">
-    </div>
-
+  <div class="file-row">
+    <label>Upload CSV File</label>
+    <input
+      class="form-control"
+      type="file"
+      id="formFile"
+      #csvFile
+      accept=".csv"
+      (change)="onCsvSelected($event)"
+    />
+  </div>
+  <div class="btn-container">
+    <button type="button" class="btn btn-outline-primary">Perform Testing</button>
+  </div>
 </div>

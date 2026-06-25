@@ -1,27 +1,54 @@
-.config-container{
-    width:60%;
-    margin:30px auto;
+.config-container {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color var(--transition);
 }
 
-.file-row,
-.input-row{
-    display:flex;
-    align-items:center;
-    margin:20px 0;
+.config-container:hover {
+  border-color: rgba(59, 130, 246, 0.15);
 }
 
-label{
-    width:180px;
-    font-size:20px;
+.config-container::before {
+  content: 'Test Configuration';
+  display: flex;
+  align-items: center;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  font-family:
+    'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana,
+    sans-serif;
 }
 
-input{
-    flex:1;
-    padding:10px;
-    font-size:18px;
+.input-row,
+.file-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-button{
-    margin-left:15px;
-    padding:10px 25px;
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.btn-container {
+  display: flex;
+  justify-content: center;
+}
+
+.form-control {
+  padding-left: 20px;
 }

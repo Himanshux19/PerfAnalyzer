@@ -1,4 +1,6 @@
-<div class="reports-container">
-    <h2 class="heading">Performance Summary</h2>
-    <p>No results available.</p>
+<div class="reports-container" *ngIf="isVisible">
+  <h2 class="heading">Performance Summary</h2>
+  <div class="report-box">
+    <pre>{{ report || 'No results available.' }}</pre>
+  </div>
 </div>

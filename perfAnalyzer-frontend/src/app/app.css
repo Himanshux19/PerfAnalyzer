@@ -3,7 +3,44 @@
   margin-right: -12px;
 }
 
-.col-lg-5, .col-lg-7 {
+.col-lg-5, .col-lg-7, .col-lg-6 {
   padding-left: 12px;
   padding-right: 12px;
+}
+
+.app-shell {
+  padding: 2rem 1.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.center-panel {
+  width: 100%;
+  max-width: 900px;
+}
+
+.summary-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--card-shadow);
+  min-height: 100%;
+}
+
+.summary-card h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.summary-card p {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }

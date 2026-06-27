@@ -1,9 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
+import { NgIf } from '@angular/common';
 
 @Component({
   selector: 'app-logs',
-  imports: [],
+  imports: [NgIf],
   templateUrl: './logs.html',
   styleUrl: './logs.css',
 })
-export class Logs {}
+export class Logs {
+  @Input() isVisible = false;
+  @Input() logs = '';
+}

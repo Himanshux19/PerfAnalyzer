@@ -1,42 +1,81 @@
 <div class="config-container">
-  <div class="input-row">
-    <label>Number of Threads (Users)</label>
-    <input type="number" [(ngModel)]="users" />
+  <div class="step-heading">
+    <span class="step-badge">Step 1</span>
+    <h2>Upload File</h2>
   </div>
 
-  <div class="input-row">
-    <label>Ramp Up Time (Seconds)</label>
-    <input type="number" [(ngModel)]="rampUp" />
+  <div class="upload-card centered" *ngIf="!csvFile || jmxFile">
+    <div class="upload-title">Run a new Test</div>
+    <ng-container *ngIf="!jmxFile; else jmxSelected">
+      <label class="file-label">Upload JMX File</label>
+      <input
+        class="form-control"
+        type="file"
+        accept=".jmx"
+        (change)="onJmxSelected($event)"
+      />
+    </ng-container>
+    <ng-template #jmxSelected>
+      <div class="selected-file-row">
+        <span class="selected-file-name">{{ jmxFile?.name }}</span>
+        <button type="button" class="delete-btn" (click)="deleteJmx()">✕</button>
+      </div>
+    </ng-template>
   </div>
 
-  <div class="input-row">
-    <label>Duration (Seconds)</label>
-    <input type="number" [(ngModel)]="duration" />
-  </div>
-  <div class="file-row">
-    <label>Upload Test File</label>
-    <input
-      class="form-control"
-      type="file"
-      id="formFile"
-      #jmxFile
-      accept=".jmx"
-      (change)="onJmxSelected($event)"
-    />
+  <div class="or-divider" *ngIf="!jmxFile && !csvFile">OR</div>
+
+  <div class="upload-card centered" *ngIf="!jmxFile || csvFile">
+    <div class="upload-title">Generate Result from Existing Result</div>
+    <ng-container *ngIf="!csvFile; else csvSelected">
+      <label class="file-label">Upload CSV Result File</label>
+      <input
+        class="form-control"
+        type="file"
+        accept=".csv"
+        (change)="onCsvSelected($event)"
+      />
+    </ng-container>
+    <ng-template #csvSelected>
+      <div class="selected-file-row">
+        <span class="selected-file-name">{{ csvFile?.name }}</span>
+        <button type="button" class="delete-btn" (click)="deleteCsv()">✕</button>
+      </div>
+    </ng-template>
   </div>
 
-  <div class="file-row">
-    <label>Upload CSV File</label>
-    <input
-      class="form-control"
-      type="file"
-      id="formFile"
-      #csvFile
-      accept=".csv"
-      (change)="onCsvSelected($event)"
-    />
+  <div class="config-panel" *ngIf="uploadMode === 'new-test'">
+    <div class="step-heading">
+      <span class="step-badge">Step 2</span>
+      <h2>Load configuration</h2>
+    </div>
+
+    <div class="input-row">
+      <label>Number of Threads (Users)</label>
+      <input type="number" [(ngModel)]="users" />
+    </div>
+
+    <div class="input-row">
+      <label>Ramp Up Time (Seconds)</label>
+      <input type="number" [(ngModel)]="rampUp" />
+    </div>
+
+    <div class="input-row">
+      <label>Duration (Seconds)</label>
+      <input type="number" [(ngModel)]="duration" />
+    </div>
+
+    <div class="btn-container">
+      <button type="button" class="btn btn-primary" (click)="saveConfiguration()">Perform Test</button>
+    </div>
   </div>
-  <div class="btn-container">
-    <button type="button" class="btn btn-outline-primary">Perform Testing</button>
+
+  <div class="btn-container" *ngIf="uploadMode === 'existing-result'">
+    <button type="button" class="btn btn-primary" (click)="analyzeExistingResult()">Generate Report</button>
   </div>
+
+  <!-- <div class="action-row" *ngIf="configReady">
+    <button type="button" class="btn btn-outline-info" (click)="showLogs()">Show Logs</button>
+    <button type="button" class="btn btn-outline-success" (click)="showReport()">Show Report</button>
+  </div> -->
 </div>

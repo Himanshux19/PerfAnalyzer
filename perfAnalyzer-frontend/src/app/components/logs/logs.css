@@ -47,4 +47,9 @@
 .logs-box p {
   margin: 0;
   color: #22d3ee;
+  white-space: pre-wrap;
+}
+
+.placeholder .logs-box p {
+  color: #94a3b8;
 }

@@ -1,0 +1,16 @@
+# JMeter 
+JMeter
+
+# File Folders
+Test Files
+
+# Report Folders
+Reports
+
+# Virtual Environment
+env
+
+# Python
+__pycache__/
+*.pyc
+*.pyd

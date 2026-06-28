@@ -1,0 +1,16 @@
+execution:
+  - executor: jmeter
+    concurrency: 1
+    ramp-up: 1s
+    hold-for: 1s
+    scenario: demo
+
+scenarios:
+  demo:
+    script: uploads/test.jmx
+
+reporting:
+  - module: final-stats
+
+settings:
+  artifacts-dir: TestResults

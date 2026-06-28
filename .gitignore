@@ -1,11 +1,14 @@
 # JMeter 
 JMeter
+jmeter.log
+generated.yml
 
 # File Folders
 Uploads
 
 # Report Folders
-Reports
+TestResults
+HTML Reports
 
 # Virtual Environment
 env

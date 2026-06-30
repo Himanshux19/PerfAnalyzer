@@ -1,90 +1,59 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIf } from '@angular/common';
+import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-test-config',
   templateUrl: './test-config.html',
   styleUrls: ['./test-config.css'],
-  imports: [FormsModule, NgIf]
+  imports: [FormsModule]
 })
 export class TestConfig {
-  users = 0;
-  rampUp = 0;
-  duration = 0;
+  constructor(protected api: ApiService) {}
 
-  jmxFile: File | null = null;
-  csvFile: File | null = null;
-  filesReady = false;
-  configReady = false;
+  onJmxSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.api.jmxFileName.set(file.name);
+      this.api.jmxFileSize.set(`${(file.size / 1024).toFixed(0)} KB`);
+      this.api.jmxUploadStatus.set('uploading');
+      this.api.addLog(`Uploading JMX script: ${file.name}...`, 'system');
 
-  uploadMode: 'none' | 'new-test' | 'existing-result' = 'none';
-
-  @Output() filesSelected = new EventEmitter<{ jmxFile: File | null; csvFile: File | null; mode: 'none' | 'new-test' | 'existing-result' }>();
-  @Output() configSubmitted = new EventEmitter<{ users: number; rampUp: number; duration: number }>();
-  @Output() executionCompleted = new EventEmitter<void>();
-  @Output() logsToggled = new EventEmitter<void>();
-  @Output() reportToggled = new EventEmitter<void>();
-
-  onJmxSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    this.jmxFile = input.files?.[0] ?? null;
-    if (this.jmxFile) {
-      this.csvFile = null;
+      this.api.uploadJmxFile(file).subscribe({
+        next: (res) => {
+          this.api.jmxServerName.set(res.filename); // sequential name like Test1.jmx
+          this.api.jmxUploadStatus.set('success');
+          this.api.addLog(`JMX uploaded successfully. Saved as ${res.filename} on server.`, 'success');
+        },
+        error: (err) => {
+          this.api.jmxUploadStatus.set('error');
+          const errorMsg = err.error?.detail || err.message || 'Connection error';
+          this.api.addLog(`JMX upload failed: ${errorMsg}`, 'error');
+        }
+      });
     }
-    this.updateUploadMode();
   }
 
-  onCsvSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    this.csvFile = input.files?.[0] ?? null;
-    if (this.csvFile) {
-      this.jmxFile = null;
+  onCsvSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.api.csvFileName.set(file.name);
+      this.api.csvFileSize.set(`${(file.size / 1024).toFixed(0)} KB`);
+      this.api.csvUploadStatus.set('uploading');
+      this.api.addLog(`Uploading CSV data file: ${file.name}...`, 'system');
+
+      this.api.uploadCsvFile(file).subscribe({
+        next: (res) => {
+          this.api.csvServerName.set(res.filename); // sequential name like Result1.csv
+          this.api.csvUploadStatus.set('success');
+          this.api.addLog(`CSV uploaded successfully. Saved as ${res.filename} on server.`, 'success');
+        },
+        error: (err) => {
+          this.api.csvUploadStatus.set('error');
+          const errorMsg = err.error?.detail || err.message || 'Connection error';
+          this.api.addLog(`CSV upload failed: ${errorMsg}`, 'error');
+        }
+      });
     }
-    this.updateUploadMode();
-  }
-
-  deleteJmx() {
-    this.jmxFile = null;
-    this.updateUploadMode();
-  }
-
-  deleteCsv() {
-    this.csvFile = null;
-    this.updateUploadMode();
-  }
-
-  saveConfiguration() {
-    this.configSubmitted.emit({ users: this.users, rampUp: this.rampUp, duration: this.duration });
-    this.configReady = true;
-    this.executionCompleted.emit();
-  }
-
-  analyzeExistingResult() {
-    this.configReady = true;
-    this.executionCompleted.emit();
-  }
-
-  showLogs() {
-    this.logsToggled.emit();
-  }
-
-  showReport() {
-    this.reportToggled.emit();
-  }
-
-  private updateUploadMode() {
-    if (this.jmxFile) {
-      this.uploadMode = 'new-test';
-      this.filesReady = true;
-    } else if (this.csvFile) {
-      this.uploadMode = 'existing-result';
-      this.filesReady = true;
-    } else {
-      this.uploadMode = 'none';
-      this.filesReady = false;
-    }
-
-    this.filesSelected.emit({ jmxFile: this.jmxFile, csvFile: this.csvFile, mode: this.uploadMode });
   }
 }

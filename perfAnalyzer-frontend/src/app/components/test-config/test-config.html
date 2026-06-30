@@ -1,81 +1,101 @@
-<div class="config-container">
-  <div class="step-heading">
-    <span class="step-badge">Step 1</span>
-    <h2>Upload File</h2>
-  </div>
+<div class="card-premium h-100">
+  <div class="card-title-premium-runner mb-3">TEST SETUP</div>
 
-  <div class="upload-card centered" *ngIf="!csvFile || jmxFile">
-    <div class="upload-title">Run a new Test</div>
-    <ng-container *ngIf="!jmxFile; else jmxSelected">
-      <label class="file-label">Upload JMX File</label>
-      <input
-        class="form-control"
-        type="file"
-        accept=".jmx"
-        (change)="onJmxSelected($event)"
-      />
-    </ng-container>
-    <ng-template #jmxSelected>
-      <div class="selected-file-row">
-        <span class="selected-file-name">{{ jmxFile?.name }}</span>
-        <button type="button" class="delete-btn" (click)="deleteJmx()">✕</button>
+  <!-- 1. Upload Test File -->
+  <div class="setup-section mb-4">
+    <div class="setup-section-title">1. Upload Test File (.jmx)</div>
+    
+    <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
+      <span class="text-muted fs-7 mb-2">Drag and drop to start here.</span>
+      <label for="jmxUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
+        <i class="bi bi-cloud-upload"></i> Upload .jmx File
+      </label>
+      <input type="file" id="jmxUploadInput" accept=".jmx" class="d-none" (change)="onJmxSelected($event)" />
+    </div>
+
+    <!-- Active File Info Display -->
+    @if (api.jmxFileName()) {
+      <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-file-earmark-code fs-4 text-secondary"></i>
+          <span class="uploaded-file-name font-semibold text-primary text-truncate max-w-160" [title]="api.jmxFileName()">{{ api.jmxFileName() }}</span>
+          <span class="uploaded-file-size text-muted fs-7">{{ api.jmxFileSize() }}</span>
+        </div>
+        
+        @if (api.jmxUploadStatus() === 'uploading') {
+          <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
+            Uploading
+          </span>
+        } @else if (api.jmxUploadStatus() === 'success') {
+          <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
+        } @else if (api.jmxUploadStatus() === 'error') {
+          <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
+        }
       </div>
-    </ng-template>
-  </div>
+    }
 
-  <div class="or-divider" *ngIf="!jmxFile && !csvFile">OR</div>
+    <!-- Upload CSV File Section -->
+    <div class="setup-section-title mt-4">Upload CSV File (.csv)</div>
+    <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
+      <span class="text-muted fs-7 mb-2">Drag and drop CSV dataset files.</span>
+      <label for="csvUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
+        <i class="bi bi-cloud-upload"></i> Upload .csv File
+      </label>
+      <input type="file" id="csvUploadInput" accept=".csv" class="d-none" (change)="onCsvSelected($event)" />
+    </div>
 
-  <div class="upload-card centered" *ngIf="!jmxFile || csvFile">
-    <div class="upload-title">Generate Result from Existing Result</div>
-    <ng-container *ngIf="!csvFile; else csvSelected">
-      <label class="file-label">Upload CSV Result File</label>
-      <input
-        class="form-control"
-        type="file"
-        accept=".csv"
-        (change)="onCsvSelected($event)"
-      />
-    </ng-container>
-    <ng-template #csvSelected>
-      <div class="selected-file-row">
-        <span class="selected-file-name">{{ csvFile?.name }}</span>
-        <button type="button" class="delete-btn" (click)="deleteCsv()">✕</button>
+    <!-- Active CSV File Info Display -->
+    @if (api.csvFileName()) {
+      <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-file-earmark-spreadsheet fs-4 text-secondary"></i>
+          <span class="uploaded-file-name font-semibold text-primary text-truncate max-w-160" [title]="api.csvFileName()">{{ api.csvFileName() }}</span>
+          <span class="uploaded-file-size text-muted fs-7">{{ api.csvFileSize() }}</span>
+        </div>
+
+        @if (api.csvUploadStatus() === 'uploading') {
+          <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
+            Uploading
+          </span>
+        } @else if (api.csvUploadStatus() === 'success') {
+          <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
+        } @else if (api.csvUploadStatus() === 'error') {
+          <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
+        }
       </div>
-    </ng-template>
+    }
   </div>
 
-  <div class="config-panel" *ngIf="uploadMode === 'new-test'">
-    <div class="step-heading">
-      <span class="step-badge">Step 2</span>
-      <h2>Load configuration</h2>
+  <!-- 2. JMeter Configuration -->
+  <div class="setup-section">
+    <div class="setup-section-title">2. Load Configuration</div>
+    
+    <div class="row g-3">
+      <div class="col-6">
+        <label class="form-label-premium">Thread Count (Virtual Users)</label>
+        <input type="number" class="form-input-premium" [ngModel]="api.users()" (ngModelChange)="api.users.set($event)" />
+      </div>
+      <div class="col-6">
+        <label class="form-label-premium">Ramp-up Period (Seconds)</label>
+        <input type="number" class="form-input-premium" [ngModel]="api.rampUp()" (ngModelChange)="api.rampUp.set($event)" />
+      </div>
+      <div class="col-6">
+        <label class="form-label-premium">Loop Count</label>
+        <input type="number" class="form-input-premium" [ngModel]="api.loopCount()" (ngModelChange)="api.loopCount.set($event)" />
+      </div>
+      <div class="col-6">
+        <label class="form-label-premium">Duration (Seconds)</label>
+        <input type="number" class="form-input-premium" [ngModel]="api.duration()" (ngModelChange)="api.duration.set($event)" />
+      </div>
     </div>
 
-    <div class="input-row">
-      <label>Number of Threads (Users)</label>
-      <input type="number" [(ngModel)]="users" />
-    </div>
-
-    <div class="input-row">
-      <label>Ramp Up Time (Seconds)</label>
-      <input type="number" [(ngModel)]="rampUp" />
-    </div>
-
-    <div class="input-row">
-      <label>Duration (Seconds)</label>
-      <input type="number" [(ngModel)]="duration" />
-    </div>
-
-    <div class="btn-container">
-      <button type="button" class="btn btn-primary" (click)="saveConfiguration()">Perform Test</button>
-    </div>
+    <!-- <div class="mt-3">
+      <label class="checkbox-container-premium d-flex align-items-center gap-2 cursor-pointer select-none">
+        <input type="checkbox" [ngModel]="api.scheduler()" (ngModelChange)="api.scheduler.set($event)" class="form-checkbox-premium" />
+        <span class="fs-7 font-semibold text-secondary">Scheduler</span>
+      </label>
+    </div> -->
   </div>
-
-  <div class="btn-container" *ngIf="uploadMode === 'existing-result'">
-    <button type="button" class="btn btn-primary" (click)="analyzeExistingResult()">Generate Report</button>
-  </div>
-
-  <!-- <div class="action-row" *ngIf="configReady">
-    <button type="button" class="btn btn-outline-info" (click)="showLogs()">Show Logs</button>
-    <button type="button" class="btn btn-outline-success" (click)="showReport()">Show Report</button>
-  </div> -->
 </div>

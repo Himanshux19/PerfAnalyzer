@@ -1,11 +1,20 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import shutil
 from pathlib import Path
 import yaml
 import subprocess
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 JMETER_CMD = shutil.which("jmeter") or shutil.which("jmeter.bat")
 BZT_CMD = shutil.which("bzt")
@@ -68,7 +77,7 @@ async def upload_jmx(file: UploadFile = File(...)):
 
     return JSONResponse({
         "message": "JMX uploaded successfully.",
-        "filename": file.filename,
+        "filename": file_path.name,
         "path": str(file_path)
     })
 
@@ -91,12 +100,30 @@ async def upload_csv(file: UploadFile = File(...)):
 
     return JSONResponse({
         "message": "CSV/JTL file uploaded successfully.",
-        "filename": file.filename,
+        "filename": file_path.name,
         "path": str(file_path)
     })
 
+import threading
+
+test_status_db = {}  # Global dict to store test execution status
+
+def run_taurus_in_background(test_name: str, cmd: list):
+    try:
+        process = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True
+        )
+        if process.returncode != 0:
+            test_status_db[test_name] = {"status": "error", "error": process.stderr}
+        else:
+            test_status_db[test_name] = {"status": "success", "error": ""}
+    except Exception as e:
+        test_status_db[test_name] = {"status": "error", "error": str(e)}
+
 @app.post("/run-test")
-async def run_test(
+def run_test(
     jmx_filename: str = Form(...),
     threads: int = Form(...),
     ramp_up: int = Form(...),
@@ -132,21 +159,18 @@ async def run_test(
         with open(GENERATED_YAML, "w") as file:
             yaml.dump(config, file, sort_keys=False)
 
-        # Execute Taurus
-        process = subprocess.run(
-            [BZT_CMD, str(GENERATED_YAML)],
-            capture_output=True,
-            text=True
+        # Start thread
+        test_status_db[test_name] = {"status": "running", "error": ""}
+        
+        thread = threading.Thread(
+            target=run_taurus_in_background,
+            args=(test_name, [BZT_CMD, str(GENERATED_YAML)])
         )
-
-        if process.returncode != 0:
-            raise HTTPException(
-                status_code=500,
-                detail=process.stderr
-            )
+        thread.start()
 
         return JSONResponse({
-            "message": "Test executed successfully."
+            "message": "Test started successfully in the background.",
+            "test_name": test_name
         })
 
     except Exception as e:
@@ -154,6 +178,112 @@ async def run_test(
             status_code=500,
             detail=str(e)
         )
+
+@app.get("/test-status/{test_name}")
+def get_test_status(test_name: str):
+    status_info = test_status_db.get(test_name, {"status": "idle", "error": ""})
+
+    jmeter_content = ""
+    bzt_content = ""
+
+    result_folder = RESULTS_DIR / test_name
+    jmeter_log_path = result_folder / "jmeter.log"
+    bzt_log_path = result_folder / "bzt.log"
+    kpi_path = result_folder / "kpi.jtl"
+
+    # Fallback to backend root jmeter.log if it hasn't copied to artifacts yet
+    if not jmeter_log_path.exists() and Path("jmeter.log").exists():
+        jmeter_log_path = Path("jmeter.log")
+
+    if jmeter_log_path.exists():
+        try:
+            with open(jmeter_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                jmeter_content = f.read()
+        except:
+            pass
+
+    if bzt_log_path.exists():
+        try:
+            with open(bzt_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                bzt_content = f.read()
+        except:
+            pass
+
+    # Parse kpi.jtl for exact throughput, response times, error rates and thread counts
+    throughput = 0.0
+    avg_rt = 0.0
+    error_rate = 0.0
+    active_users = 0
+
+    if kpi_path.exists():
+        try:
+            with open(kpi_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            if len(lines) > 1:
+                header = lines[0].strip().split(',')
+                delim = ','
+                if len(header) <= 1:
+                    header = lines[0].strip().split('\t')
+                    delim = '\t'
+
+                try:
+                    ts_idx = header.index("timeStamp")
+                    el_idx = header.index("elapsed")
+                    succ_idx = header.index("success")
+                    threads_idx = header.index("allThreads")
+                except ValueError:
+                    ts_idx, el_idx, succ_idx, threads_idx = 0, 1, 7, 9
+
+                timestamps = []
+                elapseds = []
+                failures = 0
+                threads_list = []
+
+                for line in lines[1:]:
+                    parts = line.strip().split(delim)
+                    if len(parts) > max(ts_idx, el_idx, succ_idx, threads_idx):
+                        try:
+                            ts = int(parts[ts_idx])
+                            el = int(parts[el_idx])
+                            succ = parts[succ_idx].strip().lower()
+                            threads = int(parts[threads_idx])
+
+                            timestamps.append(ts)
+                            elapseds.append(el)
+                            threads_list.append(threads)
+                            if succ in ("false", "0"):
+                                failures += 1
+                        except:
+                            pass
+
+                if timestamps:
+                    min_ts = min(timestamps)
+                    max_ts = max(timestamps)
+                    duration_sec = (max_ts - min_ts) / 1000.0
+
+                    total_reqs = len(timestamps)
+                    if duration_sec > 0:
+                        throughput = total_reqs / duration_sec
+                    else:
+                        throughput = float(total_reqs)
+
+                    if total_reqs > 0:
+                        avg_rt = sum(elapseds) / total_reqs
+                        error_rate = (failures / total_reqs) * 100.0
+                        active_users = threads_list[-1] if threads_list else 0
+        except Exception as e:
+            print("Error parsing kpi.jtl:", e)
+
+    return JSONResponse({
+        "status": status_info["status"],
+        "error": status_info["error"],
+        "jmeter_log": jmeter_content,
+        "bzt_log": bzt_content,
+        "throughput": round(throughput, 2),
+        "avg_rt": round(avg_rt, 0),
+        "error_rate": round(error_rate, 2),
+        "active_users": active_users
+    })
 
 @app.post("/generate-html")
 async def generate_html(csv_filename: str = Form(...)):

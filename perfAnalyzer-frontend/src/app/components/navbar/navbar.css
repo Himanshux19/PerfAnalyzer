@@ -1,21 +1,67 @@
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  padding: 16px 30px;
+/* Navbar for Runner View */
+.navbar-runner {
+  height: 56px;
+  background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
-  box-shadow: var(--card-shadow);
-  border-radius: 0 0 8px 8px;
 }
 
-.header h1 {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
+.runner-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--color-blue) 0%, #06b6d4 100%);
+  border-radius: 6px;
+  color: white;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.2);
+}
+
+.runner-brand-text {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
+}
+
+.runner-nav-links ul {
+  display: flex;
+  height: 56px;
+  padding: 0;
+}
+
+.runner-nav-item {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  height: 56px;
+  border-bottom: 2px solid transparent;
+  padding: 0 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.runner-nav-item:hover {
+  color: var(--text-primary);
+}
+
+.runner-nav-item.active {
+  color: var(--color-blue);
+  border-bottom-color: var(--color-blue);
+}
+
+.user-circle-initials {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #e2e8f0;
+  color: #475569;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
 }

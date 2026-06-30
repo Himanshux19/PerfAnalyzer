@@ -1,68 +1,153 @@
-/* Global Design System & Variables */
+/* SaaS Light Theme Variables */
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-card: #1f2937;
-  --bg-input: #151d2a;
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-accent-light: #f1f5f9;
   
-  --color-blue: #3b82f6;
-  --color-blue-hover: #2563eb;
-  --color-blue-glow: rgba(59, 130, 246, 0.25);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  
+  --color-blue: #2563eb;
+  --color-blue-hover: #1d4ed8;
+  --color-blue-glow: rgba(37, 99, 235, 0.15);
+  
   --color-green: #10b981;
-  --color-green-glow: rgba(16, 185, 129, 0.15);
+  --color-green-light: #ecfdf5;
+  --color-green-border: rgba(16, 185, 129, 0.3);
   
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-focus: #3b82f6;
+  --color-red: #ef4444;
+  --color-red-light: #fef2f2;
   
-  --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: Consolas, 'Courier New', monospace;
+  --border-color: #e2e8f0;
   
-  --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-  --transition: 0.2s ease-in-out;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: Consolas, 'Fira Code', Monaco, monospace;
+  
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
-/* Global Reset & Body */
+/* Global Reset */
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
   font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Scrollbars */
+/* Card Styling */
+.card-premium {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  height: 100%;
+}
+
+.card-title-premium {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Table Polish */
+.table-premium {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table-premium th {
+  background-color: #f8fafc;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-premium td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.table-premium tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Form inputs styling */
+.form-input-premium {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all var(--transition);
+}
+
+.form-input-premium:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px var(--color-blue-glow);
+}
+
+/* Action button icons */
+.action-btn-icon {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.action-btn-icon:hover {
+  background-color: #f1f5f9;
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.action-btn-icon.delete-btn:hover {
+  background-color: #fef2f2;
+  color: var(--color-red);
+  border-color: #fca5a5;
+}
+
+/* Scrollbar overrides */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
-}
-
-/* Form Control Global Polish */
-.form-control, input, select, textarea {
-  background-color: var(--bg-input) !important;
-  border: 1px solid var(--border-color) !important;
-  color: var(--text-primary) !important;
-  border-radius: 8px !important;
-  padding: 10px 14px;
-  transition: all var(--transition) !important;
-}
-
-.form-control:focus, input:focus, select:focus {
-  outline: none !important;
-  border-color: var(--border-focus) !important;
-  box-shadow: 0 0 0 3px var(--color-blue-glow) !important;
-  background-color: var(--bg-input) !important;
+  background: #94a3b8;
 }

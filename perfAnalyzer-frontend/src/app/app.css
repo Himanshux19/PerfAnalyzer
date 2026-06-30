@@ -1,46 +1,64 @@
+/* Layout Spacing */
+.container-fluid {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
 .row {
   margin-left: -12px;
   margin-right: -12px;
 }
 
-.col-lg-5, .col-lg-7, .col-lg-6 {
+.col-lg-3, .col-lg-4, .col-lg-5 {
   padding-left: 12px;
   padding-right: 12px;
 }
 
-.app-shell {
-  padding: 2rem 1.5rem 2.5rem;
-  display: flex;
-  flex-direction: column;
+/* Runner Layout Background */
+.bg-light-gray-slate {
+  background-color: #f8fafc;
+}
+
+/* Central Run Card styling */
+.run-test-container-card {
+  border-style: solid;
+  border-color: var(--border-color);
+}
+
+.btn-run-massive {
+  background-color: var(--color-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px; /* Slightly squarer, compact border radius */
+  font-size: 0.95rem; /* Reduced font size from 1.15rem */
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: all var(--transition);
+  display: inline-flex;
   align-items: center;
-  gap: 2rem;
+  justify-content: center;
 }
 
-.center-panel {
-  width: 100%;
-  max-width: 900px;
+.btn-run-massive:hover {
+  background-color: var(--color-blue-hover);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
 }
 
-.summary-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--card-shadow);
-  min-height: 100%;
+.btn-run-massive:active {
+  transform: translateY(0);
 }
 
-.summary-card h2 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 12px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
+.cursor-pointer {
+  cursor: pointer;
 }
 
-.summary-card p {
-  margin: 0 0 12px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.fs-status {
+  font-size: 0.775rem;
+}
+.max-w-160 {
+  max-width: 160px;
 }

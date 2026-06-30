@@ -1,6 +1,30 @@
-<div class="logs-container" *ngIf="isVisible">
-  <h2>Logs</h2>
-  <div class="logs-box">
-    <p>{{ logs || '[INFO] Waiting for execution...' }}</p>
+<!-- Live Execution Logs Terminal Casing -->
+<div class="card-premium h-100 d-flex flex-column">
+  <div class="card-title-premium mb-3">
+    <span class="text-uppercase-runner">LIVE EXECUTION LOGS</span>
+    <button class="action-menu-dots-btn" (click)="api.clearLogs()" title="Clear Console"><i class="bi bi-trash"></i></button>
   </div>
+
+  <!-- Terminal console viewport or empty placeholder -->
+  @if (api.terminalLogs().length > 0) {
+    <div #terminalBox class="terminal-shell-box flex-grow-1 p-3 font-monospace">
+      @for (line of api.terminalLogs(); track $index) {
+        <div class="terminal-log-line">
+          @if (line.date) {
+            <span class="log-date">{{ line.date }}</span>
+            <span class="log-time ms-1">{{ line.time }}</span>
+            <span class="log-level ms-2" [class]="'level-' + line.level.toLowerCase()">{{ line.level }}</span>
+            <span class="log-category ms-2">{{ line.category }}</span>
+            <span class="log-message ms-2">{{ line.message }}</span>
+          } @else {
+            <span class="log-raw">{{ line.raw }}</span>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="terminal-shell-box flex-grow-1 p-4 font-monospace d-flex align-items-center justify-content-center text-center">
+      <span class="text-muted fs-7">Terminal standby. Awaiting test run execution...</span>
+    </div>
+  }
 </div>

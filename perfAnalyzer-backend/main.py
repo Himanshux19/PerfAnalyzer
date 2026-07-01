@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import shutil
 from pathlib import Path
 import yaml
@@ -71,9 +72,11 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255) DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255) DEFAULT '';")
         conn.commit()
         cur.close()
         conn.close()
@@ -97,9 +100,10 @@ def validate_gmail(email: str):
         )
 
 @app.post("/register")
-def register(username: str = Form(...), password: str = Form(...)):
+def register(username: str = Form(...), password: str = Form(...), full_name: str = Form("")):
     validate_gmail(username)
     username = username.strip().lower()
+    full_name = full_name.strip()
     
     try:
         conn = get_db_connection()
@@ -116,8 +120,8 @@ def register(username: str = Form(...), password: str = Form(...)):
         # Insert user
         pwd_hash = hash_password(password)
         cur.execute(
-            "INSERT INTO users (username, password_hash) VALUES (%s, %s);",
-            (username, pwd_hash)
+            "INSERT INTO users (username, password_hash, full_name) VALUES (%s, %s, %s);",
+            (username, pwd_hash, full_name)
         )
         conn.commit()
         cur.close()
@@ -137,8 +141,8 @@ def login(username: str = Form(...), password: str = Form(...)):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Retrieve user hash
-        cur.execute("SELECT password_hash FROM users WHERE username = %s;", (username,))
+        # Retrieve user hash and full name
+        cur.execute("SELECT password_hash, full_name FROM users WHERE username = %s;", (username,))
         row = cur.fetchone()
         
         if not row or row[0] != hash_password(password):
@@ -146,11 +150,13 @@ def login(username: str = Form(...), password: str = Form(...)):
             conn.close()
             raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
             
+        pwd_hash, full_name = row
         cur.close()
         conn.close()
         
         payload = {
             "username": username,
+            "full_name": full_name,
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -158,7 +164,8 @@ def login(username: str = Form(...), password: str = Form(...)):
         return JSONResponse({
             "message": "Login successful.",
             "token": token,
-            "username": username
+            "username": username,
+            "full_name": full_name
         })
     except HTTPException:
         raise
@@ -172,6 +179,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/reports", StaticFiles(directory="../Test Result"), name="reports")
 
 JMETER_CMD = shutil.which("jmeter") or shutil.which("jmeter.bat")
 BZT_CMD = shutil.which("bzt")
@@ -349,14 +358,14 @@ def run_test(
                     detail=str(ve)
                 )
 
-            test_name = csv_path.stem
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            test_name = f"{csv_path.stem}_{timestamp}"
             test_folder = TEST_RESULT_DIR / test_name
-            if test_folder.exists():
-                shutil.rmtree(test_folder)
             test_folder.mkdir(parents=True, exist_ok=True)
             
-            # Copy CSV dataset to target Test Result subfolder
-            target_csv_path = test_folder / jmx_filename
+            # Copy CSV dataset to target Test Result subfolder with unique name
+            ext = Path(jmx_filename).suffix
+            target_csv_path = test_folder / f"{test_name}{ext}"
             shutil.copy(csv_path, target_csv_path)
 
             html_report_folder = test_folder / "HTML_Report"
@@ -397,14 +406,13 @@ def run_test(
                 detail="JMX file not found."
             )
 
-        test_name = jmx_path.stem
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        test_name = f"{jmx_path.stem}_{timestamp}"
         test_folder = TEST_RESULT_DIR / test_name
-        if test_folder.exists():
-            shutil.rmtree(test_folder)
         test_folder.mkdir(parents=True, exist_ok=True)
 
-        # Copy JMX script to target Test Result subfolder
-        target_jmx_path = test_folder / jmx_filename
+        # Copy JMX script to target Test Result subfolder with unique name
+        target_jmx_path = test_folder / f"{test_name}.jmx"
         shutil.copy(jmx_path, target_jmx_path)
 
         # Read template YAML
@@ -581,28 +589,27 @@ def get_test_status(test_name: str):
 
 @app.get("/download-results/{test_name}")
 def download_results(test_name: str):
-    test_folder = TEST_RESULT_DIR / test_name
-    if not test_folder.exists():
+    html_report_folder = TEST_RESULT_DIR / test_name / "HTML_Report"
+    if not html_report_folder.exists():
         raise HTTPException(
             status_code=404,
-            detail="Test result folder not found."
+            detail="HTML report dashboard not found for this test run."
         )
     
-    # Create temporary zip archive of the whole Test Result subfolder
+    # Create temporary zip archive of the HTML_Report subfolder
     temp_dir = Path(tempfile.gettempdir())
-    zip_base_path = temp_dir / f"{test_name}_results"
+    zip_base_path = temp_dir / f"{test_name}_report"
     
     try:
         archive_path = shutil.make_archive(
             str(zip_base_path),
             'zip',
-            root_dir=str(test_folder.parent),
-            base_dir=str(test_folder.name)
+            root_dir=str(html_report_folder)
         )
         return FileResponse(
             archive_path,
             media_type="application/zip",
-            filename=f"{test_name}_results.zip"
+            filename=f"{test_name}_report.zip"
         )
     except Exception as e:
         raise HTTPException(

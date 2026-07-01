@@ -21,6 +21,7 @@ export class Auth {
   regUsername = '';
   regPassword = '';
   regConfirmPassword = '';
+  regFullName = '';
 
   // Form feedback alert states
   errorMessage: string | null = null;
@@ -68,6 +69,7 @@ export class Auth {
         this.isLoading = false;
         localStorage.setItem('auth_token', res.token);
         localStorage.setItem('username', res.username);
+        localStorage.setItem('full_name', res.full_name || '');
         this.successMessage = 'Login successful! Redirecting...';
         setTimeout(() => {
           this.router.navigate(['/dashboard']);
@@ -84,7 +86,7 @@ export class Auth {
     event.preventDefault();
     this.clearMessages();
 
-    if (!this.regUsername || !this.regPassword || !this.regConfirmPassword) {
+    if (!this.regUsername || !this.regPassword || !this.regConfirmPassword || !this.regFullName) {
       this.errorMessage = 'All registration fields are required.';
       return;
     }
@@ -100,13 +102,14 @@ export class Auth {
     }
 
     this.isLoading = true;
-    this.api.registerUser(this.regUsername.trim().toLowerCase(), this.regPassword).subscribe({
+    this.api.registerUser(this.regUsername.trim().toLowerCase(), this.regPassword, this.regFullName.trim()).subscribe({
       next: (res) => {
         this.isLoading = false;
         this.successMessage = 'Account created successfully! You can now Sign In.';
         this.regUsername = '';
         this.regPassword = '';
         this.regConfirmPassword = '';
+        this.regFullName = '';
         setTimeout(() => {
           this.toggleMode(true);
         }, 2000);

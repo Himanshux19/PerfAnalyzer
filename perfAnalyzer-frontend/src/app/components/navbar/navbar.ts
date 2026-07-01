@@ -17,16 +17,32 @@ export class Navbar {
     return 'Guest';
   }
 
+  getFullName(): string {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('full_name') || '';
+    }
+    return '';
+  }
+
   getInitials(): string {
-    const name = this.getUsername();
-    if (name === 'Guest') return 'G';
-    return name.slice(0, 2).toUpperCase();
+    const fullName = this.getFullName();
+    if (fullName) {
+      const parts = fullName.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    const email = this.getUsername();
+    if (email === 'Guest') return 'G';
+    return email.slice(0, 2).toUpperCase();
   }
 
   onLogout() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('username');
+      localStorage.removeItem('full_name');
       this.router.navigate(['/login']);
     }
   }

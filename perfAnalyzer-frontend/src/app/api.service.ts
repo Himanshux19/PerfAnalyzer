@@ -101,16 +101,15 @@ export class ApiService {
     return `${this.baseUrl}/download-results/${testName}`;
   }
 
-  generateHtml(csvFilename: string): Observable<GenerateHtmlResponse> {
-    const formData = new FormData();
-    formData.append('csv_filename', csvFilename);
-    return this.http.post<GenerateHtmlResponse>(`${this.baseUrl}/generate-html`, formData);
+  getReportViewUrl(testName: string): string {
+    return `${this.baseUrl}/reports/${testName}/HTML_Report/index.html`;
   }
 
-  registerUser(username: string, password: string): Observable<any> {
+  registerUser(username: string, password: string, fullName: string = ''): Observable<any> {
     const formData = new FormData();
     formData.append('username', username);
     formData.append('password', password);
+    formData.append('full_name', fullName);
     return this.http.post<any>(`${this.baseUrl}/register`, formData);
   }
 

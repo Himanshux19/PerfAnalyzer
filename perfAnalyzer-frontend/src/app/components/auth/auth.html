@@ -10,7 +10,6 @@
         </span>
       </div>
       <h1 class="tech-title">PerfAnalyzer</h1>
-      <p class="tech-subtitle text-muted">JMeter & Taurus Core Execution Engine</p>
     </div>
 
     <!-- Alert Banners -->
@@ -65,6 +64,14 @@
     } @else {
       <!-- Registration Form View -->
       <form (submit)="onSubmitRegister($event)" class="auth-form">
+        <div class="form-group-premium mb-3">
+          <label for="reg-fullname" class="form-label-premium">FULL NAME</label>
+          <div class="input-wrapper-premium">
+            <i class="bi bi-person"></i>
+            <input type="text" id="reg-fullname" name="fullName" [(ngModel)]="regFullName" placeholder="e.g. John Doe" required autocomplete="off" />
+          </div>
+        </div>
+
         <div class="form-group-premium mb-3">
           <label for="reg-username" class="form-label-premium">GMAIL ADDRESS</label>
           <div class="input-wrapper-premium">

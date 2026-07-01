@@ -1,0 +1,72 @@
+<div class="runner-layout bg-light-gray-slate min-vh-100 pb-5">
+  <!-- Topbar Header -->
+  <app-navbar></app-navbar>
+
+  <!-- Main Container -->
+  <div class="container-fluid py-4 px-lg-5">
+    <!-- Upper Section Grid (Test Setup, Run Control, logs console) -->
+    <div class="row g-4 mb-4">
+      <!-- 1. Test Setup Configuration Card (col-lg-4: 33.3%) -->
+      <div class="col-lg-4">
+        <app-test-config></app-test-config>
+      </div>
+
+      <!-- 2. Central Run Test Trigger Card (Reduced to col-lg-3: 25%) -->
+      <div class="col-lg-3">
+        <div class="card-premium d-flex flex-column align-items-center justify-content-center p-4 h-100 text-center run-test-container-card">
+          <!-- Play Button (Decreased padding) -->
+          <button type="button" class="btn-run-massive py-2.5 px-4 mb-3" (click)="onRunTest()" [disabled]="api.testStatus() === 'running'">
+            @if (api.testStatus() === 'running') {
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="width: 1rem; height: 1rem;"></span>
+              @if (api.csvFileName()) {
+                GENERATING...
+              } @else {
+                RUNNING...
+              }
+            } @else {
+              @if (api.csvFileName()) {
+                <i class="bi bi-file-earmark-bar-graph me-2 fs-5"></i> GENERATE REPORT
+              } @else {
+                <i class="bi bi-play-fill me-2 fs-5"></i> RUN TEST
+              }
+            }
+          </button>          
+          <div class="run-test-status-info">
+            <div class="status-desc text-muted mb-1 font-normal fs-status">Currently Running:</div>
+            <div class="status-details font-bold text-truncate max-w-160">
+              @if (api.testStatus() === 'running') {
+                <span class="text-primary fs-status">{{ api.jmxFileName() }}</span>
+              } @else if (api.testStatus() === 'success') {
+                <span class="text-success fs-status">Idle (Succeeded)</span>
+              } @else if (api.testStatus() === 'error') {
+                <span class="text-danger fs-status">Idle (Failed)</span>
+              } @else {
+                <span class="text-muted fs-status">No test running</span>
+              }
+            </div>
+          </div>
+
+          <!-- Conditional Download Section -->
+          @if (api.testStatus() === 'success' && api.activeTestName()) {
+            <div class="w-100 border-top mt-3 pt-3 download-results-section">
+              <div class="status-desc text-muted mb-2 font-normal fs-status">Download Test Results:</div>
+              <a [href]="api.getResultsDownloadUrl(api.activeTestName()!)" class="btn btn-success btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-1.5 font-bold py-2" download style="border-radius: 6px; font-size: 0.775rem;">
+                <i class="bi bi-cloud-arrow-down-fill fs-6"></i> DOWNLOAD ZIP
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- 3. Live Logs Terminal (Increased to col-lg-5: 41.7%) -->
+      <div class="col-lg-5">
+        <app-logs></app-logs>
+      </div>
+    </div>
+
+    <!-- Bottom Real-Time Test Metrics (Scorecards & SVG Charts) -->
+    <div class="mt-4">
+      <app-reports></app-reports>
+    </div>
+  </div>
+</div>

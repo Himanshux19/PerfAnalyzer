@@ -1,0 +1,103 @@
+<div class="auth-wrapper d-flex align-items-center justify-content-center min-vh-100">
+  <!-- Main Light Slate Authentication Card -->
+  <div class="auth-card p-5">
+    <div class="auth-header text-center mb-4">
+      <div class="tech-brand-logo mb-2 d-flex align-items-center justify-content-center gap-2">
+        <span class="runner-brand-logo-glow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </span>
+      </div>
+      <h1 class="tech-title">PerfAnalyzer</h1>
+      <p class="tech-subtitle text-muted">JMeter & Taurus Core Execution Engine</p>
+    </div>
+
+    <!-- Alert Banners -->
+    @if (errorMessage) {
+      <div class="alert alert-danger-premium mb-4 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+    }
+    @if (successMessage) {
+      <div class="alert alert-success-premium mb-4 d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle-fill"></i>
+        <span>{{ successMessage }}</span>
+      </div>
+    }
+
+    <!-- Sliding Auth Tab Toggles -->
+    <div class="auth-tabs mb-4">
+      <button type="button" class="auth-tab-btn" [class.active]="isLoginMode" (click)="toggleMode(true)">SIGN IN</button>
+      <button type="button" class="auth-tab-btn" [class.active]="!isLoginMode" (click)="toggleMode(false)">SIGN UP</button>
+      <div class="tab-slider" [style.left.%]="isLoginMode ? 0 : 50"></div>
+    </div>
+
+    <!-- Login Form View -->
+    @if (isLoginMode) {
+      <form (submit)="onSubmitLogin($event)" class="auth-form">
+        <div class="form-group-premium mb-3">
+          <label for="login-username" class="form-label-premium">GMAIL ADDRESS</label>
+          <div class="input-wrapper-premium">
+            <i class="bi bi-envelope"></i>
+            <input type="email" id="login-username" name="username" [(ngModel)]="loginUsername" placeholder="e.g. user@gmail.com" required autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-group-premium mb-4">
+          <label for="login-password" class="form-label-premium">PASSWORD</label>
+          <div class="input-wrapper-premium">
+            <i class="bi bi-lock"></i>
+            <input type="password" id="login-password" name="password" [(ngModel)]="loginPassword" placeholder="Enter password" required />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-auth-action py-3 w-100" [disabled]="isLoading">
+          @if (isLoading) {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            AUTHENTICATING...
+          } @else {
+            SIGN IN <i class="bi bi-arrow-right ms-2"></i>
+          }
+        </button>
+      </form>
+    } @else {
+      <!-- Registration Form View -->
+      <form (submit)="onSubmitRegister($event)" class="auth-form">
+        <div class="form-group-premium mb-3">
+          <label for="reg-username" class="form-label-premium">GMAIL ADDRESS</label>
+          <div class="input-wrapper-premium">
+            <i class="bi bi-envelope"></i>
+            <input type="email" id="reg-username" name="username" [(ngModel)]="regUsername" placeholder="e.g. user@gmail.com" required autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-group-premium mb-3">
+          <label for="reg-password" class="form-label-premium">PASSWORD</label>
+          <div class="input-wrapper-premium">
+            <i class="bi bi-lock"></i>
+            <input type="password" id="reg-password" name="password" [(ngModel)]="regPassword" placeholder="Create password" required />
+          </div>
+        </div>
+
+        <div class="form-group-premium mb-4">
+          <label for="reg-confirm-password" class="form-label-premium">CONFIRM PASSWORD</label>
+          <div class="input-wrapper-premium">
+            <i class="bi bi-shield-check"></i>
+            <input type="password" id="reg-confirm-password" name="confirmPassword" [(ngModel)]="regConfirmPassword" placeholder="Repeat password" required />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-auth-action py-3 w-100 btn-auth-signup" [disabled]="isLoading">
+          @if (isLoading) {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            CREATING ACCOUNT...
+          } @else {
+            CREATE ACCOUNT <i class="bi bi-person-plus ms-2"></i>
+          }
+        </button>
+      </form>
+    }
+  </div>
+</div>

@@ -23,8 +23,10 @@
 
   <!-- Right Profile / Controls -->
   <div class="d-flex align-items-center gap-3">
-    <div class="user-circle-initials font-semibold">JD</div>
-    <i class="bi bi-chevron-down text-muted fs-xs cursor-pointer"></i>
-    <i class="bi bi-gear fs-5 text-secondary cursor-pointer ms-2"></i>
+    <div class="user-circle-initials font-semibold">{{ getInitials() }}</div>
+    <span class="text-muted d-none d-md-inline font-semibold" style="font-size: 0.85rem;">{{ getUsername() }}</span>
+    <button type="button" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1.5 font-bold ms-2" (click)="onLogout()" title="Log Out" style="font-size: 0.725rem; padding: 4px 10px; border-radius: 6px;">
+      <i class="bi bi-box-arrow-right"></i> LOG OUT
+    </button>
   </div>
 </header>

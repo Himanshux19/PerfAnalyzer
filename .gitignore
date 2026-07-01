@@ -13,6 +13,9 @@ HTML Reports
 # Virtual Environment
 env
 
+# Environment Variables
+.env
+
 # Python
 __pycache__/
 *.pyc

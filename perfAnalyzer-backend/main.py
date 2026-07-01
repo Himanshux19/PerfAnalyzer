@@ -1,12 +1,169 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
 from pathlib import Path
 import yaml
 import subprocess
+import hashlib
+import json
+import jwt
+import datetime
+import tempfile
+import psycopg2
+import os
 
 app = FastAPI()
+
+def load_env_file():
+    env_path = Path(".env")
+    if env_path.exists():
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ[key.strip()] = val.strip()
+
+load_env_file()
+
+# PostgreSQL Configurations
+DB_HOST = os.getenv("DB_HOST", "")
+DB_PORT = os.getenv("DB_PORT", "")
+DB_NAME = os.getenv("DB_NAME", "")
+DB_USER = os.getenv("DB_USER", "")
+DB_PASS = os.getenv("DB_PASS", "")
+
+# JWT configurations loaded from environment
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
+
+def get_db_connection(dbname=DB_NAME):
+    return psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        database=dbname,
+        user=DB_USER,
+        password=DB_PASS
+    )
+
+def init_db():
+    try:
+        try:
+            conn = get_db_connection(DB_NAME)
+        except psycopg2.OperationalError as oe:
+            if "does not exist" in str(oe).lower():
+                print(f"Database '{DB_NAME}' does not exist. Attempting auto-creation...")
+                conn_default = get_db_connection("postgres")
+                conn_default.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+                cur_default = conn_default.cursor()
+                cur_default.execute(f'CREATE DATABASE "{DB_NAME}";')
+                cur_default.close()
+                conn_default.close()
+                print(f"Database '{DB_NAME}' created successfully.")
+                conn = get_db_connection(DB_NAME)
+            else:
+                raise oe
+
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("PostgreSQL Database initialized successfully.")
+    except Exception as e:
+        print(f"Warning: PostgreSQL Database initialization failed: {str(e)}")
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+def validate_gmail(email: str):
+    email_str = email.strip().lower()
+    if not email_str.endswith("@gmail.com") or len(email_str) <= 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Only valid Gmail addresses (@gmail.com) are allowed."
+        )
+
+@app.post("/register")
+def register(username: str = Form(...), password: str = Form(...)):
+    validate_gmail(username)
+    username = username.strip().lower()
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Check if username exists
+        cur.execute("SELECT id FROM users WHERE username = %s;", (username,))
+        user = cur.fetchone()
+        if user:
+            cur.close()
+            conn.close()
+            raise HTTPException(status_code=400, detail="Gmail address already registered.")
+        
+        # Insert user
+        pwd_hash = hash_password(password)
+        cur.execute(
+            "INSERT INTO users (username, password_hash) VALUES (%s, %s);",
+            (username, pwd_hash)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return JSONResponse({"message": "User registered successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during registration: {str(e)}")
+
+@app.post("/login")
+def login(username: str = Form(...), password: str = Form(...)):
+    validate_gmail(username)
+    username = username.strip().lower()
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Retrieve user hash
+        cur.execute("SELECT password_hash FROM users WHERE username = %s;", (username,))
+        row = cur.fetchone()
+        
+        if not row or row[0] != hash_password(password):
+            cur.close()
+            conn.close()
+            raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
+            
+        cur.close()
+        conn.close()
+        
+        payload = {
+            "username": username,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+        }
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        
+        return JSONResponse({
+            "message": "Login successful.",
+            "token": token,
+            "username": username
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during login: {str(e)}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -117,8 +274,34 @@ def run_taurus_in_background(test_name: str, cmd: list):
         )
         if process.returncode != 0:
             test_status_db[test_name] = {"status": "error", "error": process.stderr}
-        else:
-            test_status_db[test_name] = {"status": "success", "error": ""}
+            return
+        
+        # Automated HTML report generation from JMX's resulting kpi.jtl
+        result_folder = RESULTS_DIR / test_name
+        kpi_path = result_folder / "kpi.jtl"
+        html_report_folder = HTML_REPORTS_DIR / test_name
+        
+        if kpi_path.exists():
+            if html_report_folder.exists():
+                shutil.rmtree(html_report_folder)
+            html_report_folder.mkdir(parents=True, exist_ok=True)
+            
+            jmeter_process = subprocess.run([
+                JMETER_CMD,
+                "-g",
+                str(kpi_path),
+                "-o",
+                str(html_report_folder)
+            ], capture_output=True, text=True)
+            
+            if jmeter_process.returncode != 0:
+                test_status_db[test_name] = {
+                    "status": "error",
+                    "error": f"Taurus completed successfully, but JMeter report generation failed: {jmeter_process.stderr}"
+                }
+                return
+                
+        test_status_db[test_name] = {"status": "success", "error": ""}
     except Exception as e:
         test_status_db[test_name] = {"status": "error", "error": str(e)}
 
@@ -130,6 +313,49 @@ def run_test(
     duration: int = Form(...)
 ):
     try:
+        # Check if user uploaded a CSV/JTL directly instead of JMX
+        if jmx_filename.endswith(".csv") or jmx_filename.endswith(".jtl"):
+            csv_path = CSV_DIR / jmx_filename
+            if not csv_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail="CSV file not found."
+                )
+            
+            test_name = csv_path.stem
+            html_report_folder = HTML_REPORTS_DIR / test_name
+            if html_report_folder.exists():
+                shutil.rmtree(html_report_folder)
+            html_report_folder.mkdir(parents=True, exist_ok=True)
+            
+            test_status_db[test_name] = {"status": "running", "error": "", "type": "csv_report"}
+            
+            def run_jmeter_report_only():
+                try:
+                    process = subprocess.run([
+                        JMETER_CMD,
+                        "-g",
+                        str(csv_path),
+                        "-o",
+                        str(html_report_folder)
+                    ], capture_output=True, text=True)
+                    
+                    if process.returncode != 0:
+                        test_status_db[test_name] = {"status": "error", "error": process.stderr, "type": "csv_report"}
+                    else:
+                        test_status_db[test_name] = {"status": "success", "error": "", "type": "csv_report"}
+                except Exception as e:
+                    test_status_db[test_name] = {"status": "error", "error": str(e), "type": "csv_report"}
+            
+            thread = threading.Thread(target=run_jmeter_report_only)
+            thread.start()
+            
+            return JSONResponse({
+                "message": "Report generation started in the background.",
+                "test_name": test_name
+            })
+
+        # Standard JMX execution
         jmx_path = JMX_DIR / jmx_filename
         test_name = jmx_path.stem
         result_folder = RESULTS_DIR / test_name
@@ -173,6 +399,8 @@ def run_test(
             "test_name": test_name
         })
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -186,28 +414,43 @@ def get_test_status(test_name: str):
     jmeter_content = ""
     bzt_content = ""
 
-    result_folder = RESULTS_DIR / test_name
-    jmeter_log_path = result_folder / "jmeter.log"
-    bzt_log_path = result_folder / "bzt.log"
-    kpi_path = result_folder / "kpi.jtl"
+    # Check if this is a CSV report conversion run
+    if status_info.get("type") == "csv_report":
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+        lines = [
+            f"{now_str} INFO o.a.j.g.ReportGenerator: Starting JMeter report generation from CSV dataset: {test_name}.csv",
+            f"{now_str} INFO o.a.j.g.ReportGenerator: Reading CSV sample records..."
+        ]
+        if status_info["status"] == "running":
+            lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: Aggregating statistics & drawing dashboard files...")
+        elif status_info["status"] == "success":
+            lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: Report compilation finished successfully!")
+            lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: HTML dashboard is ready inside HTML Reports/{test_name}")
+        elif status_info["status"] == "error":
+            lines.append(f"{now_str} ERROR o.a.j.g.ReportGenerator: Failed compiling report! Details: {status_info.get('error', 'Unknown error')}")
+        jmeter_content = "\n".join(lines)
+    else:
+        result_folder = RESULTS_DIR / test_name
+        jmeter_log_path = result_folder / "jmeter.log"
+        bzt_log_path = result_folder / "bzt.log"
 
-    # Fallback to backend root jmeter.log if it hasn't copied to artifacts yet
-    if not jmeter_log_path.exists() and Path("jmeter.log").exists():
-        jmeter_log_path = Path("jmeter.log")
+        # Fallback to backend root jmeter.log if it hasn't copied to artifacts yet
+        if not jmeter_log_path.exists() and Path("jmeter.log").exists():
+            jmeter_log_path = Path("jmeter.log")
 
-    if jmeter_log_path.exists():
-        try:
-            with open(jmeter_log_path, "r", encoding="utf-8", errors="ignore") as f:
-                jmeter_content = f.read()
-        except:
-            pass
+        if jmeter_log_path.exists():
+            try:
+                with open(jmeter_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                    jmeter_content = f.read()
+            except:
+                pass
 
-    if bzt_log_path.exists():
-        try:
-            with open(bzt_log_path, "r", encoding="utf-8", errors="ignore") as f:
-                bzt_content = f.read()
-        except:
-            pass
+        if bzt_log_path.exists():
+            try:
+                with open(bzt_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                    bzt_content = f.read()
+            except:
+                pass
 
     # Parse kpi.jtl for exact throughput, response times, error rates and thread counts
     throughput = 0.0
@@ -215,9 +458,16 @@ def get_test_status(test_name: str):
     error_rate = 0.0
     active_users = 0
 
-    if kpi_path.exists():
+    # Fallback target CSV resolution
+    target_csv_path = RESULTS_DIR / test_name / "kpi.jtl"
+    if not target_csv_path.exists():
+        fallback_csv = CSV_DIR / f"{test_name}.csv"
+        if fallback_csv.exists():
+            target_csv_path = fallback_csv
+
+    if target_csv_path.exists():
         try:
-            with open(kpi_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(target_csv_path, "r", encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()
             if len(lines) > 1:
                 header = lines[0].strip().split(',')
@@ -335,4 +585,35 @@ async def generate_html(csv_filename: str = Form(...)):
         raise HTTPException(
             status_code=500,
             detail=str(e)
+        )
+
+@app.get("/download-results/{test_name}")
+def download_results(test_name: str):
+    results_folder = RESULTS_DIR / test_name
+    if not results_folder.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Test results folder not found. Ensure the test run completes successfully first."
+        )
+    
+    # Create temporary zip archive
+    temp_dir = Path(tempfile.gettempdir())
+    zip_base_path = temp_dir / f"{test_name}_results"
+    
+    try:
+        archive_path = shutil.make_archive(
+            str(zip_base_path),
+            'zip',
+            root_dir=str(results_folder.parent),
+            base_dir=str(results_folder.name)
+        )
+        return FileResponse(
+            archive_path,
+            media_type="application/zip",
+            filename=f"{test_name}_results.zip"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create results zip: {str(e)}"
         )

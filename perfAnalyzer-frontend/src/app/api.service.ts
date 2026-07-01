@@ -58,6 +58,8 @@ export class ApiService {
   testStatus = signal<'idle' | 'running' | 'success' | 'error'>('idle');
   terminalLogs = signal<any[]>([]);
 
+  activeTestName = signal<string | null>(null);
+
   // Real-time parsed metrics from bzt.log
   runnerRps = signal<string>('0 RPS');
   runnerPeakRps = signal<string>('peak 0');
@@ -95,10 +97,28 @@ export class ApiService {
     return this.http.get<TestStatusResponse>(`${this.baseUrl}/test-status/${testName}`);
   }
 
+  getResultsDownloadUrl(testName: string): string {
+    return `${this.baseUrl}/download-results/${testName}`;
+  }
+
   generateHtml(csvFilename: string): Observable<GenerateHtmlResponse> {
     const formData = new FormData();
     formData.append('csv_filename', csvFilename);
     return this.http.post<GenerateHtmlResponse>(`${this.baseUrl}/generate-html`, formData);
+  }
+
+  registerUser(username: string, password: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('password', password);
+    return this.http.post<any>(`${this.baseUrl}/register`, formData);
+  }
+
+  loginUser(username: string, password: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('password', password);
+    return this.http.post<any>(`${this.baseUrl}/login`, formData);
   }
 
   // Helpers to add log messages to terminal console

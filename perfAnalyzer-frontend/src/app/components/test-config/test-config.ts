@@ -11,9 +11,19 @@ import { ApiService } from '../../api.service';
 export class TestConfig {
   constructor(protected api: ApiService) {}
 
-  onJmxSelected(event: any) {
+  onFileSelected(event: any) {
     const file = event.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    const filename = file.name.toLowerCase();
+    
+    if (filename.endsWith('.jmx')) {
+      // Clear CSV file states
+      this.api.csvFileName.set(null);
+      this.api.csvServerName.set(null);
+      this.api.csvUploadStatus.set('idle');
+
+      // Upload JMX
       this.api.jmxFileName.set(file.name);
       this.api.jmxFileSize.set(`${(file.size / 1024).toFixed(0)} KB`);
       this.api.jmxUploadStatus.set('uploading');
@@ -31,12 +41,14 @@ export class TestConfig {
           this.api.addLog(`JMX upload failed: ${errorMsg}`, 'error');
         }
       });
-    }
-  }
 
-  onCsvSelected(event: any) {
-    const file = event.target.files[0];
-    if (file) {
+    } else if (filename.endsWith('.csv')) {
+      // Clear JMX file states
+      this.api.jmxFileName.set(null);
+      this.api.jmxServerName.set(null);
+      this.api.jmxUploadStatus.set('idle');
+
+      // Upload CSV
       this.api.csvFileName.set(file.name);
       this.api.csvFileSize.set(`${(file.size / 1024).toFixed(0)} KB`);
       this.api.csvUploadStatus.set('uploading');
@@ -54,6 +66,8 @@ export class TestConfig {
           this.api.addLog(`CSV upload failed: ${errorMsg}`, 'error');
         }
       });
+    } else {
+      this.api.addLog('Error: Only .jmx and .csv files are supported.', 'error');
     }
   }
 }

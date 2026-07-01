@@ -4,7 +4,7 @@
   
   <div class="row g-4">
     <!-- 4 Metric Scorecards Grid -->
-    <div class="col-lg-5">
+    <div class="col-lg-5 col-md-6 col-12">
       <div class="row g-3">
         <!-- Active Users -->
         <div class="col-6">
@@ -16,9 +16,9 @@
         <!-- Throughput -->
         <div class="col-6">
           <div class="card-premium p-4 d-flex flex-column align-items-center justify-content-center text-center">
-            <div class="runner-kpi-label">THROUGHPUT (RPS)</div>
-            <div class="runner-kpi-val">{{ api.runnerRps() }}</div>
-            <div class="runner-kpi-sub">{{ api.runnerPeakRps() }}</div>
+            <div class="runner-kpi-label">AVG. THROUGHPUT (RPS)</div>
+            <div class="runner-kpi-val">{{ api.runnerAvgRps() }}</div>
+            <div class="runner-kpi-sub">(Peak : {{ api.runnerRps() }})</div>
           </div>
         </div>
         <!-- Avg RT -->
@@ -39,30 +39,30 @@
     </div>
 
     <!-- Throughput RPS Over Time -->
-    <div class="col-lg-3">
+    <div class="col-lg-3 col-md-6 col-12">
       <div class="card-premium p-3 d-flex flex-column">
         <div class="runner-chart-header mb-3">
           <div class="runner-chart-title">Throughput (RPS) over Time</div>
         </div>
         <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-          <svg viewBox="0 0 240 100" class="svg-graph">
-            <line x1="20" y1="10" x2="230" y2="10" class="graph-grid" />
-            <line x1="20" y1="50" x2="230" y2="50" class="graph-grid" />
-            <line x1="20" y1="90" x2="230" y2="90" class="graph-grid" />
-            <text x="14" y="14" class="graph-axis-text text-right">50</text>
-            <text x="14" y="54" class="graph-axis-text text-right">25</text>
-            <text x="14" y="94" class="graph-axis-text text-right">0</text>
+          <svg viewBox="0 0 255 115" class="svg-graph">
+            <line x1="35" y1="10" x2="245" y2="10" class="graph-grid" />
+            <line x1="35" y1="50" x2="245" y2="50" class="graph-grid" />
+            <line x1="35" y1="90" x2="245" y2="90" class="graph-grid" />
+            <text x="28" y="14" class="graph-axis-text text-right">{{ getRpsMax() }}</text>
+            <text x="28" y="54" class="graph-axis-text text-right">{{ getRpsMiddle() }}</text>
+            <text x="28" y="94" class="graph-axis-text text-right">0</text>
             
-            <text x="20" y="99" class="graph-axis-text text-center">00:00</text>
-            <text x="90" y="99" class="graph-axis-text text-center">02:00</text>
-            <text x="160" y="99" class="graph-axis-text text-center">04:00</text>
-            <text x="230" y="99" class="graph-axis-text text-center">05:00</text>
+            <text x="35" y="105" class="graph-axis-text text-center">{{ getLeftTimeLabel() }}</text>
+            <text x="105" y="105" class="graph-axis-text text-center">{{ getMiddle1TimeLabel() }}</text>
+            <text x="175" y="105" class="graph-axis-text text-center">{{ getMiddle2TimeLabel() }}</text>
+            <text x="245" y="105" class="graph-axis-text text-center">{{ getRightTimeLabel() }}</text>
 
             <!-- Dynamic RPS Line -->
             <path [attr.d]="getRpsPath()" fill="none" stroke="#2563eb" stroke-width="2" />
             
             @if (api.rpsHistory().length === 0) {
-              <text x="125" y="54" class="chart-empty-overlay text-center">Awaiting execution...</text>
+              <text x="140" y="54" class="chart-empty-overlay text-center">Awaiting execution...</text>
             }
           </svg>
         </div>
@@ -70,7 +70,7 @@
     </div>
 
     <!-- Response Time (ms) & Errors -->
-    <div class="col-lg-4">
+    <div class="col-lg-4 col-md-12 col-12">
       <div class="card-premium p-3 d-flex flex-column">
         <div class="runner-chart-header mb-3 d-flex justify-content-between align-items-center">
           <div class="runner-chart-title">Response Time (ms) & Errors</div>
@@ -80,25 +80,25 @@
           </div>
         </div>
         <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-          <svg viewBox="0 0 240 100" class="svg-graph">
-            <line x1="20" y1="10" x2="230" y2="10" class="graph-grid" />
-            <line x1="20" y1="50" x2="230" y2="50" class="graph-grid" />
-            <line x1="20" y1="90" x2="230" y2="90" class="graph-grid" />
-            <text x="14" y="14" class="graph-axis-text text-right">300</text>
-            <text x="14" y="54" class="graph-axis-text text-right">150</text>
-            <text x="14" y="94" class="graph-axis-text text-right">0</text>
+          <svg viewBox="0 0 255 115" class="svg-graph">
+            <line x1="35" y1="10" x2="245" y2="10" class="graph-grid" />
+            <line x1="35" y1="50" x2="245" y2="50" class="graph-grid" />
+            <line x1="35" y1="90" x2="245" y2="90" class="graph-grid" />
+            <text x="28" y="14" class="graph-axis-text text-right">{{ getRtMax() }}</text>
+            <text x="28" y="54" class="graph-axis-text text-right">{{ getRtMiddle() }}</text>
+            <text x="28" y="94" class="graph-axis-text text-right">0</text>
             
-            <text x="20" y="99" class="graph-axis-text text-center">00:00</text>
-            <text x="90" y="99" class="graph-axis-text text-center">02:00</text>
-            <text x="160" y="99" class="graph-axis-text text-center">04:00</text>
-            <text x="230" y="99" class="graph-axis-text text-center">05:00</text>
+            <text x="35" y="105" class="graph-axis-text text-center">{{ getLeftTimeLabel() }}</text>
+            <text x="105" y="105" class="graph-axis-text text-center">{{ getMiddle1TimeLabel() }}</text>
+            <text x="175" y="105" class="graph-axis-text text-center">{{ getMiddle2TimeLabel() }}</text>
+            <text x="245" y="105" class="graph-axis-text text-center">{{ getRightTimeLabel() }}</text>
 
             <!-- Dynamic RT Line (blue) & Error Line (red) -->
             <path [attr.d]="getRtPath()" fill="none" stroke="#3b82f6" stroke-width="2" />
             <path [attr.d]="getErrorPath()" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3,3" />
 
             @if (api.rtHistory().length === 0) {
-              <text x="125" y="54" class="chart-empty-overlay text-center">Awaiting execution...</text>
+              <text x="140" y="54" class="chart-empty-overlay text-center">Awaiting execution...</text>
             }
           </svg>
         </div>

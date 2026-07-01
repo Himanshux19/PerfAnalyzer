@@ -24,6 +24,7 @@ export interface TestStatusResponse {
   jmeter_log: string;
   bzt_log: string;
   throughput?: number;
+  windowed_rps?: number;
   avg_rt?: number;
   error_rate?: number;
   active_users?: number;
@@ -49,10 +50,12 @@ export class ApiService {
   csvUploadStatus = signal<'idle' | 'uploading' | 'success' | 'error'>('idle');
 
   users = signal<number | null>(0);
-  rampUp = signal<number | null>(0);
-  loopCount = signal<number | null>(0);
-  duration = signal<number | null>(0);
+  concurrency = signal<number | null>(10);
+  rampUp = signal<number | null>(10);
+  loopCount = signal<number | null>(1);
+  duration = signal<number | null>(60);
   scheduler = signal<boolean>(false);
+  elapsedSeconds = signal<number>(0);
 
   // Execution state & console output logs
   testStatus = signal<'idle' | 'running' | 'success' | 'error'>('idle');
@@ -63,6 +66,8 @@ export class ApiService {
   // Real-time parsed metrics from bzt.log
   runnerRps = signal<string>('0 RPS');
   runnerPeakRps = signal<string>('peak 0');
+  runnerAvgRps = signal<string>('0 RPS');
+  totalRequests = signal<number>(0);
   runnerAvgRt = signal<string>('0 ms');
   runnerErrorRate = signal<string>('0.0%');
 

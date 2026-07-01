@@ -6,13 +6,12 @@
   <div class="container-fluid py-4 px-lg-5">
     <!-- Upper Section Grid (Test Setup, Run Control, logs console) -->
     <div class="row g-4 mb-4">
-      <!-- 1. Test Setup Configuration Card (col-lg-4: 33.3%) -->
-      <div class="col-lg-4">
+      <div class="col-lg-4 col-md-6 col-12">
         <app-test-config></app-test-config>
       </div>
 
       <!-- 2. Central Run Test Trigger Card (Reduced to col-lg-3: 25%) -->
-      <div class="col-lg-3">
+      <div class="col-lg-3 col-md-6 col-12">
         <div class="card-premium d-flex flex-column align-items-center justify-content-center p-4 h-100 text-center run-test-container-card">
           <!-- Play Button (Decreased padding) -->
           <button type="button" class="btn-run-massive py-2.5 px-4 mb-3" (click)="onRunTest()" [disabled]="api.testStatus() === 'running'">
@@ -64,7 +63,7 @@
       </div>
 
       <!-- 3. Live Logs Terminal (Increased to col-lg-5: 41.7%) -->
-      <div class="col-lg-5">
+      <div class="col-lg-5 col-md-12 col-12">
         <app-logs></app-logs>
       </div>
     </div>

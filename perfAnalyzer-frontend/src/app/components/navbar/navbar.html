@@ -11,7 +11,7 @@
   </div>
 
   <!-- Center Nav Links -->
-  <nav class="runner-nav-links">
+  <nav class="runner-nav-links d-none d-lg-block">
     <ul class="d-flex align-items-center gap-4 list-unstyled m-0">
       <li><a class="runner-nav-item"><i class="bi bi-house me-2"></i>Dashboard</a></li>
       <li><a class="runner-nav-item active"><i class="bi bi-check-circle me-2"></i>Tests</a></li>
@@ -26,10 +26,9 @@
     <div class="user-circle-initials font-semibold">{{ getInitials() }}</div>
     <div class="d-none d-md-flex flex-column text-start" style="line-height: 1.25;">
       <span class="text-dark font-bold" style="font-size: 0.825rem; font-weight: 700; color: #1e293b;">{{ getFullName() || 'Guest User' }}</span>
-      <!-- <span class="text-muted" style="font-size: 0.7rem; color: #64748b;">{{ getUsername() }}</span> -->
     </div>
     <button type="button" class="btn-logout-premium ms-2" (click)="onLogout()" title="Log Out">
-      <i class="bi bi-box-arrow-right"></i> LOG OUT
+      <i class="bi bi-box-arrow-right"></i> <span class="d-none d-sm-inline">LOG OUT</span>
     </button>
   </div>
 </header>

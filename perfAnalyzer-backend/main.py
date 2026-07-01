@@ -188,83 +188,81 @@ BZT_CMD = shutil.which("bzt")
 TEST_RESULT_DIR = Path("../Test Result")
 TEST_RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
-UPLOAD_DIR = Path("../Uploads")
-JMX_DIR = UPLOAD_DIR / "jmx"
-CSV_DIR = UPLOAD_DIR / "csv"
-
-JMX_DIR.mkdir(parents=True, exist_ok=True)
-CSV_DIR.mkdir(parents=True, exist_ok=True)
+# No legacy Uploads folders needed. Files upload directly into the target Test Result subfolder.
 
 TEMPLATE_YAML = Path("template.yml")
 GENERATED_YAML = Path("generated.yml")
 
-def get_next_filename(directory: Path, prefix: str, extension: str) -> Path:
-    """
-    Returns the next sequential filename.
-    Example:
-        Test1.jmx
-        Test2.jmx
-        Result1.csv
-        Result2.csv
-    """
-    numbers = []
-
-    for file in directory.iterdir():
-        if file.is_file() and file.suffix.lower() == extension:
-            name = file.stem
-
-            if name.startswith(prefix):
-                try:
-                    number = int(name[len(prefix):])
-                    numbers.append(number)
-                except ValueError:
-                    pass
-
-    next_number = max(numbers, default=0) + 1
-    return directory / f"{prefix}{next_number}{extension}"
+# Sequential filename resolution is deprecated in favor of dynamic timestamped directories.
 
 # Upload JMX File
 @app.post("/upload/jmx")
 async def upload_jmx(file: UploadFile = File(...)):
-
     if not file.filename.lower().endswith(".jmx"):
         raise HTTPException(
             status_code=400,
             detail="Only JMX files are allowed."
         )
 
-    file_path = get_next_filename(JMX_DIR, "Test", ".jmx")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    stem_name = Path(file.filename).stem
+    test_name = f"{stem_name}_{timestamp}"
+    
+    test_folder = TEST_RESULT_DIR / test_name
+    test_folder.mkdir(parents=True, exist_ok=True)
+    target_jmx_path = test_folder / f"{test_name}.jmx"
 
-    with open(file_path, "wb") as buffer:
+    with open(target_jmx_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     return JSONResponse({
         "message": "JMX uploaded successfully.",
-        "filename": file_path.name,
-        "path": str(file_path)
+        "filename": f"{test_name}.jmx",
+        "path": str(target_jmx_path)
     })
 
 # Upload CSV/JTL File
 @app.post("/upload/csv")
 async def upload_csv(file: UploadFile = File(...)):
-
     allowed = (".csv", ".jtl")
-
     if not file.filename.lower().endswith(allowed):
         raise HTTPException(
             status_code=400,
             detail="Only CSV or JTL files are allowed."
         )
 
-    file_path = get_next_filename(CSV_DIR, "Result", ".csv")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    stem_name = Path(file.filename).stem
+    test_name = f"{stem_name}_{timestamp}"
+    ext = Path(file.filename).suffix
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    temp_file_fd, temp_file_path_str = tempfile.mkstemp(suffix=ext)
+    temp_file_path = Path(temp_file_path_str)
+    
+    try:
+        with os.fdopen(temp_file_fd, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        try:
+            validate_jmeter_results(temp_file_path)
+        except ValueError as ve:
+            raise HTTPException(
+                status_code=400,
+                detail=str(ve)
+            )
+        
+        test_folder = TEST_RESULT_DIR / test_name
+        test_folder.mkdir(parents=True, exist_ok=True)
+        target_csv_path = test_folder / f"{test_name}{ext}"
+        shutil.copy(temp_file_path, target_csv_path)
+    finally:
+        if temp_file_path.exists():
+            temp_file_path.unlink()
 
     return JSONResponse({
         "message": "CSV/JTL file uploaded successfully.",
-        "filename": file_path.name,
-        "path": str(file_path)
+        "filename": f"{test_name}{ext}",
+        "path": str(target_csv_path)
     })
 
 import threading
@@ -342,31 +340,15 @@ def run_test(
     try:
         # Check if user uploaded a CSV/JTL directly instead of JMX
         if jmx_filename.endswith(".csv") or jmx_filename.endswith(".jtl"):
-            csv_path = CSV_DIR / jmx_filename
-            if not csv_path.exists():
+            test_name = Path(jmx_filename).stem
+            test_folder = TEST_RESULT_DIR / test_name
+            target_csv_path = test_folder / jmx_filename
+
+            if not target_csv_path.exists():
                 raise HTTPException(
                     status_code=404,
-                    detail="CSV file not found."
+                    detail="Uploaded CSV/JTL results file not found in execution directory."
                 )
-            
-            # Format verification
-            try:
-                validate_jmeter_results(csv_path)
-            except ValueError as ve:
-                raise HTTPException(
-                    status_code=400,
-                    detail=str(ve)
-                )
-
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            test_name = f"{csv_path.stem}_{timestamp}"
-            test_folder = TEST_RESULT_DIR / test_name
-            test_folder.mkdir(parents=True, exist_ok=True)
-            
-            # Copy CSV dataset to target Test Result subfolder with unique name
-            ext = Path(jmx_filename).suffix
-            target_csv_path = test_folder / f"{test_name}{ext}"
-            shutil.copy(csv_path, target_csv_path)
 
             html_report_folder = test_folder / "HTML_Report"
             html_report_folder.mkdir(parents=True, exist_ok=True)
@@ -399,21 +381,15 @@ def run_test(
             })
 
         # Standard JMX execution
-        jmx_path = JMX_DIR / jmx_filename
-        if not jmx_path.exists():
+        test_name = Path(jmx_filename).stem
+        test_folder = TEST_RESULT_DIR / test_name
+        target_jmx_path = test_folder / jmx_filename
+
+        if not target_jmx_path.exists():
             raise HTTPException(
                 status_code=404,
-                detail="JMX file not found."
+                detail="Uploaded JMX script file not found in execution directory."
             )
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        test_name = f"{jmx_path.stem}_{timestamp}"
-        test_folder = TEST_RESULT_DIR / test_name
-        test_folder.mkdir(parents=True, exist_ok=True)
-
-        # Copy JMX script to target Test Result subfolder with unique name
-        target_jmx_path = test_folder / f"{test_name}.jmx"
-        shutil.copy(jmx_path, target_jmx_path)
 
         # Read template YAML
         with open(TEMPLATE_YAML, "r") as file:
@@ -502,6 +478,7 @@ def get_test_status(test_name: str):
 
     # Parse kpi.jtl or fallback CSV for exact throughput, response times, error rates and thread counts
     throughput = 0.0
+    windowed_rps = 0.0
     avg_rt = 0.0
     error_rate = 0.0
     active_users = 0
@@ -560,8 +537,13 @@ def get_test_status(test_name: str):
 
                 if timestamps:
                     min_ts = min(timestamps)
-                    max_ts = max(timestamps)
-                    duration_sec = (max_ts - min_ts) / 1000.0
+                    # JMeter Transactions/s formula:
+                    # duration = (last_request_start + last_elapsed) - first_request_start
+                    # This matches what the HTML report shows in the Statistics table.
+                    paired = list(zip(timestamps, elapseds))
+                    last_ts, last_el = max(paired, key=lambda x: x[0] + x[1])
+                    duration_ms = (last_ts + last_el) - min_ts
+                    duration_sec = duration_ms / 1000.0
 
                     total_reqs = len(timestamps)
                     if duration_sec > 0:
@@ -573,6 +555,12 @@ def get_test_status(test_name: str):
                         avg_rt = sum(elapseds) / total_reqs
                         error_rate = (failures / total_reqs) * 100.0
                         active_users = threads_list[-1] if threads_list else 0
+                        
+                        # Windowed RPS (last 5 seconds)
+                        now_ts = max(timestamps)
+                        recent_reqs = [ts for ts in timestamps if ts > (now_ts - 5000)]
+                        windowed_rps = len(recent_reqs) / 5.0
+
         except Exception as e:
             print("Error parsing JTL metrics:", e)
 
@@ -582,6 +570,7 @@ def get_test_status(test_name: str):
         "jmeter_log": jmeter_content,
         "bzt_log": bzt_content,
         "throughput": round(throughput, 2),
+        "windowed_rps": round(windowed_rps, 2),
         "avg_rt": round(avg_rt, 0),
         "error_rate": round(error_rate, 2),
         "active_users": active_users

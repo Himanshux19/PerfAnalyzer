@@ -180,3 +180,10 @@
 .btn-auth-signup:hover {
   background: #1d4ed8;
 }
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 24px !important;
+    margin: 16px;
+  }
+}

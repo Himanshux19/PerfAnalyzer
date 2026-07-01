@@ -40,7 +40,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const targetFile = jmxServer || csvServer;
     const isCsv = !!csvServer;
 
-    const threads = this.api.users() || 0;
+    const threads = this.api.concurrency() || 0;
     const rampUp = this.api.rampUp() || 0;
     const duration = this.api.duration() || 0;
 
@@ -55,8 +55,11 @@ export class Dashboard implements OnInit, OnDestroy {
     this.api.rpsHistory.set([]);
     this.api.rtHistory.set([]);
     this.api.errorHistory.set([]);
+    this.api.elapsedSeconds.set(0);
+    this.api.totalRequests.set(0);
     this.api.runnerRps.set('0 RPS');
     this.api.runnerPeakRps.set('peak 0');
+    this.api.runnerAvgRps.set('0 RPS');
     this.api.runnerAvgRt.set('0 ms');
     this.api.runnerErrorRate.set('0.0%');
     this.api.clearLogs();
@@ -130,25 +133,32 @@ export class Dashboard implements OnInit, OnDestroy {
           this.api.terminalLogs.set(formattedLines);
         }
 
+        this.api.elapsedSeconds.update(s => s + 1);
+
         // 2. Parse JTL stats if available, else fall back to parsing bzt.log
         if (res.throughput !== undefined && res.throughput > 0) {
+          // throughput = JMeter-aligned avg (total_reqs / full_duration) — shown on KPI card
+          // windowed_rps = last-5s sliding window — used for the live graph animation
           const tput = res.throughput || 0;
+          const graphRps = res.windowed_rps !== undefined ? res.windowed_rps : tput;
           const avgRtVal = res.avg_rt !== undefined ? res.avg_rt : 0;
           const errVal = res.error_rate !== undefined ? res.error_rate : 0;
 
           this.api.users.set(res.active_users || 0);
-          this.api.runnerRps.set(`${tput} RPS`);
+          // runnerRps drives the graph; runnerAvgRps shows JMeter-matched value on KPI
+          this.api.runnerRps.set(`${graphRps} RPS`);
+          this.api.runnerAvgRps.set(`${tput} RPS`);
           this.api.runnerAvgRt.set(`${avgRtVal} ms`);
           this.api.runnerErrorRate.set(`${errVal.toFixed(2)}%`);
-          
-          // update peak
+
+          // update peak (based on windowed live rate)
           const currentPeak = parseFloat(this.api.runnerPeakRps().split(' ')[1]) || 0;
-          if (tput > currentPeak) {
-            this.api.runnerPeakRps.set("peak " + tput);
+          if (graphRps > currentPeak) {
+            this.api.runnerPeakRps.set("peak " + graphRps);
           }
-          
-          // update history
-          this.api.rpsHistory.set([...this.api.rpsHistory(), tput].slice(-20));
+
+          // update history (graph uses windowed_rps)
+          this.api.rpsHistory.set([...this.api.rpsHistory(), graphRps].slice(-20));
           this.api.rtHistory.set([...this.api.rtHistory(), avgRtVal].slice(-20));
           this.api.errorHistory.set([...this.api.errorHistory(), errVal].slice(-20));
         } else {
@@ -246,6 +256,12 @@ export class Dashboard implements OnInit, OnDestroy {
       if (parsedRps > currentPeak) {
         this.api.runnerPeakRps.set(`peak ${parsedRps}`);
       }
+
+      // update average RPS
+      this.api.totalRequests.update(r => r + parsedRps);
+      const elapsed = this.api.elapsedSeconds();
+      const avgRpsVal = elapsed > 0 ? Math.round((this.api.totalRequests() / elapsed) * 10) / 10 : parsedRps;
+      this.api.runnerAvgRps.set(`${avgRpsVal} RPS`);
       
       const history = [...this.api.rpsHistory(), parsedRps].slice(-20);
       this.api.rpsHistory.set(history);

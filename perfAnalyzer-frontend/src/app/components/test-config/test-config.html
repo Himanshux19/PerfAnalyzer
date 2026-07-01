@@ -67,19 +67,19 @@
     <div class="setup-section-title">2. Load Configuration (JMX Only)</div>
     
     <div class="row g-3">
-      <div class="col-6">
+      <div class="col-sm-6 col-12">
         <label class="form-label-premium">Thread Count (Users)</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.users()" (ngModelChange)="api.users.set($event)" [disabled]="!!api.csvFileName()" />
+        <input type="number" class="form-input-premium" [ngModel]="api.concurrency()" (ngModelChange)="api.concurrency.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
-      <div class="col-6">
+      <div class="col-sm-6 col-12">
         <label class="form-label-premium">Ramp-up (Seconds)</label>
         <input type="number" class="form-input-premium" [ngModel]="api.rampUp()" (ngModelChange)="api.rampUp.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
-      <div class="col-6">
+      <div class="col-sm-6 col-12">
         <label class="form-label-premium">Loop Count</label>
         <input type="number" class="form-input-premium" [ngModel]="api.loopCount()" (ngModelChange)="api.loopCount.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
-      <div class="col-6">
+      <div class="col-sm-6 col-12">
         <label class="form-label-premium">Duration (Seconds)</label>
         <input type="number" class="form-input-premium" [ngModel]="api.duration()" (ngModelChange)="api.duration.set($event)" [disabled]="!!api.csvFileName()" />
       </div>

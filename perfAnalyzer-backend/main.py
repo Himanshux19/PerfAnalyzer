@@ -176,11 +176,8 @@ app.add_middleware(
 JMETER_CMD = shutil.which("jmeter") or shutil.which("jmeter.bat")
 BZT_CMD = shutil.which("bzt")
 
-HTML_REPORTS_DIR = Path("../HTML Reports")
-HTML_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-
-RESULTS_DIR = Path("../TestResults")
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+TEST_RESULT_DIR = Path("../Test Result")
+TEST_RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 UPLOAD_DIR = Path("../Uploads")
 JMX_DIR = UPLOAD_DIR / "jmx"
@@ -265,6 +262,27 @@ import threading
 
 test_status_db = {}  # Global dict to store test execution status
 
+def validate_jmeter_results(file_path: Path):
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            first_line = f.readline().strip()
+            
+        delim = ',' if ',' in first_line else '\t'
+        columns = [col.strip().lower() for col in first_line.split(delim)]
+        
+        required_cols = {"timestamp", "elapsed", "success"}
+        if not required_cols.issubset(set(columns)):
+            parts = first_line.split(delim)
+            if len(parts) >= 8 and parts[0].isdigit() and parts[1].isdigit() and parts[7].lower() in ('true', 'false', '0', '1'):
+                return True
+            
+            raise ValueError(
+                "Invalid JMeter results format. Header must contain 'timeStamp', 'elapsed', and 'success' columns."
+            )
+        return True
+    except Exception as e:
+        raise ValueError(f"JMeter JTL/CSV format verification failed: {str(e)}")
+
 def run_taurus_in_background(test_name: str, cmd: list):
     try:
         process = subprocess.run(
@@ -276,10 +294,10 @@ def run_taurus_in_background(test_name: str, cmd: list):
             test_status_db[test_name] = {"status": "error", "error": process.stderr}
             return
         
-        # Automated HTML report generation from JMX's resulting kpi.jtl
-        result_folder = RESULTS_DIR / test_name
-        kpi_path = result_folder / "kpi.jtl"
-        html_report_folder = HTML_REPORTS_DIR / test_name
+        # Automated HTML report generation inside consolidated directory
+        test_folder = TEST_RESULT_DIR / test_name
+        kpi_path = test_folder / "kpi.jtl"
+        html_report_folder = test_folder / "HTML_Report"
         
         if kpi_path.exists():
             if html_report_folder.exists():
@@ -322,10 +340,26 @@ def run_test(
                     detail="CSV file not found."
                 )
             
+            # Format verification
+            try:
+                validate_jmeter_results(csv_path)
+            except ValueError as ve:
+                raise HTTPException(
+                    status_code=400,
+                    detail=str(ve)
+                )
+
             test_name = csv_path.stem
-            html_report_folder = HTML_REPORTS_DIR / test_name
-            if html_report_folder.exists():
-                shutil.rmtree(html_report_folder)
+            test_folder = TEST_RESULT_DIR / test_name
+            if test_folder.exists():
+                shutil.rmtree(test_folder)
+            test_folder.mkdir(parents=True, exist_ok=True)
+            
+            # Copy CSV dataset to target Test Result subfolder
+            target_csv_path = test_folder / jmx_filename
+            shutil.copy(csv_path, target_csv_path)
+
+            html_report_folder = test_folder / "HTML_Report"
             html_report_folder.mkdir(parents=True, exist_ok=True)
             
             test_status_db[test_name] = {"status": "running", "error": "", "type": "csv_report"}
@@ -335,7 +369,7 @@ def run_test(
                     process = subprocess.run([
                         JMETER_CMD,
                         "-g",
-                        str(csv_path),
+                        str(target_csv_path),
                         "-o",
                         str(html_report_folder)
                     ], capture_output=True, text=True)
@@ -357,15 +391,21 @@ def run_test(
 
         # Standard JMX execution
         jmx_path = JMX_DIR / jmx_filename
-        test_name = jmx_path.stem
-        result_folder = RESULTS_DIR / test_name
-        result_folder.mkdir(parents=True, exist_ok=True)
-
         if not jmx_path.exists():
             raise HTTPException(
                 status_code=404,
                 detail="JMX file not found."
             )
+
+        test_name = jmx_path.stem
+        test_folder = TEST_RESULT_DIR / test_name
+        if test_folder.exists():
+            shutil.rmtree(test_folder)
+        test_folder.mkdir(parents=True, exist_ok=True)
+
+        # Copy JMX script to target Test Result subfolder
+        target_jmx_path = test_folder / jmx_filename
+        shutil.copy(jmx_path, target_jmx_path)
 
         # Read template YAML
         with open(TEMPLATE_YAML, "r") as file:
@@ -377,9 +417,9 @@ def run_test(
         execution["ramp-up"] = f"{ramp_up}s"
         execution["hold-for"] = f"{duration}s"
 
-        # Update script path
-        config["scenarios"]["demo"]["script"] = str(jmx_path)
-        config["settings"]["artifacts-dir"] = str(result_folder)
+        # Update script path pointing to copied file and output dir pointing to Test Result subfolder
+        config["scenarios"]["demo"]["script"] = str(target_jmx_path)
+        config["settings"]["artifacts-dir"] = str(test_folder)
 
         # Save generated YAML
         with open(GENERATED_YAML, "w") as file:
@@ -425,14 +465,14 @@ def get_test_status(test_name: str):
             lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: Aggregating statistics & drawing dashboard files...")
         elif status_info["status"] == "success":
             lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: Report compilation finished successfully!")
-            lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: HTML dashboard is ready inside HTML Reports/{test_name}")
+            lines.append(f"{now_str} INFO o.a.j.g.ReportGenerator: HTML dashboard is ready inside HTML_Report/")
         elif status_info["status"] == "error":
             lines.append(f"{now_str} ERROR o.a.j.g.ReportGenerator: Failed compiling report! Details: {status_info.get('error', 'Unknown error')}")
         jmeter_content = "\n".join(lines)
     else:
-        result_folder = RESULTS_DIR / test_name
-        jmeter_log_path = result_folder / "jmeter.log"
-        bzt_log_path = result_folder / "bzt.log"
+        test_folder = TEST_RESULT_DIR / test_name
+        jmeter_log_path = test_folder / "jmeter.log"
+        bzt_log_path = test_folder / "bzt.log"
 
         # Fallback to backend root jmeter.log if it hasn't copied to artifacts yet
         if not jmeter_log_path.exists() and Path("jmeter.log").exists():
@@ -452,18 +492,22 @@ def get_test_status(test_name: str):
             except:
                 pass
 
-    # Parse kpi.jtl for exact throughput, response times, error rates and thread counts
+    # Parse kpi.jtl or fallback CSV for exact throughput, response times, error rates and thread counts
     throughput = 0.0
     avg_rt = 0.0
     error_rate = 0.0
     active_users = 0
 
-    # Fallback target CSV resolution
-    target_csv_path = RESULTS_DIR / test_name / "kpi.jtl"
+    # Look inside unified Test Result folder
+    target_csv_path = TEST_RESULT_DIR / test_name / "kpi.jtl"
     if not target_csv_path.exists():
-        fallback_csv = CSV_DIR / f"{test_name}.csv"
+        fallback_csv = TEST_RESULT_DIR / test_name / f"{test_name}.csv"
         if fallback_csv.exists():
             target_csv_path = fallback_csv
+        else:
+            fallback_jtl = TEST_RESULT_DIR / test_name / f"{test_name}.jtl"
+            if fallback_jtl.exists():
+                target_csv_path = fallback_jtl
 
     if target_csv_path.exists():
         try:
@@ -522,7 +566,7 @@ def get_test_status(test_name: str):
                         error_rate = (failures / total_reqs) * 100.0
                         active_users = threads_list[-1] if threads_list else 0
         except Exception as e:
-            print("Error parsing kpi.jtl:", e)
+            print("Error parsing JTL metrics:", e)
 
     return JSONResponse({
         "status": status_info["status"],
@@ -535,68 +579,16 @@ def get_test_status(test_name: str):
         "active_users": active_users
     })
 
-@app.post("/generate-html")
-async def generate_html(csv_filename: str = Form(...)):
-    try:
-        csv_path = CSV_DIR / csv_filename
-
-        if not csv_path.exists():
-            raise HTTPException(
-                status_code=404,
-                detail="CSV/JTL file not found."
-            )
-
-        report_name = csv_path.stem
-
-        output_folder = HTML_REPORTS_DIR / report_name
-
-        if output_folder.exists():
-            shutil.rmtree(output_folder)
-
-        output_folder.mkdir(parents=True, exist_ok=True)
-
-        process = subprocess.run(
-        [
-            JMETER_CMD,
-            "-g",
-            str(csv_path),
-            "-o",
-            str(output_folder)
-        ],
-        capture_output=True,
-        text=True
-    )
-
-        if process.returncode != 0:
-            raise HTTPException(
-                status_code=500,
-                detail=process.stderr
-            )
-
-        return JSONResponse({
-            "message": "HTML Report generated successfully.",
-            "report_folder": str(output_folder)
-        })
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
 @app.get("/download-results/{test_name}")
 def download_results(test_name: str):
-    results_folder = RESULTS_DIR / test_name
-    if not results_folder.exists():
+    test_folder = TEST_RESULT_DIR / test_name
+    if not test_folder.exists():
         raise HTTPException(
             status_code=404,
-            detail="Test results folder not found. Ensure the test run completes successfully first."
+            detail="Test result folder not found."
         )
     
-    # Create temporary zip archive
+    # Create temporary zip archive of the whole Test Result subfolder
     temp_dir = Path(tempfile.gettempdir())
     zip_base_path = temp_dir / f"{test_name}_results"
     
@@ -604,8 +596,8 @@ def download_results(test_name: str):
         archive_path = shutil.make_archive(
             str(zip_base_path),
             'zip',
-            root_dir=str(results_folder.parent),
-            base_dir=str(results_folder.name)
+            root_dir=str(test_folder.parent),
+            base_dir=str(test_folder.name)
         )
         return FileResponse(
             archive_path,
@@ -615,5 +607,5 @@ def download_results(test_name: str):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create results zip: {str(e)}"
+            detail=f"Failed to create download package: {str(e)}"
         )

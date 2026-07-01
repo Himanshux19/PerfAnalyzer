@@ -7,8 +7,7 @@ generated.yml
 Uploads
 
 # Report Folders
-TestResults
-HTML Reports
+Test Result
 
 # Virtual Environment
 env

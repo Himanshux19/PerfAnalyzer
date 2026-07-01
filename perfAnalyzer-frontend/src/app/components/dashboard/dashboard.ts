@@ -148,20 +148,9 @@ export class Dashboard implements OnInit, OnDestroy {
           }
           
           // update history
-          const rpsHistory = this.api.rpsHistory();
-          if (rpsHistory.length === 0 || rpsHistory[rpsHistory.length - 1] !== tput) {
-            this.api.rpsHistory.set([...rpsHistory, tput].slice(-20));
-          }
-          
-          const rtHistory = this.api.rtHistory();
-          if (rtHistory.length === 0 || rtHistory[rtHistory.length - 1] !== avgRtVal) {
-            this.api.rtHistory.set([...rtHistory, avgRtVal].slice(-20));
-          }
-          
-          const errHistory = this.api.errorHistory();
-          if (errHistory.length === 0 || errHistory[errHistory.length - 1] !== errVal) {
-            this.api.errorHistory.set([...errHistory, errVal].slice(-20));
-          }
+          this.api.rpsHistory.set([...this.api.rpsHistory(), tput].slice(-20));
+          this.api.rtHistory.set([...this.api.rtHistory(), avgRtVal].slice(-20));
+          this.api.errorHistory.set([...this.api.errorHistory(), errVal].slice(-20));
         } else {
           this.parseBztLog(res.bzt_log);
         }

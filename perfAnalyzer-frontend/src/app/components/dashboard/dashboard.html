@@ -49,9 +49,9 @@
           <!-- Conditional Download Section -->
           @if (api.testStatus() === 'success' && api.activeTestName()) {
             <div class="w-100 border-top mt-3 pt-3 download-results-section">
-              <div class="status-desc text-muted mb-2 font-normal fs-status">Download Test Results:</div>
+              <div class="status-desc text-muted mb-2 font-normal fs-status">Download Test Package:</div>
               <a [href]="api.getResultsDownloadUrl(api.activeTestName()!)" class="btn btn-success btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-1.5 font-bold py-2" download style="border-radius: 6px; font-size: 0.775rem;">
-                <i class="bi bi-cloud-arrow-down-fill fs-6"></i> DOWNLOAD ZIP
+                <i class="bi bi-cloud-arrow-down-fill fs-6"></i> DOWNLOAD REPORT ZIP
               </a>
             </div>
           }

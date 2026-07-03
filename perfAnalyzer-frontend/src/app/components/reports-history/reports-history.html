@@ -1,0 +1,144 @@
+<div class="reports-layout bg-light-gray-slate min-vh-100 pb-5">
+  <app-navbar></app-navbar>
+
+  <div class="container-fluid py-4 px-lg-5">
+    <!-- Header Summary Section -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <h1 class="h3 font-bold text-slate-800 m-0">Historical Reports</h1>
+        <p class="text-muted m-0 fs-7">Browse, view and manage your test execution results</p>
+      </div>
+      <button class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadReports()" [disabled]="isLoading">
+        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh List
+      </button>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row g-4 mb-4">
+      <div class="col-md-4">
+        <div class="card-premium p-4 d-flex align-items-center gap-3">
+          <div class="stat-icon bg-primary-soft text-primary">
+            <i class="bi bi-file-earmark-bar-graph fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted fs-7 font-medium">TOTAL RUNS</div>
+            <div class="fs-4 font-bold">{{ reports.length }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card-premium p-4 d-flex align-items-center gap-3">
+          <div class="stat-icon bg-success-soft text-success">
+            <i class="bi bi-check-circle fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted fs-7 font-medium">SUCCESSFUL RUNS</div>
+            <div class="fs-4 font-bold">{{ getSuccessCount() }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card-premium p-4 d-flex align-items-center gap-3">
+          <div class="stat-icon bg-danger-soft text-danger">
+            <i class="bi bi-exclamation-triangle fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted fs-7 font-medium">FAILED RUNS</div>
+            <div class="fs-4 font-bold">{{ getFailedCount() }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main List/Filter Panel -->
+    <div class="card-premium p-4 mb-4">
+      <!-- Search & Filters -->
+      <div class="d-flex flex-column flex-md-row gap-3 mb-4 justify-content-between align-items-md-center">
+        <div class="search-input-wrapper flex-grow-1 max-w-400">
+          <i class="bi bi-search search-icon"></i>
+          <input type="text" class="form-control ps-5" placeholder="Search by test run name..." [(ngModel)]="searchQuery" />
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      @if (isLoading) {
+        <div class="d-flex flex-column align-items-center justify-content-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <span class="text-muted">Loading reports list...</span>
+        </div>
+      } @else if (errorMessage) {
+        <div class="alert alert-danger py-4 text-center">
+          <i class="bi bi-exclamation-octagon fs-3 mb-2 d-block"></i>
+          <div>{{ errorMessage }}</div>
+          <button class="btn btn-sm btn-outline-danger mt-3" (click)="loadReports()">Try Again</button>
+        </div>
+      } @else if (filteredReports().length === 0) {
+        <div class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
+          <i class="bi bi-folder-x fs-1 text-muted mb-3"></i>
+          <h5 class="text-slate-800 m-0">No reports found</h5>
+          <p class="text-muted fs-7 max-w-320 mt-1">
+            @if (searchQuery) {
+              No results match your search query. Try clearing or using a different keyword.
+            } @else {
+              You haven't executed any performance tests yet. Go to the Tests page to run your first load scenario!
+            }
+          </p>
+        </div>
+      } @else {
+        <!-- Reports Table -->
+        <div class="table-responsive">
+          <table class="table table-hover align-middle m-0">
+            <thead class="table-light-premium">
+              <tr>
+                <th scope="col" class="ps-4">TEST RUN NAME</th>
+                <th scope="col">EXECUTION DATE</th>
+                <th scope="col">STATUS</th>
+                <th scope="col" class="text-end pe-4">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (report of filteredReports(); track report.test_name) {
+                <tr>
+                  <td class="ps-4">
+                    <span class="font-semibold text-slate-800 d-block text-truncate max-w-350" [title]="report.test_name">
+                      {{ report.test_name }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="text-muted fs-7">{{ report.timestamp }}</span>
+                  </td>
+                  <td>
+                    @if (report.status === 'success') {
+                      <span class="badge-status success"><i class="bi bi-check-circle-fill me-1"></i> Success</span>
+                    } @else if (report.status === 'running') {
+                      <span class="badge-status running"><i class="bi bi-play-fill me-1"></i> Running</span>
+                    } @else if (report.status === 'error' || report.status === 'failed') {
+                      <span class="badge-status failed"><i class="bi bi-exclamation-triangle-fill me-1"></i> Failed</span>
+                    } @else {
+                      <span class="badge-status unknown"><i class="bi bi-question-circle-fill me-1"></i> {{ report.status }}</span>
+                    }
+                  </td>
+                  <td class="text-end pe-4">
+                    <div class="d-inline-flex gap-2">
+                      @if (report.has_report) {
+                        <a [href]="api.getReportViewUrl(report.test_name)" target="_blank" class="btn btn-action-premium view" title="Show Report">
+                          <i class="bi bi-eye-fill"></i> View
+                        </a>
+                        <a [href]="api.getResultsDownloadUrl(report.test_name)" class="btn btn-action-premium download" download title="Download ZIP">
+                          <i class="bi bi-cloud-arrow-down-fill"></i> Download
+                        </a>
+                      }
+                      <button class="btn btn-action-premium delete" (click)="onDeleteReport(report.test_name)" title="Delete Report">
+                        <i class="bi bi-trash-fill"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 
 export interface UploadResponse {
   message: string;
@@ -108,6 +108,14 @@ export class ApiService {
 
   getReportViewUrl(testName: string): string {
     return `${this.baseUrl}/reports/${testName}/HTML_Report/index.html`;
+  }
+
+  listReports(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/list-reports`);
+  }
+
+  deleteReport(testName: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/delete-report/${testName}`);
   }
 
   registerUser(username: string, password: string, fullName: string = ''): Observable<any> {

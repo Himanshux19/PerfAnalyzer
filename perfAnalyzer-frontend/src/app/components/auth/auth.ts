@@ -30,7 +30,7 @@ export class Auth {
   constructor(private api: ApiService, private router: Router) {
     // Skip login if already authenticated
     if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/test']);
     }
   }
 
@@ -72,7 +72,7 @@ export class Auth {
         localStorage.setItem('full_name', res.full_name || '');
         this.successMessage = 'Login successful! Redirecting...';
         setTimeout(() => {
-          this.router.navigate(['/dashboard']);
+          this.router.navigate(['/test']);
         }, 1000);
       },
       error: (err) => {

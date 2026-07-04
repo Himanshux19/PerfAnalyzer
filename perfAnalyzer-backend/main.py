@@ -791,3 +791,194 @@ def download_results(test_name: str):
             status_code=500,
             detail=f"Failed to create download package: {str(e)}"
         )
+    
+@app.post("/create-test")
+def create_test(payload: CreateTestRequest) -> JSONResponse:
+    try:
+        test_id = uuid.uuid4().hex[:8]
+        base_name = f"{_slugify(payload.testName)}_{test_id}"
+        jmx_filename = f"{base_name}.jmx"
+        yaml_filename = f"{base_name}.yml"
+ 
+        jmx_path = TESTS_DIR / jmx_filename
+        yaml_path = TESTS_DIR / yaml_filename
+ 
+        # --- Generate JMX ---
+        jmx_content = build_jmx(payload)
+        jmx_path.write_text(jmx_content, encoding="utf-8")
+ 
+        # --- Generate Taurus YAML (references the JMX by filename) ---
+        yaml_content = build_taurus_yaml(payload, jmx_filename)
+        yaml_path.write_text(yaml_content, encoding="utf-8")
+ 
+        logger.info("Generated test artifacts: %s, %s", jmx_filename, yaml_filename)
+ 
+        response = CreateTestResponse(
+            success=True,
+            message="Test created successfully.",
+            testId=test_id,
+            testName=payload.testName,
+            jmxFile=jmx_filename,
+            yamlFile=yaml_filename,
+            directory=str(TESTS_DIR.resolve()),
+        )
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content=response.model_dump())
+ 
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to create test")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate test artifacts: {exc}",
+        ) from exc
+    
+def sync_filesystem_reports_to_db(requesting_user: str = "Guest"):
+    if not TEST_RESULT_DIR.exists():
+        return
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get all existing test names in the DB to avoid duplicates
+        cur.execute("SELECT test_name FROM test_results;")
+        db_test_names = {row[0] for row in cur.fetchall()}
+        
+        for item in TEST_RESULT_DIR.iterdir():
+            if item.is_dir():
+                test_name = item.name
+                if test_name not in db_test_names:
+                    try:
+                        # Parse metrics from files
+                        metrics = parse_test_metrics(test_name)
+                        
+                        html_report_path = item / "HTML_Report" / "index.html"
+                        status = "success" if html_report_path.exists() else "failed"
+                        
+                        # Parse timestamp from name
+                        created_at = datetime.datetime.now()
+                        parts = test_name.split("_")
+                        if len(parts) >= 2:
+                            date_part = parts[-2]
+                            time_part = parts[-1]
+                            if len(date_part) == 8 and len(time_part) == 6 and date_part.isdigit() and time_part.isdigit():
+                                try:
+                                    created_at = datetime.datetime.strptime(f"{date_part}_{time_part}", "%Y%m%d_%H%M%S")
+                                except:
+                                    pass
+                                    
+                        # Insert into DB
+                        cur.execute("""
+                            INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, throughput, avg_rt, error_rate, status, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                        """, (test_name, requesting_user or "Guest", metrics["active_users"], 0, 0, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], status, created_at))
+                        conn.commit()
+                        db_test_names.add(test_name) # track in memory as successfully synced
+                    except Exception as folder_err:
+                        print(f"Error syncing folder {test_name} to DB: {folder_err}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+        
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("Error syncing filesystem reports to DB:", e)
+
+@app.get("/list-reports")
+def list_reports(username: str = None, sync: bool = False):
+    # Auto-sync filesystem folders to DB so old runs show up ONLY on demand
+    if sync:
+        sync_filesystem_reports_to_db(username)
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        if username and username.strip() != "":
+            cur.execute("""
+                SELECT test_name, created_at, status, throughput, avg_rt, error_rate
+                FROM test_results
+                WHERE username = %s
+                ORDER BY created_at DESC;
+            """, (username.strip(),))
+        else:
+            cur.execute("""
+                SELECT test_name, created_at, status, throughput, avg_rt, error_rate
+                FROM test_results
+                ORDER BY created_at DESC;
+            """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        reports = []
+        for row in rows:
+            test_name, created_at, status, throughput, avg_rt, error_rate = row
+            
+            # Check if it has HTML report dynamically
+            html_report_path = TEST_RESULT_DIR / test_name / "HTML_Report" / "index.html"
+            has_report = html_report_path.exists()
+            
+            reports.append({
+                "test_name": test_name,
+                "timestamp": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "Unknown",
+                "status": status,
+                "throughput": throughput,
+                "avg_rt": avg_rt,
+                "error_rate": error_rate,
+                "has_report": has_report
+            })
+        return JSONResponse(reports)
+    except Exception as e:
+        print(f"Warning: Database list reports failed: {str(e)}. Falling back to file system list.")
+        reports = []
+        if TEST_RESULT_DIR.exists():
+            for item in TEST_RESULT_DIR.iterdir():
+                if item.is_dir():
+                    test_name = item.name
+                    html_report_path = item / "HTML_Report" / "index.html"
+                    has_report = html_report_path.exists()
+                    
+                    status = "success" if has_report else "failed"
+                    mtime = item.stat().st_mtime
+                    dt = datetime.datetime.fromtimestamp(mtime)
+                    timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+                    reports.append({
+                        "test_name": test_name,
+                        "timestamp": timestamp_str,
+                        "status": status,
+                        "throughput": 0.0,
+                        "avg_rt": 0.0,
+                        "error_rate": 0.0,
+                        "has_report": has_report
+                    })
+        reports.sort(key=lambda x: x["timestamp"], reverse=True)
+        return JSONResponse(reports)
+
+@app.delete("/delete-report/{test_name}")
+def delete_report(test_name: str):
+    test_folder = TEST_RESULT_DIR / test_name
+    
+    # Delete folder if exists
+    if test_folder.exists():
+        try:
+            shutil.rmtree(test_folder)
+        except Exception as e:
+            print(f"Warning: Failed to delete directory {test_folder}: {str(e)}")
+            
+    # Delete from memory status db
+    if test_name in test_status_db:
+        del test_status_db[test_name]
+        
+    # Delete from PostgreSQL database
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM test_results WHERE test_name = %s;", (test_name,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return JSONResponse({"message": "Report deleted successfully"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete report from database: {str(e)}")

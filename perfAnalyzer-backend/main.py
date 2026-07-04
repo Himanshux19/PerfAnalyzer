@@ -1,7 +1,12 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, status
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import logging
+import uuid
+from jmx_builder import build_jmx
+from models import CreateTestRequest, CreateTestResponse
+from yaml_builder import build_taurus_yaml
 import shutil
 from pathlib import Path
 import yaml
@@ -38,6 +43,20 @@ DB_PASS = os.getenv("DB_PASS", "")
 # JWT configurations loaded from environment
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
+
+logger = logging.getLogger("perfanalyzer")
+logging.basicConfig(level=logging.INFO)
+ 
+# Directory where generated .jmx / .yml files are stored.
+TESTS_DIR = Path(__file__).parent / "generated_tests"
+TESTS_DIR.mkdir(parents=True, exist_ok=True)
+ 
+ 
+def _slugify(value: str) -> str:
+    safe = "".join(c if c.isalnum() else "_" for c in value.strip().lower())
+    while "__" in safe:
+        safe = safe.replace("__", "_")
+    return safe.strip("_") or "test"
 
 def get_db_connection(dbname=DB_NAME):
     return psycopg2.connect(
@@ -605,3 +624,42 @@ def download_results(test_name: str):
             status_code=500,
             detail=f"Failed to create download package: {str(e)}"
         )
+
+@app.post("/create-test")
+def create_test(payload: CreateTestRequest) -> JSONResponse:
+    try:
+        test_id = uuid.uuid4().hex[:8]
+        base_name = f"{_slugify(payload.testName)}_{test_id}"
+        jmx_filename = f"{base_name}.jmx"
+        yaml_filename = f"{base_name}.yml"
+ 
+        jmx_path = TESTS_DIR / jmx_filename
+        yaml_path = TESTS_DIR / yaml_filename
+ 
+        # --- Generate JMX ---
+        jmx_content = build_jmx(payload)
+        jmx_path.write_text(jmx_content, encoding="utf-8")
+ 
+        # --- Generate Taurus YAML (references the JMX by filename) ---
+        yaml_content = build_taurus_yaml(payload, jmx_filename)
+        yaml_path.write_text(yaml_content, encoding="utf-8")
+ 
+        logger.info("Generated test artifacts: %s, %s", jmx_filename, yaml_filename)
+ 
+        response = CreateTestResponse(
+            success=True,
+            message="Test created successfully.",
+            testId=test_id,
+            testName=payload.testName,
+            jmxFile=jmx_filename,
+            yamlFile=yaml_filename,
+            directory=str(TESTS_DIR.resolve()),
+        )
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content=response.model_dump())
+ 
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to create test")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate test artifacts: {exc}",
+        ) from exc

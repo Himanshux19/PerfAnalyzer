@@ -9,6 +9,9 @@ Uploads
 # Report Folders
 Test Result
 
+#Generated Tests
+generated_tests
+
 # Virtual Environment
 env
 

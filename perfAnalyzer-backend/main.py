@@ -96,6 +96,24 @@ def init_db():
             );
         """)
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255) DEFAULT '';")
+
+        # Create test_results table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS test_results (
+                id SERIAL PRIMARY KEY,
+                test_name VARCHAR(255) UNIQUE NOT NULL,
+                username VARCHAR(255) NOT NULL,
+                concurrency INTEGER DEFAULT 0,
+                ramp_up INTEGER DEFAULT 0,
+                duration INTEGER DEFAULT 0,
+                throughput DOUBLE PRECISION DEFAULT 0.0,
+                avg_rt DOUBLE PRECISION DEFAULT 0.0,
+                error_rate DOUBLE PRECISION DEFAULT 0.0,
+                status VARCHAR(50) DEFAULT 'running',
+                error_message TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
         conn.commit()
         cur.close()
         conn.close()
@@ -284,6 +302,114 @@ async def upload_csv(file: UploadFile = File(...)):
         "path": str(target_csv_path)
     })
 
+def parse_test_metrics(test_name: str) -> dict:
+    throughput = 0.0
+    avg_rt = 0.0
+    error_rate = 0.0
+    active_users = 0
+
+    target_csv_path = TEST_RESULT_DIR / test_name / "kpi.jtl"
+    if not target_csv_path.exists():
+        fallback_csv = TEST_RESULT_DIR / test_name / f"{test_name}.csv"
+        if fallback_csv.exists():
+            target_csv_path = fallback_csv
+        else:
+            fallback_jtl = TEST_RESULT_DIR / test_name / f"{test_name}.jtl"
+            if fallback_jtl.exists():
+                target_csv_path = fallback_jtl
+
+    if target_csv_path.exists():
+        try:
+            with open(target_csv_path, "r", encoding="utf-8", errors="ignore") as f:
+                header_line = f.readline()
+                if header_line:
+                    header = header_line.strip().split(',')
+                    delim = ','
+                    if len(header) <= 1:
+                        header = header_line.strip().split('\t')
+                        delim = '\t'
+
+                    try:
+                        ts_idx = header.index("timeStamp")
+                        el_idx = header.index("elapsed")
+                        succ_idx = header.index("success")
+                        threads_idx = header.index("allThreads")
+                    except ValueError:
+                        ts_idx, el_idx, succ_idx, threads_idx = 0, 1, 7, 9
+
+                    min_ts = None
+                    max_ts_end = None
+                    total_elapsed = 0
+                    failures = 0
+                    total_reqs = 0
+                    last_threads = 0
+                    max_idx = max(ts_idx, el_idx, succ_idx, threads_idx)
+
+                    for line in f:
+                        parts = line.strip().split(delim)
+                        if len(parts) > max_idx:
+                            try:
+                                ts = int(parts[ts_idx])
+                                el = int(parts[el_idx])
+                                succ = parts[succ_idx].strip().lower()
+                                threads = int(parts[threads_idx])
+
+                                total_reqs += 1
+                                total_elapsed += el
+                                last_threads = threads
+                                if succ in ("false", "0"):
+                                    failures += 1
+
+                                if min_ts is None or ts < min_ts:
+                                    min_ts = ts
+                                end_ts = ts + el
+                                if max_ts_end is None or end_ts > max_ts_end:
+                                    max_ts_end = end_ts
+                            except:
+                                pass
+
+                    if total_reqs > 0 and min_ts is not None and max_ts_end is not None:
+                        duration_ms = max_ts_end - min_ts
+                        duration_sec = duration_ms / 1000.0
+
+                        if duration_sec > 0:
+                            throughput = total_reqs / duration_sec
+                        else:
+                            throughput = float(total_reqs)
+
+                        avg_rt = total_elapsed / total_reqs
+                        error_rate = (failures / total_reqs) * 100.0
+                        active_users = last_threads
+        except Exception as e:
+            print("Error parsing JTL metrics in helper:", e)
+
+    return {
+        "throughput": round(throughput, 2),
+        "avg_rt": round(avg_rt, 0),
+        "error_rate": round(error_rate, 2),
+        "active_users": active_users
+    }
+
+def update_db_test_result(test_name: str, status: str, error_message: str = ""):
+    metrics = parse_test_metrics(test_name)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE test_results
+            SET status = %s,
+                throughput = %s,
+                avg_rt = %s,
+                error_rate = %s,
+                error_message = %s
+            WHERE test_name = %s;
+        """, (status, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], error_message, test_name))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: Failed to update test result in database: {str(e)}")
+
 import threading
 
 test_status_db = {}  # Global dict to store test execution status
@@ -318,6 +444,7 @@ def run_taurus_in_background(test_name: str, cmd: list):
         )
         if process.returncode != 0:
             test_status_db[test_name] = {"status": "error", "error": process.stderr}
+            update_db_test_result(test_name, "error", process.stderr)
             return
         
         # Automated HTML report generation inside consolidated directory
@@ -339,22 +466,27 @@ def run_taurus_in_background(test_name: str, cmd: list):
             ], capture_output=True, text=True)
             
             if jmeter_process.returncode != 0:
+                err_msg = f"Taurus completed successfully, but JMeter report generation failed: {jmeter_process.stderr}"
                 test_status_db[test_name] = {
                     "status": "error",
-                    "error": f"Taurus completed successfully, but JMeter report generation failed: {jmeter_process.stderr}"
+                    "error": err_msg
                 }
+                update_db_test_result(test_name, "error", err_msg)
                 return
                 
         test_status_db[test_name] = {"status": "success", "error": ""}
+        update_db_test_result(test_name, "success")
     except Exception as e:
         test_status_db[test_name] = {"status": "error", "error": str(e)}
+        update_db_test_result(test_name, "error", str(e))
 
 @app.post("/run-test")
 def run_test(
     jmx_filename: str = Form(...),
     threads: int = Form(...),
     ramp_up: int = Form(...),
-    duration: int = Form(...)
+    duration: int = Form(...),
+    username: str = Form("Guest")
 ):
     try:
         # Check if user uploaded a CSV/JTL directly instead of JMX
@@ -372,6 +504,22 @@ def run_test(
             html_report_folder = test_folder / "HTML_Report"
             html_report_folder.mkdir(parents=True, exist_ok=True)
             
+            # Insert into database
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (test_name) DO UPDATE 
+                    SET status = 'running', created_at = CURRENT_TIMESTAMP;
+                """, (test_name, username, 0, 0, 0, 'running'))
+                conn.commit()
+                cur.close()
+                conn.close()
+            except Exception as e:
+                print(f"Warning: Failed to insert test execution to database: {str(e)}")
+            
             test_status_db[test_name] = {"status": "running", "error": "", "type": "csv_report"}
             
             def run_jmeter_report_only():
@@ -386,10 +534,13 @@ def run_test(
                     
                     if process.returncode != 0:
                         test_status_db[test_name] = {"status": "error", "error": process.stderr, "type": "csv_report"}
+                        update_db_test_result(test_name, "error", process.stderr)
                     else:
                         test_status_db[test_name] = {"status": "success", "error": "", "type": "csv_report"}
+                        update_db_test_result(test_name, "success")
                 except Exception as e:
                     test_status_db[test_name] = {"status": "error", "error": str(e), "type": "csv_report"}
+                    update_db_test_result(test_name, "error", str(e))
             
             thread = threading.Thread(target=run_jmeter_report_only)
             thread.start()
@@ -427,6 +578,22 @@ def run_test(
         # Save generated YAML
         with open(GENERATED_YAML, "w") as file:
             yaml.dump(config, file, sort_keys=False)
+
+        # Insert into database
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (test_name) DO UPDATE 
+                SET status = 'running', concurrency = %s, ramp_up = %s, duration = %s, created_at = CURRENT_TIMESTAMP;
+            """, (test_name, username, threads, ramp_up, duration, 'running', threads, ramp_up, duration))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"Warning: Failed to insert test execution to database: {str(e)}")
 
         # Start thread
         test_status_db[test_name] = {"status": "running", "error": ""}
@@ -624,42 +791,3 @@ def download_results(test_name: str):
             status_code=500,
             detail=f"Failed to create download package: {str(e)}"
         )
-
-@app.post("/create-test")
-def create_test(payload: CreateTestRequest) -> JSONResponse:
-    try:
-        test_id = uuid.uuid4().hex[:8]
-        base_name = f"{_slugify(payload.testName)}_{test_id}"
-        jmx_filename = f"{base_name}.jmx"
-        yaml_filename = f"{base_name}.yml"
- 
-        jmx_path = TESTS_DIR / jmx_filename
-        yaml_path = TESTS_DIR / yaml_filename
- 
-        # --- Generate JMX ---
-        jmx_content = build_jmx(payload)
-        jmx_path.write_text(jmx_content, encoding="utf-8")
- 
-        # --- Generate Taurus YAML (references the JMX by filename) ---
-        yaml_content = build_taurus_yaml(payload, jmx_filename)
-        yaml_path.write_text(yaml_content, encoding="utf-8")
- 
-        logger.info("Generated test artifacts: %s, %s", jmx_filename, yaml_filename)
- 
-        response = CreateTestResponse(
-            success=True,
-            message="Test created successfully.",
-            testId=test_id,
-            testName=payload.testName,
-            jmxFile=jmx_filename,
-            yamlFile=yaml_filename,
-            directory=str(TESTS_DIR.resolve()),
-        )
-        return JSONResponse(status_code=status.HTTP_201_CREATED, content=response.model_dump())
- 
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Failed to create test")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate test artifacts: {exc}",
-        ) from exc

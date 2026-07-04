@@ -30,10 +30,10 @@ export class ReportsHistory implements OnInit {
     this.loadReports();
   }
 
-  loadReports() {
+  loadReports(sync = false) {
     this.isLoading = true;
     this.errorMessage = null;
-    this.api.listReports().subscribe({
+    this.api.listReports(sync).subscribe({
       next: (data) => {
         this.reports = data;
         this.isLoading = false;

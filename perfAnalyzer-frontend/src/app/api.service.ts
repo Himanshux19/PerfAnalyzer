@@ -95,6 +95,10 @@ export class ApiService {
     formData.append('threads', threads.toString());
     formData.append('ramp_up', rampUp.toString());
     formData.append('duration', duration.toString());
+    
+    const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || 'Guest';
+    formData.append('username', username);
+    
     return this.http.post<RunTestResponse>(`${this.baseUrl}/run-test`, formData);
   }
 
@@ -110,8 +114,10 @@ export class ApiService {
     return `${this.baseUrl}/reports/${testName}/HTML_Report/index.html`;
   }
 
-  listReports(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/list-reports`);
+  listReports(sync = false): Observable<any[]> {
+    const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || '';
+    const url = `${this.baseUrl}/list-reports?username=${encodeURIComponent(username)}${sync ? '&sync=true' : ''}`;
+    return this.http.get<any[]>(url);
   }
 
   deleteReport(testName: string): Observable<any> {

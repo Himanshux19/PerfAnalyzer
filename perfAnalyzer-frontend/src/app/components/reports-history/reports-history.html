@@ -5,10 +5,10 @@
     <!-- Header Summary Section -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
       <div>
-        <h1 class="h3 font-bold text-slate-800 m-0">Historical Reports</h1>
+        <h1 class="h3 font-bold text-slate-800 m-0">Reports History</h1>
         <p class="text-muted m-0 fs-7">Browse, view and manage your test execution results</p>
       </div>
-      <button class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadReports()" [disabled]="isLoading">
+      <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadReports(true)" [disabled]="isLoading">
         <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh List
       </button>
     </div>
@@ -70,7 +70,7 @@
         <div class="alert alert-danger py-4 text-center">
           <i class="bi bi-exclamation-octagon fs-3 mb-2 d-block"></i>
           <div>{{ errorMessage }}</div>
-          <button class="btn btn-sm btn-outline-danger mt-3" (click)="loadReports()">Try Again</button>
+          <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="loadReports()">Try Again</button>
         </div>
       } @else if (filteredReports().length === 0) {
         <div class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
@@ -92,6 +92,9 @@
               <tr>
                 <th scope="col" class="ps-4">TEST RUN NAME</th>
                 <th scope="col">EXECUTION DATE</th>
+                <th scope="col">THROUGHPUT (RPS)</th>
+                <th scope="col">AVG. RT</th>
+                <th scope="col">ERROR RATE</th>
                 <th scope="col">STATUS</th>
                 <th scope="col" class="text-end pe-4">ACTIONS</th>
               </tr>
@@ -100,12 +103,21 @@
               @for (report of filteredReports(); track report.test_name) {
                 <tr>
                   <td class="ps-4">
-                    <span class="font-semibold text-slate-800 d-block text-truncate max-w-350" [title]="report.test_name">
+                    <span class="font-semibold text-slate-800 d-block text-truncate max-w-250" [title]="report.test_name">
                       {{ report.test_name }}
                     </span>
                   </td>
                   <td>
                     <span class="text-muted fs-7">{{ report.timestamp }}</span>
+                  </td>
+                  <td>
+                    <span class="text-slate-800 font-semibold">{{ report.throughput !== undefined ? report.throughput + ' RPS' : 'N/A' }}</span>
+                  </td>
+                  <td>
+                    <span class="text-slate-800 font-semibold">{{ report.avg_rt !== undefined ? report.avg_rt + ' ms' : 'N/A' }}</span>
+                  </td>
+                  <td>
+                    <span class="text-danger font-semibold" [class.text-slate-800]="report.error_rate === 0">{{ report.error_rate !== undefined ? report.error_rate + '%' : 'N/A' }}</span>
                   </td>
                   <td>
                     @if (report.status === 'success') {
@@ -128,7 +140,7 @@
                           <i class="bi bi-cloud-arrow-down-fill"></i> Download
                         </a>
                       }
-                      <button class="btn btn-action-premium delete" (click)="onDeleteReport(report.test_name)" title="Delete Report">
+                      <button type="button" class="btn btn-action-premium delete" (click)="onDeleteReport(report.test_name)" title="Delete Report">
                         <i class="bi bi-trash-fill"></i>
                       </button>
                     </div>

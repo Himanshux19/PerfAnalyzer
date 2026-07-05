@@ -3,12 +3,19 @@
 
   <div class="container-fluid py-4 px-lg-5">
     <!-- Header Summary Section -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div
+      class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4"
+    >
       <div>
         <h1 class="h3 font-bold text-slate-800 m-0">Reports History</h1>
         <p class="text-muted m-0 fs-7">Browse, view and manage your test execution results</p>
       </div>
-      <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadReports(true)" [disabled]="isLoading">
+      <button
+        type="button"
+        class="btn btn-outline-primary d-flex align-items-center gap-2"
+        (click)="loadReports(true)"
+        [disabled]="isLoading"
+      >
         <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh List
       </button>
     </div>
@@ -53,10 +60,17 @@
     <!-- Main List/Filter Panel -->
     <div class="card-premium p-4 mb-4">
       <!-- Search & Filters -->
-      <div class="d-flex flex-column flex-md-row gap-3 mb-4 justify-content-between align-items-md-center">
+      <div
+        class="d-flex flex-column flex-md-row gap-3 mb-4 justify-content-between align-items-md-center"
+      >
         <div class="search-input-wrapper flex-grow-1 max-w-400">
           <i class="bi bi-search search-icon"></i>
-          <input type="text" class="form-control ps-5" placeholder="Search by test run name..." [(ngModel)]="searchQuery" />
+          <input
+            type="text"
+            class="form-control ps-5"
+            placeholder="Search by test run name..."
+            [(ngModel)]="searchQuery"
+          />
         </div>
       </div>
 
@@ -70,7 +84,9 @@
         <div class="alert alert-danger py-4 text-center">
           <i class="bi bi-exclamation-octagon fs-3 mb-2 d-block"></i>
           <div>{{ errorMessage }}</div>
-          <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="loadReports()">Try Again</button>
+          <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="loadReports()">
+            Try Again
+          </button>
         </div>
       } @else if (filteredReports().length === 0) {
         <div class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
@@ -80,7 +96,8 @@
             @if (searchQuery) {
               No results match your search query. Try clearing or using a different keyword.
             } @else {
-              You haven't executed any performance tests yet. Go to the Tests page to run your first load scenario!
+              You haven't executed any performance tests yet. Go to the Tests page to run your first
+              load scenario!
             }
           </p>
         </div>
@@ -103,7 +120,10 @@
               @for (report of filteredReports(); track report.test_name) {
                 <tr>
                   <td class="ps-4">
-                    <span class="font-semibold text-slate-800 d-block text-truncate max-w-250" [title]="report.test_name">
+                    <span
+                      class="font-semibold text-slate-800 d-block text-truncate max-w-250"
+                      [title]="report.test_name"
+                    >
                       {{ report.test_name }}
                     </span>
                   </td>
@@ -111,38 +131,64 @@
                     <span class="text-muted fs-7">{{ report.timestamp }}</span>
                   </td>
                   <td>
-                    <span class="text-slate-800 font-semibold">{{ report.throughput !== undefined ? report.throughput + ' RPS' : 'N/A' }}</span>
+                    <span class="text-slate-800 font-semibold">{{
+                      report.throughput !== undefined ? report.throughput + ' RPS' : 'N/A'
+                    }}</span>
                   </td>
                   <td>
-                    <span class="text-slate-800 font-semibold">{{ report.avg_rt !== undefined ? report.avg_rt + ' ms' : 'N/A' }}</span>
+                    <span class="text-slate-800 font-semibold">{{
+                      report.avg_rt !== undefined ? report.avg_rt + ' ms' : 'N/A'
+                    }}</span>
                   </td>
                   <td>
-                    <span class="text-danger font-semibold" [class.text-slate-800]="report.error_rate === 0">{{ report.error_rate !== undefined ? report.error_rate + '%' : 'N/A' }}</span>
+                    <span
+                      class="text-danger font-semibold"
+                      [class.text-slate-800]="report.error_rate === 0"
+                      >{{ report.error_rate !== undefined ? report.error_rate + '%' : 'N/A' }}</span
+                    >
                   </td>
                   <td>
                     @if (report.status === 'success') {
-                      <span class="badge-status success"><i class="bi bi-check-circle-fill me-1"></i> Success</span>
+                      <span class="badge-status success"
+                        ><i class="bi bi-check-circle-fill me-1"></i> Success</span
+                      >
                     } @else if (report.status === 'running') {
-                      <span class="badge-status running"><i class="bi bi-play-fill me-1"></i> Running</span>
+                      <span class="badge-status running"
+                        ><i class="bi bi-play-fill me-1"></i> Running</span
+                      >
                     } @else if (report.status === 'error' || report.status === 'failed') {
-                      <span class="badge-status failed"><i class="bi bi-exclamation-triangle-fill me-1"></i> Failed</span>
+                      <span class="badge-status failed"
+                        ><i class="bi bi-exclamation-triangle-fill me-1"></i> Failed</span
+                      >
                     } @else {
-                      <span class="badge-status unknown"><i class="bi bi-question-circle-fill me-1"></i> {{ report.status }}</span>
+                      <span class="badge-status unknown"
+                        ><i class="bi bi-question-circle-fill me-1"></i> {{ report.status }}</span
+                      >
                     }
                   </td>
                   <td class="text-end pe-4">
                     <div class="d-inline-flex gap-2">
                       @if (report.has_report) {
-                        <a [href]="api.getReportViewUrl(report.test_name)" target="_blank" class="btn btn-action-premium view" title="Show Report">
+                        <a
+                          [href]="api.getReportViewUrl(report.test_name)"
+                          target="_blank"
+                          class="btn btn-action-premium view"
+                          title="Show Report"
+                        >
                           <i class="bi bi-eye-fill"></i> View
                         </a>
-                        <a [href]="api.getResultsDownloadUrl(report.test_name)" class="btn btn-action-premium download" download title="Download ZIP">
+                        <a
+                          [href]="api.getResultsDownloadUrl(report.test_name)"
+                          class="btn btn-action-premium download"
+                          download
+                          title="Download ZIP"
+                        >
                           <i class="bi bi-cloud-arrow-down-fill"></i> Download
                         </a>
                       }
-                      <button type="button" class="btn btn-action-premium delete" (click)="onDeleteReport(report.test_name)" title="Delete Report">
+                      <!-- <button type="button" class="btn btn-action-premium delete" (click)="onDeleteReport(report.test_name)" title="Delete Report">
                         <i class="bi bi-trash-fill"></i>
-                      </button>
+                      </button> -->
                     </div>
                   </td>
                 </tr>

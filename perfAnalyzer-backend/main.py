@@ -473,6 +473,11 @@ def run_taurus_in_background(test_name: str, cmd: list):
                 }
                 update_db_test_result(test_name, "error", err_msg)
                 return
+            
+            try:
+                generate_custom_html_report(test_name)
+            except Exception as report_err:
+                print("Error generating custom HTML report:", report_err)
                 
         test_status_db[test_name] = {"status": "success", "error": ""}
         update_db_test_result(test_name, "success")
@@ -536,6 +541,10 @@ def run_test(
                         test_status_db[test_name] = {"status": "error", "error": process.stderr, "type": "csv_report"}
                         update_db_test_result(test_name, "error", process.stderr)
                     else:
+                        try:
+                            generate_custom_html_report(test_name)
+                        except Exception as report_err:
+                            print("Error generating custom HTML report:", report_err)
                         test_status_db[test_name] = {"status": "success", "error": "", "type": "csv_report"}
                         update_db_test_result(test_name, "success")
                 except Exception as e:
@@ -792,6 +801,461 @@ def download_results(test_name: str):
             detail=f"Failed to create download package: {str(e)}"
         )
     
+def extract_balanced_json(text: str, start_pos: int):
+    brace_count = 0
+    in_string = False
+    escape = False
+    json_chars = []
+    
+    for i in range(start_pos, len(text)):
+        char = text[i]
+        
+        if escape:
+            json_chars.append(char)
+            escape = False
+            continue
+            
+        if char == '\\':
+            json_chars.append(char)
+            escape = True
+            continue
+            
+        if char == '"':
+            in_string = not in_string
+            
+        if not in_string:
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                
+        json_chars.append(char)
+        
+        if brace_count == 0:
+            return "".join(json_chars), i
+            
+    return None, -1
+
+def generate_custom_html_report(test_name: str):
+    html_report_folder = TEST_RESULT_DIR / test_name / "HTML_Report"
+    stats_path = html_report_folder / "statistics.json"
+    js_path = html_report_folder / "content" / "js" / "dashboard.js"
+    output_path = html_report_folder / "index.html"
+    
+    if not html_report_folder.exists():
+        return
+        
+    stats_data = {}
+    if stats_path.exists():
+        try:
+            with open(stats_path, "r", encoding="utf-8") as f:
+                stats_data = json.load(f)
+        except Exception as e:
+            print("Error loading statistics.json:", e)
+            
+    errors_data = []
+    if js_path.exists():
+        try:
+            with open(js_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            # Find the errorsTable definition
+            start_idx = content.find('createTable($("#errorsTable"),')
+            if start_idx != -1:
+                json_start = content.find('{', start_idx)
+                if json_start != -1:
+                    json_str, _ = extract_balanced_json(content, json_start)
+                    if json_str:
+                        parsed = json.loads(json_str)
+                        errors_data = parsed.get("items", [])
+        except Exception as e:
+            print("Error parsing dashboard.js errors table:", e)
+
+    # Format KPIs
+    total_stats = stats_data.get("Total", {})
+    total_samples = total_stats.get("sampleCount", 0)
+    total_error_pct = total_stats.get("errorPct", 0.0)
+    mean_rt = total_stats.get("meanResTime", 0.0)
+    throughput = total_stats.get("throughput", 0.0)
+    
+    # Format Statistics rows
+    statistics_rows = []
+    # Sort keys: Total goes at the bottom
+    sorted_keys = sorted(stats_data.keys(), key=lambda x: x == 'Total')
+    for name in sorted_keys:
+        data = stats_data[name]
+        is_total = name == 'Total'
+        row_class = 'class="total-row"' if is_total else ''
+        
+        statistics_rows.append(f"""
+        <tr {row_class}>
+            <td class="font-semibold text-primary">{name}</td>
+            <td class="text-end">{data.get("sampleCount", 0):,}</td>
+            <td class="text-end {'text-danger font-semibold' if data.get("errorCount", 0) > 0 else ''}">{data.get("errorCount", 0):,}</td>
+            <td class="text-end {'text-danger font-semibold' if data.get("errorPct", 0.0) > 0 else ''}">{data.get("errorPct", 0.0):.2f}%</td>
+            <td class="text-end font-semibold">{round(data.get("meanResTime", 0.0)):,}</td>
+            <td class="text-end text-muted">{round(data.get("minResTime", 0.0)):,}</td>
+            <td class="text-end text-muted">{round(data.get("maxResTime", 0.0)):,}</td>
+            <td class="text-end">{round(data.get("medianResTime", 0.0)):,}</td>
+            <td class="text-end">{round(data.get("pct1ResTime", 0.0)):,}</td>
+            <td class="text-end">{round(data.get("pct2ResTime", 0.0)):,}</td>
+            <td class="text-end">{round(data.get("pct3ResTime", 0.0)):,}</td>
+            <td class="text-end font-bold" style="color: var(--color-blue);">{data.get("throughput", 0.0):.2f} RPS</td>
+            <td class="text-end">{data.get("receivedKBytesPerSec", 0.0):.2f}</td>
+            <td class="text-end">{data.get("sentKBytesPerSec", 0.0):.2f}</td>
+        </tr>
+        """)
+
+    # Format Errors rows
+    if not errors_data:
+        errors_html = """
+        <div class="success-illustration">
+            <i class="bi bi-shield-check"></i>
+            <div class="success-title">Zero Errors Encountered</div>
+            <div class="success-desc">All requests in this performance test run completed successfully without failures.</div>
+        </div>
+        """
+    else:
+        error_rows = []
+        for item in errors_data:
+            data_list = item.get("data", ["Unknown", 0, 0.0, 0.0])
+            err_msg = data_list[0] if len(data_list) > 0 else "Unknown"
+            err_count = data_list[1] if len(data_list) > 1 else 0
+            pct_in_errors = data_list[2] if len(data_list) > 2 else 0.0
+            pct_in_all = data_list[3] if len(data_list) > 3 else 0.0
+            
+            error_rows.append(f"""
+            <tr>
+                <td class="text-danger font-semibold error-message">{err_msg}</td>
+                <td class="text-end font-bold">{err_count:,}</td>
+                <td class="text-end">{pct_in_errors:.2f}%</td>
+                <td class="text-end">{pct_in_all:.2f}%</td>
+            </tr>
+            """)
+            
+        errors_html = f"""
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type / Message of Error</th>
+                        <th class="text-end">Number of Errors</th>
+                        <th class="text-end">% in Errors</th>
+                        <th class="text-end">% in All Samples</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {"".join(error_rows)}
+                </tbody>
+            </table>
+        </div>
+        """
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Analyzer - Report: {test_name}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {{
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --color-blue: #2563eb;
+            --color-blue-soft: rgba(37, 99, 235, 0.08);
+            --color-green: #10b981;
+            --color-green-soft: rgba(16, 185, 129, 0.08);
+            --color-red: #ef4444;
+            --color-red-soft: rgba(239, 68, 68, 0.08);
+            --color-info: #06b6d4;
+            --color-info-soft: rgba(6, 182, 212, 0.08);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }}
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 2.5rem 1.5rem;
+            line-height: 1.5;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        .header {{
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }}
+        .header h1 {{
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.25rem;
+        }}
+        .header p {{
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }}
+        .test-name-badge {{
+            font-weight: 600;
+            color: #1e293b;
+            background: #f1f5f9;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }}
+        .kpi-row {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }}
+        .kpi-card {{
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: var(--transition);
+        }}
+        .kpi-card:hover {{
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }}
+        .kpi-icon {{
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }}
+        .kpi-icon.blue {{ background: var(--color-blue-soft); color: var(--color-blue); }}
+        .kpi-icon.red {{ background: var(--color-red-soft); color: var(--color-red); }}
+        .kpi-icon.green {{ background: var(--color-green-soft); color: var(--color-green); }}
+        .kpi-icon.info {{ background: var(--color-info-soft); color: var(--color-info); }}
+        .kpi-label {{
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }}
+        .kpi-value {{
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }}
+        .panel {{
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 2rem;
+        }}
+        .panel-title {{
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+        .table-responsive {{
+            width: 100%;
+            overflow-x: auto;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            text-align: left;
+        }}
+        th {{
+            background: #f8fafc;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--border-color);
+        }}
+        td {{
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }}
+        tr:hover td {{
+            background-color: #f8fafc;
+        }}
+        .text-end {{ text-align: right; }}
+        .text-danger {{ color: var(--color-red); }}
+        .font-semibold {{ font-weight: 600; }}
+        .font-bold {{ font-weight: 700; }}
+        .total-row td {{
+            background: #f8fafc;
+            font-weight: 700;
+            color: var(--text-primary);
+            border-top: 2px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
+        }}
+        .total-row:hover td {{
+            background: #f1f5f9;
+        }}
+        .error-message {{
+            font-family: Consolas, Monaco, monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }}
+        .success-illustration {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }}
+        .success-illustration i {{
+            font-size: 3.5rem;
+            color: var(--color-green);
+            margin-bottom: 1rem;
+            animation: shield-pulse 2s infinite ease-in-out;
+        }}
+        @keyframes shield-pulse {{
+            0% {{ transform: scale(1); filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0)); }}
+            50% {{ transform: scale(1.05); filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.25)); }}
+            100% {{ transform: scale(1); filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0)); }}
+        }}
+        .success-title {{
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.25rem;
+        }}
+        .success-desc {{
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            max-width: 320px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Performance Report</h1>
+            <p>Detailed execution metrics for: <span class="test-name-badge">{test_name}</span></p>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="kpi-row">
+            <!-- Total Samples -->
+            <div class="kpi-card">
+                <div class="kpi-icon blue">
+                    <i class="bi bi-bar-chart-fill"></i>
+                </div>
+                <div>
+                    <div class="kpi-label">Total Samples</div>
+                    <div class="kpi-value">{total_samples:,}</div>
+                </div>
+            </div>
+            <!-- Error Rate -->
+            <div class="kpi-card">
+                <div class="kpi-icon red">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                </div>
+                <div>
+                    <div class="kpi-label">Error Rate</div>
+                    <div class="kpi-value" style="color: {'var(--color-red)' if total_error_pct > 0 else 'inherit'}">{total_error_pct:.2f}%</div>
+                </div>
+            </div>
+            <!-- Avg Response Time -->
+            <div class="kpi-card">
+                <div class="kpi-icon green">
+                    <i class="bi bi-clock-fill"></i>
+                </div>
+                <div>
+                    <div class="kpi-label">Avg Response Time</div>
+                    <div class="kpi-value">{round(mean_rt):,} ms</div>
+                </div>
+            </div>
+            <!-- Throughput -->
+            <div class="kpi-card">
+                <div class="kpi-icon info">
+                    <i class="bi bi-speedometer2"></i>
+                </div>
+                <div>
+                    <div class="kpi-label">Throughput</div>
+                    <div class="kpi-value">{throughput:.2f} RPS</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Request Statistics Panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <i class="bi bi-table" style="color: var(--color-blue);"></i> Request Statistics
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Transaction / Label</th>
+                            <th class="text-end">Samples</th>
+                            <th class="text-end">FAIL</th>
+                            <th class="text-end">Error %</th>
+                            <th class="text-end">Avg (ms)</th>
+                            <th class="text-end">Min (ms)</th>
+                            <th class="text-end">Max (ms)</th>
+                            <th class="text-end">Median (ms)</th>
+                            <th class="text-end">90% (ms)</th>
+                            <th class="text-end">95% (ms)</th>
+                            <th class="text-end">99% (ms)</th>
+                            <th class="text-end">Throughput</th>
+                            <th class="text-end">Received (KB/s)</th>
+                            <th class="text-end">Sent (KB/s)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {"".join(statistics_rows)}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Errors Summary Panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <i class="bi bi-exclamation-triangle" style="color: var(--color-red);"></i> Errors Summary
+            </div>
+            {errors_html}
+        </div>
+    </div>
+</body>
+</html>
+"""
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
 @app.post("/create-test")
 def create_test(payload: CreateTestRequest) -> JSONResponse:
     try:

@@ -80,7 +80,10 @@ export class Dashboard implements OnInit, OnDestroy {
       clearInterval(this.pollingInterval);
     }
 
-    this.api.runTest(targetFile!, threads, rampUp, duration).subscribe({
+    const projId = this.api.selectedProjectId();
+    const projFileId = this.api.selectedProjectFileId();
+
+    this.api.runTest(targetFile!, threads, rampUp, duration, projId, projFileId).subscribe({
       next: (res) => {
         if (isCsv) {
           this.api.addLog(`Report generation process initialized: ${res.test_name}`, 'system');

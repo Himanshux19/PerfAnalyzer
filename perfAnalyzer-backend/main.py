@@ -16,7 +16,9 @@ import json
 import jwt
 import datetime
 import tempfile
+from typing import Optional
 import psycopg2
+from psycopg2 import pool as pg_pool
 import os
 
 app = FastAPI()
@@ -58,14 +60,41 @@ def _slugify(value: str) -> str:
         safe = safe.replace("__", "_")
     return safe.strip("_") or "test"
 
-def get_db_connection(dbname=DB_NAME):
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        database=dbname,
-        user=DB_USER,
-        password=DB_PASS
-    )
+# ── Connection Pool ─────────────────────────────────────────────────────────
+# Pre-warmed pool so every request reuses an existing connection instead of
+# paying a full TCP + auth handshake on each call.
+_db_pool: "pg_pool.ThreadedConnectionPool | None" = None
+
+def _make_dsn(dbname: str = "") -> dict:
+    name = dbname if dbname else DB_NAME
+    return dict(host=DB_HOST, port=DB_PORT, database=name, user=DB_USER, password=DB_PASS)
+
+def _init_pool():
+    """Create the shared connection pool (called once at startup)."""
+    global _db_pool
+    if _db_pool is None:
+        _db_pool = pg_pool.ThreadedConnectionPool(minconn=2, maxconn=10, **_make_dsn())
+        logger.info("DB connection pool initialised (min=2, max=10).")
+
+def get_db_connection(dbname: str = ""):
+    """Return a pooled connection (or a fresh bootstrap connection if pool isn't ready)."""
+    target = dbname if dbname else DB_NAME
+    if target != DB_NAME or _db_pool is None:
+        return psycopg2.connect(**_make_dsn(target))
+    return _db_pool.getconn()
+
+def release_db_connection(conn):
+    """Return a connection to the pool (no-op-safe if pool not ready)."""
+    if _db_pool is not None:
+        try:
+            _db_pool.putconn(conn)
+            return
+        except Exception:
+            pass
+    try:
+        conn.close()
+    except Exception:
+        pass
 
 def init_db():
     try:
@@ -117,6 +146,43 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
+
+        # ── Project Workspace tables ──────────────────────────────────────────
+        conn2 = psycopg2.connect(**_make_dsn())
+        cur2 = conn2.cursor()
+        cur2.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT DEFAULT '',
+                tags TEXT DEFAULT '',
+                owner VARCHAR(255) NOT NULL DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cur2.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';")
+        cur2.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '';")
+        cur2.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner VARCHAR(255) DEFAULT '';")
+        cur2.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+        cur2.execute("""
+            CREATE TABLE IF NOT EXISTS project_files (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+                filename VARCHAR(255) NOT NULL,
+                file_type VARCHAR(50) DEFAULT 'other',
+                file_size BIGINT DEFAULT 0,
+                stored_path TEXT NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn2.commit()
+        cur2.close()
+        conn2.close()
+
+        conn3 = get_db_connection(DB_NAME)
+        ensure_project_files_schema(conn3)
+        conn3.close()
         print("PostgreSQL Database initialized successfully.")
     except Exception as e:
         print(f"Warning: PostgreSQL Database initialization failed: {str(e)}")
@@ -124,6 +190,64 @@ def init_db():
 @app.on_event("startup")
 def startup_event():
     init_db()
+    try:
+        _init_pool()
+    except Exception as exc:
+        logger.warning(f"Connection pool init failed (falling back to per-request connections): {exc}")
+
+@app.on_event("shutdown")
+def shutdown_event():
+    global _db_pool
+    if _db_pool is not None:
+        _db_pool.closeall()
+        logger.info("DB connection pool closed.")
+
+# ── Project file storage ─────────────────────────────────────────────────────
+PROJECT_FILES_DIR = Path(__file__).parent / "project_files"
+PROJECT_FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def ensure_project_files_schema(conn) -> None:
+    """Make project_files compatible with older and newer schema variants."""
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'project_files';
+        """)
+        existing_columns = {row[0] for row in cur.fetchall()}
+
+        if "stored_path" not in existing_columns:
+            cur.execute("ALTER TABLE project_files ADD COLUMN stored_path TEXT DEFAULT '';")
+        if "file_path" not in existing_columns:
+            cur.execute("ALTER TABLE project_files ADD COLUMN file_path TEXT DEFAULT '';")
+        if "file_size" not in existing_columns:
+            cur.execute("ALTER TABLE project_files ADD COLUMN file_size BIGINT DEFAULT 0;")
+        if "uploaded_at" not in existing_columns:
+            cur.execute("ALTER TABLE project_files ADD COLUMN uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+        if "file_type" not in existing_columns:
+            cur.execute("ALTER TABLE project_files ADD COLUMN file_type VARCHAR(50) DEFAULT 'other';")
+        else:
+            cur.execute("ALTER TABLE project_files ALTER COLUMN file_type SET DEFAULT 'other';")
+
+        if "file_path" in existing_columns or "file_path" in {row[0] for row in cur.fetchall()}:
+            cur.execute("ALTER TABLE project_files ALTER COLUMN file_path DROP NOT NULL;")
+        if "stored_path" in existing_columns or "stored_path" in {row[0] for row in cur.fetchall()}:
+            cur.execute("ALTER TABLE project_files ALTER COLUMN stored_path DROP NOT NULL;")
+
+        cur.execute("""
+            UPDATE project_files
+            SET stored_path = COALESCE(NULLIF(stored_path, ''), file_path)
+            WHERE (stored_path IS NULL OR stored_path = '')
+              AND file_path IS NOT NULL AND file_path != '';
+        """)
+        conn.commit()
+        cur.close()
+    except Exception as exc:
+        conn.rollback()
+        logger.warning(f"Project files schema migration skipped: {exc}")
+
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
@@ -151,7 +275,7 @@ def register(username: str = Form(...), password: str = Form(...), full_name: st
         user = cur.fetchone()
         if user:
             cur.close()
-            conn.close()
+            release_db_connection(conn)
             raise HTTPException(status_code=400, detail="Gmail address already registered.")
         
         # Insert user
@@ -162,7 +286,7 @@ def register(username: str = Form(...), password: str = Form(...), full_name: st
         )
         conn.commit()
         cur.close()
-        conn.close()
+        release_db_connection(conn)
         return JSONResponse({"message": "User registered successfully."})
     except HTTPException:
         raise
@@ -184,12 +308,12 @@ def login(username: str = Form(...), password: str = Form(...)):
         
         if not row or row[0] != hash_password(password):
             cur.close()
-            conn.close()
+            release_db_connection(conn)
             raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
             
         pwd_hash, full_name = row
         cur.close()
-        conn.close()
+        release_db_connection(conn)
         
         payload = {
             "username": username,
@@ -406,7 +530,7 @@ def update_db_test_result(test_name: str, status: str, error_message: str = ""):
         """, (status, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], error_message, test_name))
         conn.commit()
         cur.close()
-        conn.close()
+        release_db_connection(conn)
     except Exception as e:
         print(f"Warning: Failed to update test result in database: {str(e)}")
 
@@ -491,9 +615,31 @@ def run_test(
     threads: int = Form(...),
     ramp_up: int = Form(...),
     duration: int = Form(...),
-    username: str = Form("Guest")
+    username: str = Form("Guest"),
+    project_id: Optional[int] = Form(None),
+    project_file_id: Optional[int] = Form(None),
 ):
     try:
+        # If a workspace file is specified, copy it to the execution folder
+        if project_id is not None and project_file_id is not None:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
+                (project_file_id, project_id)
+            )
+            row = cur.fetchone()
+            cur.close()
+            release_db_connection(conn)
+            if not row:
+                raise HTTPException(status_code=404, detail="Workspace file not found.")
+            stored_path, filename = row
+            test_name = Path(filename).stem
+            test_folder = TEST_RESULT_DIR / test_name
+            test_folder.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(stored_path, test_folder / filename)
+            jmx_filename = filename
+
         # Check if user uploaded a CSV/JTL directly instead of JMX
         if jmx_filename.endswith(".csv") or jmx_filename.endswith(".jtl"):
             test_name = Path(jmx_filename).stem
@@ -521,7 +667,7 @@ def run_test(
                 """, (test_name, username, 0, 0, 0, 'running'))
                 conn.commit()
                 cur.close()
-                conn.close()
+                release_db_connection(conn)
             except Exception as e:
                 print(f"Warning: Failed to insert test execution to database: {str(e)}")
             
@@ -600,7 +746,7 @@ def run_test(
             """, (test_name, username, threads, ramp_up, duration, 'running', threads, ramp_up, duration))
             conn.commit()
             cur.close()
-            conn.close()
+            release_db_connection(conn)
         except Exception as e:
             print(f"Warning: Failed to insert test execution to database: {str(e)}")
 
@@ -1345,7 +1491,7 @@ def sync_filesystem_reports_to_db(requesting_user: str = "Guest"):
                             pass
         
         cur.close()
-        conn.close()
+        release_db_connection(conn)
     except Exception as e:
         print("Error syncing filesystem reports to DB:", e)
 
@@ -1373,7 +1519,7 @@ def list_reports(username: str = None, sync: bool = False):
             """)
         rows = cur.fetchall()
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
         reports = []
         for row in rows:
@@ -1442,7 +1588,308 @@ def delete_report(test_name: str):
         cur.execute("DELETE FROM test_results WHERE test_name = %s;", (test_name,))
         conn.commit()
         cur.close()
-        conn.close()
+        release_db_connection(conn)
         return JSONResponse({"message": "Report deleted successfully"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete report from database: {str(e)}")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  PROJECT WORKSPACE  –  CRUD & FILE MANAGEMENT
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/projects")
+def list_projects(username: str = ""):
+    """Return all projects belonging to the given user."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        if username:
+            cur.execute("""
+                SELECT p.id, p.name, p.description, p.tags, p.owner,
+                       p.created_at, p.updated_at,
+                       COUNT(pf.id) AS file_count
+                FROM projects p
+                LEFT JOIN project_files pf ON pf.project_id = p.id
+                WHERE p.owner = %s
+                GROUP BY p.id
+                ORDER BY p.updated_at DESC;
+            """, (username,))
+        else:
+            cur.execute("""
+                SELECT p.id, p.name, p.description, p.tags, p.owner,
+                       p.created_at, p.updated_at,
+                       COUNT(pf.id) AS file_count
+                FROM projects p
+                LEFT JOIN project_files pf ON pf.project_id = p.id
+                GROUP BY p.id
+                ORDER BY p.updated_at DESC;
+            """)
+        rows = cur.fetchall()
+        cur.close()
+        release_db_connection(conn)
+        projects = []
+        for row in rows:
+            projects.append({
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "tags": row[3],
+                "owner": row[4],
+                "created_at": row[5].strftime("%Y-%m-%d %H:%M:%S") if row[5] else "",
+                "updated_at": row[6].strftime("%Y-%m-%d %H:%M:%S") if row[6] else "",
+                "file_count": row[7],
+            })
+        return JSONResponse(projects)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list projects: {str(e)}")
+
+
+@app.post("/projects")
+def create_project(
+    name: str = Form(...),
+    description: str = Form(""),
+    tags: str = Form(""),
+    username: str = Form(""),
+):
+    """Create a new project workspace."""
+    if not name.strip():
+        raise HTTPException(status_code=400, detail="Project name must not be empty.")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO projects (name, description, tags, owner)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, name, description, tags, owner, created_at, updated_at;
+        """, (name.strip(), description.strip(), tags.strip(), username))
+        row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return JSONResponse({
+            "id": row[0],
+            "name": row[1],
+            "description": row[2],
+            "tags": row[3],
+            "owner": row[4],
+            "created_at": row[5].strftime("%Y-%m-%d %H:%M:%S") if row[5] else "",
+            "updated_at": row[6].strftime("%Y-%m-%d %H:%M:%S") if row[6] else "",
+            "file_count": 0,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
+
+
+@app.put("/projects/{project_id}")
+def update_project(
+    project_id: int,
+    name: str = Form(...),
+    description: str = Form(""),
+    tags: str = Form(""),
+):
+    """Update a project's metadata."""
+    if not name.strip():
+        raise HTTPException(status_code=400, detail="Project name must not be empty.")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE projects
+            SET name = %s, description = %s, tags = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING id;
+        """, (name.strip(), description.strip(), tags.strip(), project_id))
+        if cur.rowcount == 0:
+            cur.close()
+            release_db_connection(conn)
+            raise HTTPException(status_code=404, detail="Project not found.")
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return JSONResponse({"message": "Project updated successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
+
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: int):
+    """Delete a project and cascade-delete its files from disk and DB."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT stored_path FROM project_files WHERE project_id = %s;", (project_id,))
+        file_rows = cur.fetchall()
+        cur.execute("DELETE FROM projects WHERE id = %s;", (project_id,))
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        for fr in file_rows:
+            p = Path(fr[0])
+            if p.exists():
+                p.unlink(missing_ok=True)
+        proj_dir = PROJECT_FILES_DIR / str(project_id)
+        if proj_dir.exists():
+            shutil.rmtree(proj_dir, ignore_errors=True)
+        return JSONResponse({"message": "Project deleted successfully."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete project: {str(e)}")
+
+
+@app.post("/projects/{project_id}/upload")
+async def upload_project_file(project_id: int, file: UploadFile = File(...)):
+    """Upload any file (JMX, CSV, JTL, YAML, JSON …) into a project workspace."""
+    allowed_extensions = {".jmx", ".csv", ".jtl", ".yaml", ".yml", ".json", ".txt", ".xml"}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type '{ext}' is not supported. Allowed: {', '.join(sorted(allowed_extensions))}"
+        )
+    if ext == ".jmx":
+        file_type = "jmx"
+    elif ext in (".csv", ".jtl"):
+        file_type = "csv/jtl"
+    elif ext in (".yaml", ".yml"):
+        file_type = "yaml"
+    elif ext == ".json":
+        file_type = "json"
+    elif ext == ".xml":
+        file_type = "xml"
+    else:
+        file_type = "other"
+
+    # Verify project exists
+    conn = get_db_connection()
+    ensure_project_files_schema(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM projects WHERE id = %s;", (project_id,))
+    if not cur.fetchone():
+        cur.close()
+        release_db_connection(conn)
+        raise HTTPException(status_code=404, detail="Project not found.")
+    cur.close()
+    release_db_connection(conn)
+
+    # Save file to disk
+    proj_dir = PROJECT_FILES_DIR / str(project_id)
+    proj_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = f"{Path(file.filename).stem}_{timestamp}{ext}"
+    dest = proj_dir / safe_name
+    content = await file.read()
+    with open(dest, "wb") as f_out:
+        f_out.write(content)
+    file_size = len(content)
+
+    # Register in DB
+    try:
+        conn = get_db_connection()
+        ensure_project_files_schema(conn)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO project_files (project_id, filename, file_type, file_size, stored_path, file_path)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, filename, file_type, file_size, uploaded_at;
+        """, (project_id, file.filename, file_type, file_size, str(dest), str(dest)))
+        row = cur.fetchone()
+        cur.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = %s;", (project_id,))
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return JSONResponse({
+            "id": row[0],
+            "filename": row[1],
+            "file_type": row[2],
+            "file_size": row[3],
+            "uploaded_at": row[4].strftime("%Y-%m-%d %H:%M:%S") if row[4] else "",
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to register file in DB: {str(e)}")
+
+
+@app.get("/projects/{project_id}/files")
+def list_project_files(project_id: int):
+    """List all files belonging to a project."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, filename, file_type, file_size, uploaded_at
+            FROM project_files
+            WHERE project_id = %s
+            ORDER BY uploaded_at DESC;
+        """, (project_id,))
+        rows = cur.fetchall()
+        cur.close()
+        release_db_connection(conn)
+        files = []
+        for row in rows:
+            files.append({
+                "id": row[0],
+                "filename": row[1],
+                "file_type": row[2],
+                "file_size": row[3],
+                "uploaded_at": row[4].strftime("%Y-%m-%d %H:%M:%S") if row[4] else "",
+            })
+        return JSONResponse(files)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list project files: {str(e)}")
+
+
+@app.delete("/projects/{project_id}/files/{file_id}")
+def delete_project_file(project_id: int, file_id: int):
+    """Remove a file from a project (DB + disk)."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT stored_path FROM project_files WHERE id = %s AND project_id = %s;",
+            (file_id, project_id)
+        )
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            release_db_connection(conn)
+            raise HTTPException(status_code=404, detail="File not found.")
+        stored_path = row[0]
+        cur.execute("DELETE FROM project_files WHERE id = %s;", (file_id,))
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        p = Path(stored_path)
+        if p.exists():
+            p.unlink(missing_ok=True)
+        return JSONResponse({"message": "File deleted successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+
+
+@app.get("/projects/{project_id}/files/{file_id}/download")
+def download_project_file(project_id: int, file_id: int):
+    """Download a project file."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
+            (file_id, project_id)
+        )
+        row = cur.fetchone()
+        cur.close()
+        release_db_connection(conn)
+        if not row:
+            raise HTTPException(status_code=404, detail="File not found.")
+        stored_path, filename = row
+        p = Path(stored_path)
+        if not p.exists():
+            raise HTTPException(status_code=404, detail="File missing from disk.")
+        return FileResponse(path=str(p), filename=filename, media_type="application/octet-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")

@@ -1,0 +1,327 @@
+<div class="projects-layout bg-light-gray-slate min-vh-100 pb-5">
+  <app-navbar></app-navbar>
+
+  <div class="container-fluid py-4 px-lg-5">
+
+    <!-- Page Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <h1 class="h3 font-bold text-slate-800 m-0">Project Workspace</h1>
+        <p class="text-muted m-0 fs-7">Create workspaces, upload test files, and manage your load testing resources</p>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadProjects()" [disabled]="isLoading" id="refresh-projects-btn">
+          <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh
+        </button>
+        <button type="button" class="btn-create-project d-flex align-items-center gap-2" (click)="openCreateModal()" id="create-project-btn">
+          <i class="bi bi-plus-lg"></i> New Workspace
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card-premium p-4 d-flex align-items-center gap-3">
+          <div class="stat-icon bg-primary-soft text-primary"><i class="bi bi-folder2-open fs-4"></i></div>
+          <div>
+            <div class="text-muted fs-7 font-medium">TOTAL WORKSPACES</div>
+            <div class="fs-4 font-bold">{{ projects.length }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card-premium p-4 d-flex align-items-center gap-3">
+          <div class="stat-icon bg-info-soft text-info"><i class="bi bi-file-earmark-arrow-up fs-4"></i></div>
+          <div>
+            <div class="text-muted fs-7 font-medium">TOTAL FILES</div>
+            <div class="fs-4 font-bold">{{ totalFileCount }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card-premium p-4 d-flex align-items-center gap-3">
+          <div class="stat-icon bg-success-soft text-success"><i class="bi bi-check2-all fs-4"></i></div>
+          <div>
+            <div class="text-muted fs-7 font-medium">SEARCH RESULTS</div>
+            <div class="fs-4 font-bold">{{ filteredProjects.length }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="card-premium p-4 mb-4">
+      <div class="search-input-wrapper max-w-500">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          id="search-projects-input"
+          type="text"
+          class="form-control ps-5"
+          placeholder="Search workspaces by name, description or tag…"
+          [(ngModel)]="searchQuery"
+        />
+      </div>
+    </div>
+
+    <!-- Loading / Error -->
+    @if (isLoading) {
+      <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <span class="text-muted">Loading workspaces…</span>
+      </div>
+    } @else if (errorMessage) {
+      <div class="alert alert-danger py-4 text-center">
+        <i class="bi bi-exclamation-octagon fs-3 mb-2 d-block"></i>
+        <div>{{ errorMessage }}</div>
+        <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="loadProjects()">Try Again</button>
+      </div>
+    } @else if (filteredProjects.length === 0) {
+      <!-- Empty State -->
+      <div class="empty-state-container d-flex flex-column align-items-center justify-content-center py-5 text-center">
+        <div class="empty-state-icon mb-4">
+          <i class="bi bi-folder-plus"></i>
+        </div>
+        <h5 class="text-slate-800 m-0 mb-1">
+          @if (searchQuery) { No workspaces match your search } @else { No workspaces yet }
+        </h5>
+        <p class="text-muted fs-7 max-w-320 mt-1">
+          @if (searchQuery) {
+            Clear your search or try a different keyword.
+          } @else {
+            Create your first project workspace to start organizing JMX scripts, CSVs, and test configs.
+          }
+        </p>
+        @if (!searchQuery) {
+          <button type="button" class="btn-create-project mt-3 d-inline-flex align-items-center gap-2" (click)="openCreateModal()">
+            <i class="bi bi-plus-lg"></i> Create Workspace
+          </button>
+        }
+      </div>
+    } @else {
+      <!-- Project Cards Grid -->
+      <div class="projects-grid">
+        @for (project of filteredProjects; track project.id) {
+          <div class="project-card" [class.active-drawer]="drawerProject?.id === project.id">
+            <!-- Card Top Accent -->
+            <div class="project-card-accent"></div>
+
+            <!-- Card Header -->
+            <div class="project-card-header d-flex justify-content-between align-items-start gap-2">
+              <div class="project-icon-wrap">
+                <i class="bi bi-folder2-open"></i>
+              </div>
+              <div class="project-card-actions d-flex gap-1">
+                <button type="button" class="action-btn-icon" title="Edit Workspace" (click)="openEditModal(project)" [id]="'edit-project-' + project.id">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+                <button type="button" class="action-btn-icon delete-btn" title="Delete Workspace" (click)="openDeleteModal(project)" [id]="'delete-project-' + project.id">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="project-card-body mt-3">
+              <h3 class="project-name text-truncate" [title]="project.name">{{ project.name }}</h3>
+              <p class="project-description text-muted fs-7 mb-2">{{ project.description || 'No description provided.' }}</p>
+
+              <!-- Tags -->
+              @if (getTagsArray(project.tags).length > 0) {
+                <div class="project-tags d-flex flex-wrap gap-1 mb-3">
+                  @for (tag of getTagsArray(project.tags); track tag) {
+                    <span class="project-tag">{{ tag }}</span>
+                  }
+                </div>
+              }
+
+              <!-- Meta -->
+              <div class="project-meta d-flex align-items-center gap-3 mt-auto pt-2">
+                <span class="meta-item"><i class="bi bi-file-earmark me-1"></i>{{ project.file_count || 0 }} file{{ project.file_count !== 1 ? 's' : '' }}</span>
+                <span class="meta-item"><i class="bi bi-clock me-1"></i>{{ (project.updated_at || project.created_at || '').slice(0, 10) }}</span>
+              </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="project-card-footer">
+              <button type="button" class="btn-manage-files w-100" (click)="openFileDrawer(project)" [id]="'manage-files-' + project.id">
+                <i class="bi bi-folder2-open me-2"></i>Manage Files
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div><!-- /container -->
+</div><!-- /layout -->
+
+
+<!-- ═══════════════════════════════════════════════════════
+     CREATE / EDIT MODAL
+════════════════════════════════════════════════════════ -->
+@if (showFormModal) {
+  <div class="modal-backdrop-blur" (click)="closeFormModal()"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="form-modal-title">
+    <div class="modal-panel-header">
+      <h5 id="form-modal-title" class="m-0 font-bold">{{ isEditMode ? 'Edit Workspace' : 'New Workspace' }}</h5>
+      <button type="button" class="action-btn-icon" (click)="closeFormModal()" aria-label="Close" id="close-form-modal-btn">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="modal-panel-body">
+      @if (formError) {
+        <div class="alert alert-danger py-2 px-3 fs-7 mb-3">{{ formError }}</div>
+      }
+      <div class="mb-3">
+        <label class="form-label fw-semibold" for="project-name-input">Workspace Name <span class="text-danger">*</span></label>
+        <input id="project-name-input" type="text" class="form-control" placeholder="e.g. Login API Load Test" [(ngModel)]="formName" (keydown.enter)="saveProject()" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold" for="project-desc-input">Description</label>
+        <textarea id="project-desc-input" class="form-control" rows="3" placeholder="What is this workspace testing?" [(ngModel)]="formDescription"></textarea>
+      </div>
+      <div class="mb-1">
+        <label class="form-label fw-semibold" for="project-tags-input">Tags <span class="text-muted fw-normal fs-7">(comma-separated)</span></label>
+        <input id="project-tags-input" type="text" class="form-control" placeholder="e.g. api, regression, v2" [(ngModel)]="formTags" />
+      </div>
+    </div>
+    <div class="modal-panel-footer d-flex gap-2 justify-content-end">
+      <button type="button" class="btn btn-light" (click)="closeFormModal()" id="cancel-form-btn">Cancel</button>
+      <button type="button" class="btn-create-project d-inline-flex align-items-center gap-2" (click)="saveProject()" [disabled]="formSaving" id="save-project-btn">
+        @if (formSaving) { <span class="spinner-border spinner-border-sm" role="status"></span> }
+        {{ formSaving ? 'Saving…' : (isEditMode ? 'Save Changes' : 'Create Workspace') }}
+      </button>
+    </div>
+  </div>
+}
+
+
+<!-- ═══════════════════════════════════════════════════════
+     DELETE CONFIRMATION MODAL
+════════════════════════════════════════════════════════ -->
+@if (showDeleteModal) {
+  <div class="modal-backdrop-blur" (click)="closeDeleteModal()"></div>
+  <div class="modal-panel modal-panel-sm" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <div class="modal-panel-header">
+      <h5 id="delete-modal-title" class="m-0 font-bold text-danger">Delete Workspace</h5>
+      <button type="button" class="action-btn-icon" (click)="closeDeleteModal()" aria-label="Close" id="close-delete-modal-btn">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="modal-panel-body">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="delete-icon-wrap"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div>
+          <p class="m-0 font-semibold">Are you sure you want to delete workspace <strong>{{ deletingProject?.name }}</strong>?</p>
+          <p class="text-muted fs-7 m-0 mt-1">All files associated with this workspace will be permanently removed. This action cannot be undone.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-panel-footer d-flex gap-2 justify-content-end">
+      <button type="button" class="btn btn-light" (click)="closeDeleteModal()" id="cancel-delete-btn">Cancel</button>
+      <button type="button" class="btn btn-danger d-inline-flex align-items-center gap-2" (click)="confirmDelete()" [disabled]="deleteConfirming" id="confirm-delete-btn">
+        @if (deleteConfirming) { <span class="spinner-border spinner-border-sm" role="status"></span> }
+        {{ deleteConfirming ? 'Deleting…' : 'Delete Workspace' }}
+      </button>
+    </div>
+  </div>
+}
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FILE MANAGER DRAWER (Slide-in from right)
+════════════════════════════════════════════════════════ -->
+@if (showFileDrawer) {
+  <div class="drawer-backdrop" (click)="closeFileDrawer()"></div>
+  <aside class="file-drawer" role="complementary" aria-label="File Manager">
+    <!-- Drawer Header -->
+    <div class="drawer-header">
+      <div>
+        <h4 class="m-0 font-bold">File Manager</h4>
+        <p class="text-muted fs-7 m-0">{{ drawerProject?.name }}</p>
+      </div>
+      <button type="button" class="action-btn-icon" (click)="closeFileDrawer()" aria-label="Close drawer" id="close-drawer-btn">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- Drop Zone -->
+    <div
+      class="drop-zone"
+      [class.dragover]="isDragOver"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      <i class="bi bi-cloud-arrow-up drop-icon"></i>
+      <p class="m-0 fw-semibold">Drag & drop files here</p>
+      <p class="text-muted fs-7 m-0">JMX, CSV, JTL, YAML, JSON, XML, TXT</p>
+      <label class="btn-browse-files mt-2" for="file-upload-input">
+        <i class="bi bi-folder2-open me-1"></i> Browse Files
+      </label>
+      <input id="file-upload-input" type="file" class="d-none" multiple (change)="onFileInputChange($event)" accept=".jmx,.csv,.jtl,.yaml,.yml,.json,.txt,.xml" />
+    </div>
+
+    <!-- Upload Queue -->
+    @if (uploadQueue.length > 0) {
+      <div class="upload-queue p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-semibold fs-7">Uploads</span>
+          <button type="button" class="btn btn-link btn-sm p-0 text-muted fs-7" (click)="clearDoneUploads()">Clear done</button>
+        </div>
+        @for (entry of uploadQueue; track entry.file.name) {
+          <div class="upload-entry d-flex align-items-center gap-2 mb-1">
+            <i class="bi fs-6" [class]="entry.status === 'error' ? 'bi-x-circle-fill text-danger' : entry.status === 'done' ? 'bi-check-circle-fill text-success' : 'bi-arrow-up-circle text-primary'"></i>
+            <span class="text-truncate fs-7 flex-grow-1" [title]="entry.file.name">{{ entry.file.name }}</span>
+            @if (entry.status === 'uploading') {
+              <div class="spinner-border spinner-border-sm text-primary" style="width:14px;height:14px;" role="status"></div>
+            }
+            @if (entry.error) {
+              <span class="text-danger fs-7" [title]="entry.error">!</span>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- File List -->
+    <div class="drawer-files-list">
+      @if (drawerLoading) {
+        <div class="d-flex align-items-center justify-content-center py-4">
+          <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+          <span class="text-muted ms-2 fs-7">Loading files…</span>
+        </div>
+      } @else if (drawerError) {
+        <div class="text-danger fs-7 text-center py-3">{{ drawerError }}</div>
+      } @else if (drawerFiles.length === 0) {
+        <div class="empty-files-state text-center py-4">
+          <i class="bi bi-file-earmark-slash fs-2 text-muted mb-2 d-block"></i>
+          <span class="text-muted fs-7">No files uploaded yet.<br>Drop files above to get started.</span>
+        </div>
+      } @else {
+        <div class="drawer-files-header d-flex justify-content-between align-items-center px-3 py-2">
+          <span class="fw-semibold fs-7 text-muted">{{ drawerFiles.length }} FILE{{ drawerFiles.length !== 1 ? 'S' : '' }}</span>
+        </div>
+        @for (file of drawerFiles; track file.id) {
+          <div class="drawer-file-row d-flex align-items-center gap-3 px-3 py-2">
+            <div class="file-type-icon" [class]="getFileIconColor(file.file_type)">
+              <i class="bi" [class]="getFileIcon(file.file_type)"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="file-name text-truncate fw-semibold fs-7" [title]="file.filename">{{ file.filename }}</div>
+              <div class="text-muted" style="font-size:0.7rem;">{{ file.file_type | uppercase }} · {{ formatSize(file.file_size) }} · {{ (file.uploaded_at || '').slice(0, 10) }}</div>
+            </div>
+            <div class="d-flex gap-1 flex-shrink-0">
+              <a [href]="getFileDownloadUrl(file)" class="action-btn-icon" title="Download" [id]="'download-file-' + file.id" download>
+                <i class="bi bi-download"></i>
+              </a>
+              <button type="button" class="action-btn-icon delete-btn" title="Delete file" (click)="deleteDrawerFile(file)" [id]="'delete-file-' + file.id">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </aside>
+}

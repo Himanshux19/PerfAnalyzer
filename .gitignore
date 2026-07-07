@@ -22,3 +22,6 @@ env
 __pycache__/
 *.pyc
 *.pyd
+
+# Project Files
+project_files

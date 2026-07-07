@@ -49,6 +49,9 @@ export class ApiService {
   csvFileSize = signal<string | null>(null);
   csvUploadStatus = signal<'idle' | 'uploading' | 'success' | 'error'>('idle');
 
+  selectedProjectId = signal<number | null>(null);
+  selectedProjectFileId = signal<number | null>(null);
+
   users = signal<number | null>(0);
   concurrency = signal<number | null>(10);
   rampUp = signal<number | null>(10);
@@ -89,7 +92,14 @@ export class ApiService {
     return this.http.post<UploadResponse>(`${this.baseUrl}/upload/csv`, formData);
   }
 
-  runTest(jmxFilename: string, threads: number, rampUp: number, duration: number): Observable<RunTestResponse> {
+  runTest(
+    jmxFilename: string,
+    threads: number,
+    rampUp: number,
+    duration: number,
+    projectId?: number | null,
+    projectFileId?: number | null
+  ): Observable<RunTestResponse> {
     const formData = new FormData();
     formData.append('jmx_filename', jmxFilename);
     formData.append('threads', threads.toString());
@@ -98,9 +108,17 @@ export class ApiService {
     
     const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || 'Guest';
     formData.append('username', username);
+
+    if (projectId) {
+      formData.append('project_id', projectId.toString());
+    }
+    if (projectFileId) {
+      formData.append('project_file_id', projectFileId.toString());
+    }
     
     return this.http.post<RunTestResponse>(`${this.baseUrl}/run-test`, formData);
   }
+
 
   getTestStatus(testName: string): Observable<TestStatusResponse> {
     return this.http.get<TestStatusResponse>(`${this.baseUrl}/test-status/${testName}`);
@@ -123,6 +141,54 @@ export class ApiService {
   deleteReport(testName: string): Observable<any> {
     return this.http.delete<any>(`${this.baseUrl}/delete-report/${testName}`);
   }
+
+  // ── Project Management ──────────────────────────────────────
+
+  listProjects(): Observable<any[]> {
+    const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || '';
+    return this.http.get<any[]>(`${this.baseUrl}/projects?username=${encodeURIComponent(username)}`);
+  }
+
+  createProject(name: string, description: string, tags: string): Observable<any> {
+    const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || '';
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('description', description);
+    fd.append('tags', tags);
+    fd.append('username', username);
+    return this.http.post<any>(`${this.baseUrl}/projects`, fd);
+  }
+
+  updateProject(id: number, name: string, description: string, tags: string): Observable<any> {
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('description', description);
+    fd.append('tags', tags);
+    return this.http.put<any>(`${this.baseUrl}/projects/${id}`, fd);
+  }
+
+  deleteProject(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/projects/${id}`);
+  }
+
+  listProjectFiles(projectId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/projects/${projectId}/files`);
+  }
+
+  uploadProjectFile(projectId: number, file: File): Observable<any> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return this.http.post<any>(`${this.baseUrl}/projects/${projectId}/upload`, fd);
+  }
+
+  deleteProjectFile(projectId: number, fileId: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/projects/${projectId}/files/${fileId}`);
+  }
+
+  getProjectFileDownloadUrl(projectId: number, fileId: number): string {
+    return `${this.baseUrl}/projects/${projectId}/files/${fileId}/download`;
+  }
+
 
   registerUser(username: string, password: string, fullName: string = ''): Observable<any> {
     const formData = new FormData();

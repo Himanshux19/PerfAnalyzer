@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
@@ -27,7 +27,7 @@ export class Auth {
   errorMessage: string | null = null;
   successMessage: string | null = null;
 
-  constructor(private api: ApiService, private router: Router) {
+  constructor(private api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {
     // Skip login if already authenticated
     if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
       this.router.navigate(['/test']);
@@ -71,6 +71,7 @@ export class Auth {
         localStorage.setItem('username', res.username);
         localStorage.setItem('full_name', res.full_name || '');
         this.successMessage = 'Login successful! Redirecting...';
+        this.cdr.detectChanges();
         setTimeout(() => {
           this.router.navigate(['/test']);
         }, 1000);
@@ -78,6 +79,7 @@ export class Auth {
       error: (err) => {
         this.isLoading = false;
         this.errorMessage = err.error?.detail || err.message || 'Authentication failed.';
+        this.cdr.detectChanges();
       }
     });
   }
@@ -110,6 +112,7 @@ export class Auth {
         this.regPassword = '';
         this.regConfirmPassword = '';
         this.regFullName = '';
+        this.cdr.detectChanges();
         setTimeout(() => {
           this.toggleMode(true);
         }, 2000);
@@ -117,6 +120,7 @@ export class Auth {
       error: (err) => {
         this.isLoading = false;
         this.errorMessage = err.error?.detail || err.message || 'Registration failed.';
+        this.cdr.detectChanges();
       }
     });
   }

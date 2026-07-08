@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UpperCasePipe } from '@angular/common';
 import { ApiService } from '../../api.service';
@@ -21,7 +21,7 @@ export class TestConfig implements OnInit {
   isLoadingWorkspaces = false;
   isLoadingFiles = false;
 
-  constructor(protected api: ApiService) {}
+  constructor(protected api: ApiService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.loadWorkspaces();
@@ -33,10 +33,12 @@ export class TestConfig implements OnInit {
       next: (data) => {
         this.workspaces = data;
         this.isLoadingWorkspaces = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load workspaces:', err);
         this.isLoadingWorkspaces = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -61,10 +63,12 @@ export class TestConfig implements OnInit {
       next: (files) => {
         this.workspaceFiles = files;
         this.isLoadingFiles = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load files:', err);
         this.isLoadingFiles = false;
+        this.cdr.detectChanges();
       }
     });
   }

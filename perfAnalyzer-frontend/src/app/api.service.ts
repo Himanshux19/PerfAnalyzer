@@ -189,6 +189,18 @@ export class ApiService {
     return `${this.baseUrl}/projects/${projectId}/files/${fileId}/download`;
   }
 
+  listProjectReports(projectId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/projects/${projectId}/reports`);
+  }
+
+  createTest(payload: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/create-test`, payload);
+  }
+
+  getGeneratedTestDownloadUrl(filename: string): string {
+    return `${this.baseUrl}/generated_tests/${filename}`;
+  }
+
 
   registerUser(username: string, password: string, fullName: string = ''): Observable<any> {
     const formData = new FormData();

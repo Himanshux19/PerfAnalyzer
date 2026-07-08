@@ -441,3 +441,58 @@
   to { transform: rotate(360deg); }
 }
 .spin { animation: spin 0.7s linear infinite; }
+
+/* Drawer Tabs and Reports List */
+.drawer-tabs {
+  background: #f8fafc;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  display: flex;
+}
+.drawer-tab-btn {
+  font-size: 0.85rem;
+  color: #64748b;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  outline: none;
+}
+.drawer-tab-btn:hover {
+  color: #0f172a;
+}
+.drawer-tab-btn.active {
+  color: #2563eb;
+}
+.drawer-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #2563eb;
+}
+.drawer-reports-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+.drawer-report-row {
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s ease;
+}
+.drawer-report-row:hover {
+  background: #f8fafc;
+}
+.status-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.status-running { background: #dbeafe; color: #1e40af; }
+.status-success { background: #dcfce7; color: #166534; }
+.status-failed  { background: #fee2e2; color: #991b1b; }
+.status-error   { background: #ffedd5; color: #c2410c; }

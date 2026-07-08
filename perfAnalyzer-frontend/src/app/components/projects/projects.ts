@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { UpperCasePipe } from '@angular/common';
@@ -39,12 +39,18 @@ export class Projects implements OnInit {
   drawerFiles: any[] = [];
   drawerLoading = false;
   drawerError: string | null = null;
+  activeDrawerTab: 'files' | 'reports' = 'files';
+  drawerReports: any[] = [];
+  drawerReportsLoading = false;
+  drawerReportsError: string | null = null;
 
   // ── Upload State ─────────────────────────────────────────────
   isDragOver = false;
   uploadQueue: { file: File; status: 'pending' | 'uploading' | 'done' | 'error'; error?: string }[] = [];
 
-  constructor(protected api: ApiService, private router: Router) {}
+  isRefreshing = false;
+
+  constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     if (typeof window !== 'undefined') {
@@ -59,17 +65,25 @@ export class Projects implements OnInit {
 
   // ── Projects ─────────────────────────────────────────────────
 
-  loadProjects() {
-    this.isLoading = true;
+  loadProjects(isBackground = false) {
+    if (isBackground) {
+      this.isRefreshing = true;
+    } else {
+      this.isLoading = true;
+    }
     this.errorMessage = null;
     this.api.listProjects().subscribe({
       next: (data) => {
         this.projects = data;
         this.isLoading = false;
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.errorMessage = 'Failed to load workspaces. Make sure the backend is running.';
         this.isLoading = false;
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -138,10 +152,12 @@ export class Projects implements OnInit {
           }
           this.formSaving = false;
           this.showFormModal = false;
+          this.cdr.detectChanges();
         },
         error: (err) => {
           this.formError = err?.error?.detail || 'Failed to update workspace.';
           this.formSaving = false;
+          this.cdr.detectChanges();
         },
       });
     } else {
@@ -150,10 +166,12 @@ export class Projects implements OnInit {
           this.projects = [newProject, ...this.projects];
           this.formSaving = false;
           this.showFormModal = false;
+          this.cdr.detectChanges();
         },
         error: (err) => {
           this.formError = err?.error?.detail || 'Failed to create workspace.';
           this.formSaving = false;
+          this.cdr.detectChanges();
         },
       });
     }
@@ -184,10 +202,12 @@ export class Projects implements OnInit {
           this.showFileDrawer = false;
         }
         this.deletingProject = null;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.deleteConfirming = false;
         this.showDeleteModal = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -197,8 +217,11 @@ export class Projects implements OnInit {
   openFileDrawer(project: any) {
     this.drawerProject = project;
     this.showFileDrawer = true;
+    this.activeDrawerTab = 'files';
     this.drawerFiles = [];
+    this.drawerReports = [];
     this.drawerError = null;
+    this.drawerReportsError = null;
     this.uploadQueue = [];
     this.loadDrawerFiles();
   }
@@ -209,37 +232,103 @@ export class Projects implements OnInit {
     this.uploadQueue = [];
   }
 
-  loadDrawerFiles() {
+  setDrawerTab(tab: 'files' | 'reports') {
+    this.activeDrawerTab = tab;
+    if (tab === 'reports') {
+      this.loadDrawerReports();
+    } else {
+      this.loadDrawerFiles();
+    }
+    this.cdr.detectChanges();
+  }
+
+  loadDrawerReports() {
     if (!this.drawerProject) return;
-    this.drawerLoading = true;
-    this.api.listProjectFiles(this.drawerProject.id).subscribe({
-      next: (files) => {
-        this.drawerFiles = files;
-        this.drawerLoading = false;
+    const projectId = this.drawerProject.id;
+    this.drawerReportsLoading = true;
+    this.drawerReportsError = null;
+    this.api.listProjectReports(projectId).subscribe({
+      next: (reports) => {
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerReports = reports;
+          this.drawerReportsLoading = false;
+        }
+        this.cdr.detectChanges();
       },
       error: () => {
-        this.drawerError = 'Failed to load files.';
-        this.drawerLoading = false;
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerReportsError = 'Failed to load reports.';
+          this.drawerReportsLoading = false;
+        }
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  deleteDrawerReport(report: any) {
+    if (!confirm(`Are you sure you want to delete report: ${report.test_name}?`)) return;
+    if (!this.drawerProject) return;
+    const projectId = this.drawerProject.id;
+    this.api.deleteReport(report.test_name).subscribe({
+      next: () => {
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerReports = this.drawerReports.filter(r => r.test_name !== report.test_name);
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        alert('Failed to delete report. Please try again.');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  loadDrawerFiles() {
+    if (!this.drawerProject) return;
+    const projectId = this.drawerProject.id;
+    this.drawerLoading = true;
+    this.api.listProjectFiles(projectId).subscribe({
+      next: (files) => {
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerFiles = files;
+          this.drawerLoading = false;
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerError = 'Failed to load files.';
+          this.drawerLoading = false;
+        }
+        this.cdr.detectChanges();
       },
     });
   }
 
   deleteDrawerFile(file: any) {
     if (!this.drawerProject) return;
-    this.api.deleteProjectFile(this.drawerProject.id, file.id).subscribe({
+    const projectId = this.drawerProject.id;
+    this.api.deleteProjectFile(projectId, file.id).subscribe({
       next: () => {
-        this.drawerFiles = this.drawerFiles.filter((f) => f.id !== file.id);
-        const idx = this.projects.findIndex((p) => p.id === this.drawerProject.id);
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerFiles = this.drawerFiles.filter((f) => f.id !== file.id);
+        }
+        const idx = this.projects.findIndex((p) => p.id === projectId);
         if (idx !== -1 && this.projects[idx].file_count > 0) {
           this.projects[idx] = { ...this.projects[idx], file_count: this.projects[idx].file_count - 1 };
           this.projects = [...this.projects];
         }
+        this.cdr.detectChanges();
       },
-      error: () => alert('Failed to delete file. Please try again.'),
+      error: () => {
+        alert('Failed to delete file. Please try again.');
+        this.cdr.detectChanges();
+      },
     });
   }
 
   getFileDownloadUrl(file: any): string {
+    if (!this.drawerProject) return '';
     return this.api.getProjectFileDownloadUrl(this.drawerProject.id, file.id);
   }
 
@@ -277,20 +366,26 @@ export class Projects implements OnInit {
   }
 
   uploadFile(entry: { file: File; status: 'pending' | 'uploading' | 'done' | 'error'; error?: string }) {
+    if (!this.drawerProject) return;
+    const projectId = this.drawerProject.id;
     entry.status = 'uploading';
-    this.api.uploadProjectFile(this.drawerProject.id, entry.file).subscribe({
+    this.api.uploadProjectFile(projectId, entry.file).subscribe({
       next: (newFile) => {
         entry.status = 'done';
-        this.drawerFiles = [newFile, ...this.drawerFiles];
-        const idx = this.projects.findIndex((p) => p.id === this.drawerProject.id);
+        if (this.drawerProject && this.drawerProject.id === projectId) {
+          this.drawerFiles = [newFile, ...this.drawerFiles];
+        }
+        const idx = this.projects.findIndex((p) => p.id === projectId);
         if (idx !== -1) {
           this.projects[idx] = { ...this.projects[idx], file_count: (this.projects[idx].file_count || 0) + 1 };
           this.projects = [...this.projects];
         }
+        this.cdr.detectChanges();
       },
       error: (err) => {
         entry.status = 'error';
         entry.error = err?.error?.detail || 'Upload failed.';
+        this.cdr.detectChanges();
       },
     });
   }

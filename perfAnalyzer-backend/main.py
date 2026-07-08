@@ -17,6 +17,7 @@ import jwt
 import datetime
 import tempfile
 from typing import Optional
+from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
 import os
@@ -104,6 +105,15 @@ def release_db_connection(conn):
     except Exception:
         pass
 
+@contextmanager
+def db_session():
+    """Context manager for checking out a DB connection and ensuring its release."""
+    conn = get_db_connection()
+    try:
+        yield conn
+    finally:
+        release_db_connection(conn)
+
 def init_db():
     try:
         try:
@@ -151,6 +161,7 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        cur.execute("ALTER TABLE test_results ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL;")
         conn.commit()
         cur.close()
         conn.close()
@@ -275,26 +286,21 @@ def register(username: str = Form(...), password: str = Form(...), full_name: st
     full_name = full_name.strip()
     
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        # Check if username exists
-        cur.execute("SELECT id FROM users WHERE username = %s;", (username,))
-        user = cur.fetchone()
-        if user:
-            cur.close()
-            release_db_connection(conn)
-            raise HTTPException(status_code=400, detail="Gmail address already registered.")
-        
-        # Insert user
-        pwd_hash = hash_password(password)
-        cur.execute(
-            "INSERT INTO users (username, password_hash, full_name) VALUES (%s, %s, %s);",
-            (username, pwd_hash, full_name)
-        )
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    # Check if username exists
+                    cur.execute("SELECT id FROM users WHERE username = %s;", (username,))
+                    user = cur.fetchone()
+                    if user:
+                        raise HTTPException(status_code=400, detail="Gmail address already registered.")
+                    
+                    # Insert user
+                    pwd_hash = hash_password(password)
+                    cur.execute(
+                        "INSERT INTO users (username, password_hash, full_name) VALUES (%s, %s, %s);",
+                        (username, pwd_hash, full_name)
+                    )
         return JSONResponse({"message": "User registered successfully."})
     except HTTPException:
         raise
@@ -307,21 +313,16 @@ def login(username: str = Form(...), password: str = Form(...)):
     username = username.strip().lower()
     
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        # Retrieve user hash and full name
-        cur.execute("SELECT password_hash, full_name FROM users WHERE username = %s;", (username,))
-        row = cur.fetchone()
-        
-        if not row or row[0] != hash_password(password):
-            cur.close()
-            release_db_connection(conn)
-            raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
-            
-        pwd_hash, full_name = row
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                # Retrieve user hash and full name
+                cur.execute("SELECT password_hash, full_name FROM users WHERE username = %s;", (username,))
+                row = cur.fetchone()
+                
+                if not row or row[0] != hash_password(password):
+                    raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
+                    
+                pwd_hash, full_name = row
         
         payload = {
             "username": username,
@@ -350,6 +351,7 @@ app.add_middleware(
 )
 
 app.mount("/reports", StaticFiles(directory="../Test Result"), name="reports")
+app.mount("/generated_tests", StaticFiles(directory="generated_tests"), name="generated_tests")
 
 JMETER_CMD = shutil.which("jmeter") or shutil.which("jmeter.bat")
 BZT_CMD = shutil.which("bzt")
@@ -525,20 +527,18 @@ def parse_test_metrics(test_name: str) -> dict:
 def update_db_test_result(test_name: str, status: str, error_message: str = ""):
     metrics = parse_test_metrics(test_name)
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            UPDATE test_results
-            SET status = %s,
-                throughput = %s,
-                avg_rt = %s,
-                error_rate = %s,
-                error_message = %s
-            WHERE test_name = %s;
-        """, (status, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], error_message, test_name))
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE test_results
+                        SET status = %s,
+                            throughput = %s,
+                            avg_rt = %s,
+                            error_rate = %s,
+                            error_message = %s
+                        WHERE test_name = %s;
+                    """, (status, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], error_message, test_name))
     except Exception as e:
         print(f"Warning: Failed to update test result in database: {str(e)}")
 
@@ -630,15 +630,13 @@ def run_test(
     try:
         # If a workspace file is specified, copy it to the execution folder
         if project_id is not None and project_file_id is not None:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
-                (project_file_id, project_id)
-            )
-            row = cur.fetchone()
-            cur.close()
-            release_db_connection(conn)
+            with db_session() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
+                        (project_file_id, project_id)
+                    )
+                    row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Workspace file not found.")
             stored_path, filename = row
@@ -665,17 +663,15 @@ def run_test(
             
             # Insert into database
             try:
-                conn = get_db_connection()
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (test_name) DO UPDATE 
-                    SET status = 'running', created_at = CURRENT_TIMESTAMP;
-                """, (test_name, username, 0, 0, 0, 'running'))
-                conn.commit()
-                cur.close()
-                release_db_connection(conn)
+                with db_session() as conn:
+                    with conn:
+                        with conn.cursor() as cur:
+                            cur.execute("""
+                                INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status, project_id)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (test_name) DO UPDATE 
+                                SET status = 'running', created_at = CURRENT_TIMESTAMP, project_id = EXCLUDED.project_id;
+                            """, (test_name, username, 0, 0, 0, 'running', project_id))
             except Exception as e:
                 print(f"Warning: Failed to insert test execution to database: {str(e)}")
             
@@ -744,17 +740,15 @@ def run_test(
 
         # Insert into database
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (test_name) DO UPDATE 
-                SET status = 'running', concurrency = %s, ramp_up = %s, duration = %s, created_at = CURRENT_TIMESTAMP;
-            """, (test_name, username, threads, ramp_up, duration, 'running', threads, ramp_up, duration))
-            conn.commit()
-            cur.close()
-            release_db_connection(conn)
+            with db_session() as conn:
+                with conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status, project_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (test_name) DO UPDATE 
+                            SET status = 'running', concurrency = %s, ramp_up = %s, duration = %s, created_at = CURRENT_TIMESTAMP, project_id = EXCLUDED.project_id;
+                        """, (test_name, username, threads, ramp_up, duration, 'running', project_id, threads, ramp_up, duration))
         except Exception as e:
             print(f"Warning: Failed to insert test execution to database: {str(e)}")
 
@@ -1454,52 +1448,45 @@ def sync_filesystem_reports_to_db(requesting_user: str = "Guest"):
         return
     
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        # Get all existing test names in the DB to avoid duplicates
-        cur.execute("SELECT test_name FROM test_results;")
-        db_test_names = {row[0] for row in cur.fetchall()}
-        
-        for item in TEST_RESULT_DIR.iterdir():
-            if item.is_dir():
-                test_name = item.name
-                if test_name not in db_test_names:
-                    try:
-                        # Parse metrics from files
-                        metrics = parse_test_metrics(test_name)
-                        
-                        html_report_path = item / "HTML_Report" / "index.html"
-                        status = "success" if html_report_path.exists() else "failed"
-                        
-                        # Parse timestamp from name
-                        created_at = datetime.datetime.now()
-                        parts = test_name.split("_")
-                        if len(parts) >= 2:
-                            date_part = parts[-2]
-                            time_part = parts[-1]
-                            if len(date_part) == 8 and len(time_part) == 6 and date_part.isdigit() and time_part.isdigit():
-                                try:
-                                    created_at = datetime.datetime.strptime(f"{date_part}_{time_part}", "%Y%m%d_%H%M%S")
-                                except:
-                                    pass
-                                    
-                        # Insert into DB
-                        cur.execute("""
-                            INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, throughput, avg_rt, error_rate, status, created_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                        """, (test_name, requesting_user or "Guest", metrics["active_users"], 0, 0, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], status, created_at))
-                        conn.commit()
-                        db_test_names.add(test_name) # track in memory as successfully synced
-                    except Exception as folder_err:
-                        print(f"Error syncing folder {test_name} to DB: {folder_err}")
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                # Get all existing test names in the DB to avoid duplicates
+                cur.execute("SELECT test_name FROM test_results;")
+                db_test_names = {row[0] for row in cur.fetchall()}
+            
+            for item in TEST_RESULT_DIR.iterdir():
+                if item.is_dir():
+                    test_name = item.name
+                    if test_name not in db_test_names:
                         try:
-                            conn.rollback()
-                        except:
-                            pass
-        
-        cur.close()
-        release_db_connection(conn)
+                            # Parse metrics from files
+                            metrics = parse_test_metrics(test_name)
+                            
+                            html_report_path = item / "HTML_Report" / "index.html"
+                            status = "success" if html_report_path.exists() else "failed"
+                            
+                            # Parse timestamp from name
+                            created_at = datetime.datetime.now()
+                            parts = test_name.split("_")
+                            if len(parts) >= 2:
+                                date_part = parts[-2]
+                                time_part = parts[-1]
+                                if len(date_part) == 8 and len(time_part) == 6 and date_part.isdigit() and time_part.isdigit():
+                                    try:
+                                        created_at = datetime.datetime.strptime(f"{date_part}_{time_part}", "%Y%m%d_%H%M%S")
+                                    except:
+                                        pass
+                                        
+                            # Insert into DB inside its own independent transaction
+                            with conn:
+                                with conn.cursor() as cur:
+                                    cur.execute("""
+                                        INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, throughput, avg_rt, error_rate, status, created_at)
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                                    """, (test_name, requesting_user or "Guest", metrics["active_users"], 0, 0, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], status, created_at))
+                            db_test_names.add(test_name) # track in memory as successfully synced
+                        except Exception as folder_err:
+                            print(f"Error syncing folder {test_name} to DB: {folder_err}")
     except Exception as e:
         print("Error syncing filesystem reports to DB:", e)
 
@@ -1510,24 +1497,22 @@ def list_reports(username: str = None, sync: bool = False):
         sync_filesystem_reports_to_db(username)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        if username and username.strip() != "":
-            cur.execute("""
-                SELECT test_name, created_at, status, throughput, avg_rt, error_rate
-                FROM test_results
-                WHERE username = %s
-                ORDER BY created_at DESC;
-            """, (username.strip(),))
-        else:
-            cur.execute("""
-                SELECT test_name, created_at, status, throughput, avg_rt, error_rate
-                FROM test_results
-                ORDER BY created_at DESC;
-            """)
-        rows = cur.fetchall()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                if username and username.strip() != "":
+                    cur.execute("""
+                        SELECT test_name, created_at, status, throughput, avg_rt, error_rate
+                        FROM test_results
+                        WHERE username = %s
+                        ORDER BY created_at DESC;
+                    """, (username.strip(),))
+                else:
+                    cur.execute("""
+                        SELECT test_name, created_at, status, throughput, avg_rt, error_rate
+                        FROM test_results
+                        ORDER BY created_at DESC;
+                    """)
+                rows = cur.fetchall()
 
         reports = []
         for row in rows:
@@ -1591,12 +1576,10 @@ def delete_report(test_name: str):
         
     # Delete from PostgreSQL database
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM test_results WHERE test_name = %s;", (test_name,))
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM test_results WHERE test_name = %s;", (test_name,))
         return JSONResponse({"message": "Report deleted successfully"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete report from database: {str(e)}")
@@ -1610,32 +1593,30 @@ def delete_report(test_name: str):
 def list_projects(username: str = ""):
     """Return all projects belonging to the given user."""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        if username:
-            cur.execute("""
-                SELECT p.id, p.name, p.description, p.tags, p.owner,
-                       p.created_at, p.updated_at,
-                       COUNT(pf.id) AS file_count
-                FROM projects p
-                LEFT JOIN project_files pf ON pf.project_id = p.id
-                WHERE p.owner = %s
-                GROUP BY p.id
-                ORDER BY p.updated_at DESC;
-            """, (username,))
-        else:
-            cur.execute("""
-                SELECT p.id, p.name, p.description, p.tags, p.owner,
-                       p.created_at, p.updated_at,
-                       COUNT(pf.id) AS file_count
-                FROM projects p
-                LEFT JOIN project_files pf ON pf.project_id = p.id
-                GROUP BY p.id
-                ORDER BY p.updated_at DESC;
-            """)
-        rows = cur.fetchall()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                if username:
+                    cur.execute("""
+                        SELECT p.id, p.name, p.description, p.tags, p.owner,
+                               p.created_at, p.updated_at,
+                               COUNT(pf.id) AS file_count
+                        FROM projects p
+                        LEFT JOIN project_files pf ON pf.project_id = p.id
+                        WHERE p.owner = %s
+                        GROUP BY p.id
+                        ORDER BY p.updated_at DESC;
+                    """, (username,))
+                else:
+                    cur.execute("""
+                        SELECT p.id, p.name, p.description, p.tags, p.owner,
+                               p.created_at, p.updated_at,
+                               COUNT(pf.id) AS file_count
+                        FROM projects p
+                        LEFT JOIN project_files pf ON pf.project_id = p.id
+                        GROUP BY p.id
+                        ORDER BY p.updated_at DESC;
+                    """)
+                rows = cur.fetchall()
         projects = []
         for row in rows:
             projects.append({
@@ -1664,17 +1645,15 @@ def create_project(
     if not name.strip():
         raise HTTPException(status_code=400, detail="Project name must not be empty.")
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO projects (name, description, tags, owner)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, name, description, tags, owner, created_at, updated_at;
-        """, (name.strip(), description.strip(), tags.strip(), username))
-        row = cur.fetchone()
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO projects (name, description, tags, owner)
+                        VALUES (%s, %s, %s, %s)
+                        RETURNING id, name, description, tags, owner, created_at, updated_at;
+                    """, (name.strip(), description.strip(), tags.strip(), username))
+                    row = cur.fetchone()
         return JSONResponse({
             "id": row[0],
             "name": row[1],
@@ -1700,21 +1679,17 @@ def update_project(
     if not name.strip():
         raise HTTPException(status_code=400, detail="Project name must not be empty.")
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            UPDATE projects
-            SET name = %s, description = %s, tags = %s, updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-            RETURNING id;
-        """, (name.strip(), description.strip(), tags.strip(), project_id))
-        if cur.rowcount == 0:
-            cur.close()
-            release_db_connection(conn)
-            raise HTTPException(status_code=404, detail="Project not found.")
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE projects
+                        SET name = %s, description = %s, tags = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                        RETURNING id;
+                    """, (name.strip(), description.strip(), tags.strip(), project_id))
+                    if cur.rowcount == 0:
+                        raise HTTPException(status_code=404, detail="Project not found.")
         return JSONResponse({"message": "Project updated successfully."})
     except HTTPException:
         raise
@@ -1726,14 +1701,12 @@ def update_project(
 def delete_project(project_id: int):
     """Delete a project and cascade-delete its files from disk and DB."""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT stored_path FROM project_files WHERE project_id = %s;", (project_id,))
-        file_rows = cur.fetchall()
-        cur.execute("DELETE FROM projects WHERE id = %s;", (project_id,))
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT stored_path FROM project_files WHERE project_id = %s;", (project_id,))
+                    file_rows = cur.fetchall()
+                    cur.execute("DELETE FROM projects WHERE id = %s;", (project_id,))
         for fr in file_rows:
             p = Path(fr[0])
             if p.exists():
@@ -1770,16 +1743,16 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
         file_type = "other"
 
     # Verify project exists
-    conn = get_db_connection()
-    ensure_project_files_schema(conn)
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM projects WHERE id = %s;", (project_id,))
-    if not cur.fetchone():
-        cur.close()
-        release_db_connection(conn)
-        raise HTTPException(status_code=404, detail="Project not found.")
-    cur.close()
-    release_db_connection(conn)
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM projects WHERE id = %s;", (project_id,))
+                if not cur.fetchone():
+                    raise HTTPException(status_code=404, detail="Project not found.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during project verification: {str(e)}")
 
     # Save file to disk
     proj_dir = PROJECT_FILES_DIR / str(project_id)
@@ -1794,19 +1767,17 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
 
     # Register in DB
     try:
-        conn = get_db_connection()
-        ensure_project_files_schema(conn)
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO project_files (project_id, filename, file_type, file_size, stored_path, file_path)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, filename, file_type, file_size, uploaded_at;
-        """, (project_id, file.filename, file_type, file_size, str(dest), str(dest)))
-        row = cur.fetchone()
-        cur.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = %s;", (project_id,))
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                ensure_project_files_schema(conn)
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO project_files (project_id, filename, file_type, file_size, stored_path, file_path)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING id, filename, file_type, file_size, uploaded_at;
+                    """, (project_id, file.filename, file_type, file_size, str(dest), str(dest)))
+                    row = cur.fetchone()
+                    cur.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = %s;", (project_id,))
         return JSONResponse({
             "id": row[0],
             "filename": row[1],
@@ -1822,17 +1793,15 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
 def list_project_files(project_id: int):
     """List all files belonging to a project."""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, filename, file_type, file_size, uploaded_at
-            FROM project_files
-            WHERE project_id = %s
-            ORDER BY uploaded_at DESC;
-        """, (project_id,))
-        rows = cur.fetchall()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, filename, file_type, file_size, uploaded_at
+                    FROM project_files
+                    WHERE project_id = %s
+                    ORDER BY uploaded_at DESC;
+                """, (project_id,))
+                rows = cur.fetchall()
         files = []
         for row in rows:
             files.append({
@@ -1851,22 +1820,18 @@ def list_project_files(project_id: int):
 def delete_project_file(project_id: int, file_id: int):
     """Remove a file from a project (DB + disk)."""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT stored_path FROM project_files WHERE id = %s AND project_id = %s;",
-            (file_id, project_id)
-        )
-        row = cur.fetchone()
-        if not row:
-            cur.close()
-            release_db_connection(conn)
-            raise HTTPException(status_code=404, detail="File not found.")
-        stored_path = row[0]
-        cur.execute("DELETE FROM project_files WHERE id = %s;", (file_id,))
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT stored_path FROM project_files WHERE id = %s AND project_id = %s;",
+                        (file_id, project_id)
+                    )
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="File not found.")
+                    stored_path = row[0]
+                    cur.execute("DELETE FROM project_files WHERE id = %s;", (file_id,))
         p = Path(stored_path)
         if p.exists():
             p.unlink(missing_ok=True)
@@ -1881,15 +1846,13 @@ def delete_project_file(project_id: int, file_id: int):
 def download_project_file(project_id: int, file_id: int):
     """Download a project file."""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
-            (file_id, project_id)
-        )
-        row = cur.fetchone()
-        cur.close()
-        release_db_connection(conn)
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
+                    (file_id, project_id)
+                )
+                row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="File not found.")
         stored_path, filename = row
@@ -1901,3 +1864,35 @@ def download_project_file(project_id: int, file_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+
+@app.get("/projects/{project_id}/reports")
+def list_project_reports(project_id: int):
+    """List all reports belonging to a specific project workspace."""
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT test_name, created_at, status, throughput, avg_rt, error_rate
+                    FROM test_results
+                    WHERE project_id = %s
+                    ORDER BY created_at DESC;
+                """, (project_id,))
+                rows = cur.fetchall()
+        reports = []
+        for row in rows:
+            test_name, created_at, status, throughput, avg_rt, error_rate = row
+            html_report_path = TEST_RESULT_DIR / test_name / "HTML_Report" / "index.html"
+            has_report = html_report_path.exists()
+            reports.append({
+                "test_name": test_name,
+                "timestamp": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "Unknown",
+                "status": status,
+                "throughput": throughput,
+                "avg_rt": avg_rt,
+                "error_rate": error_rate,
+                "has_report": has_report
+            })
+        return JSONResponse(reports)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list project reports: {str(e)}")

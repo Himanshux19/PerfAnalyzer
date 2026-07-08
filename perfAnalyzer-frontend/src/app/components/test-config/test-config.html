@@ -26,7 +26,7 @@
           <label class="form-label-premium" for="workspace-select">1. Select Project Workspace</label>
           <div class="d-flex gap-2">
             <select id="workspace-select" class="form-select form-input-premium" [(ngModel)]="selectedWorkspaceId" (change)="onWorkspaceChange()">
-              <option [value]="null">-- Select Workspace --</option>
+              <option [value]="null">Select Workspace</option>
               @for (ws of workspaces; track ws.id) {
                 <option [value]="ws.id">{{ ws.name }} ({{ ws.file_count }} file{{ ws.file_count !== 1 ? 's' : '' }})</option>
               }
@@ -40,7 +40,7 @@
         <div class="mb-3">
           <label class="form-label-premium" for="file-select">2. Select Test File</label>
           <select id="file-select" class="form-select form-input-premium" [(ngModel)]="selectedFileId" (change)="onFileChange()" [disabled]="!selectedWorkspaceId">
-            <option [value]="null">-- Select File --</option>
+            <option [value]="null">Select File</option>
             @for (file of workspaceFiles; track file.id) {
               <option [value]="file.id">{{ file.filename }} ({{ file.file_type | uppercase }})</option>
             }
@@ -51,7 +51,7 @@
         </div>
       </div>
     } @else {
-      <div class="setup-section-title">1. Upload Script or Dataset (.jmx / .csv)</div>
+      <div class="setup-section-title">Upload Script or Dataset (.jmx / .csv)</div>
       <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
         <span class="text-muted fs-7 mb-2">Drag and drop JMX script or CSV results here</span>
         <label for="fileUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
@@ -112,7 +112,7 @@
 
   <!-- 2. JMeter Configuration -->
   <div class="setup-section">
-    <div class="setup-section-title">2. Load Configuration (JMX Only)</div>
+    <div class="setup-section-title">Load Configuration (JMX Only)</div>
     
     <div class="row g-3">
       <div class="col-sm-6 col-12">

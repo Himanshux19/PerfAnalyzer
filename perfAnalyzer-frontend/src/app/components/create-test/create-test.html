@@ -1,91 +1,205 @@
-<div class="reports-layout min-vh-100">
-    <app-navbar></app-navbar>
-    <div class="container-fluid py-4 px-lg-5">
-        <div class="mb-4">
-            <h2 class="font-bold">
-                Create Test
-            </h2>
-            <p class="text-muted">
-                Generate a JMeter (.jmx) test file
-            </p>
-        </div>
-        <form [formGroup]="createTestForm" (ngSubmit)="generate()">
-            <div class="card-premium p-4 mb-4">
-                <h5 class="mb-4">
-                    Test Information
-                </h5>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">
-                            Test Name
-                        </label>
-                        <input type="text" class="form-control" formControlName="testName">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">
-                            HTTP Method
-                        </label>
-                        <select class="form-select" formControlName="method">
-                            @for(method of methods; track method){
-                            <option [value]="method">
-                                {{method}}
-                            </option>
-                            }
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">
-                            Target URL
-                        </label>
-                        <input class="form-control" formControlName="url">
-                    </div>
-                </div>
-            </div>
-            <div class="card-premium p-4 mb-4">
-                <h5 class="mb-4">
-                    Load Configuration
-                </h5>
-                <div class="row">
-                    <div class="col-md-3">
-                        <label class="form-label">
-                            Threads
-                        </label>
-                        <input class="form-control" type="number" formControlName="threads">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">
-                            Ramp Up
-                        </label>
-                        <input class="form-control" type="number" formControlName="rampUp">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">
-                            Duration
-                        </label>
-                        <input class="form-control" type="number" formControlName="duration">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">
-                            Loop Count
-                        </label>
-                        <input class="form-control" type="number" formControlName="loopCount">
-                    </div>
-                </div>
-            </div>
-            @if(showBody()){
-            <div class="card-premium p-4 mb-4">
-                <h5 class="mb-4">
-                    Request Body
-                </h5>
-                <textarea class="form-control" rows="10" formControlName="body">
-                </textarea>
-            </div>
-            }
-            <div class="text-end">
-                <button class="btn btn-primary px-5" type="submit">
-                    Generate JMX
-                </button>
-            </div>
-        </form>
+<div class="create-test-layout min-vh-100 pb-5">
+  <app-navbar></app-navbar>
+
+  <div class="container py-4 px-lg-5">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 col-lg-10 col-xl-8 mx-auto">
+      <div>
+        <h2 class="font-bold text-slate-800 m-0">Create Load Test</h2>
+        <p class="text-muted fs-6 m-0">Configure, validate, and generate industry-standard JMX test descriptors instantly.</p>
+      </div>
     </div>
+
+    <!-- main Form -->
+    <div class="row g-4">
+      <div class="col-lg-10 col-xl-8 mx-auto">
+        <form [formGroup]="createTestForm" (ngSubmit)="generate()">
+          <!-- Section 1: Test Metadata -->
+          <div class="card-premium p-4 mb-4">
+            <div class="d-flex align-items-center mb-4 border-bottom pb-3">
+              <div class="step-badge me-3">1</div>
+              <h5 class="m-0 fw-bold text-slate-800">Target Specifications</h5>
+            </div>
+            
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label">Test Name</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-tag-fill text-muted"></i></span>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    formControlName="testName" 
+                    placeholder="e.g., login_stress_test"
+                    [class.is-invalid]="formSubmitted && createTestForm.get('testName')?.invalid"
+                  >
+                  @if (formSubmitted && createTestForm.get('testName')?.errors?.['required']) {
+                    <div class="invalid-feedback">Test name is required.</div>
+                  }
+                  @if (formSubmitted && createTestForm.get('testName')?.errors?.['pattern']) {
+                    <div class="invalid-feedback">Only letters, numbers, underscores, and dashes are allowed.</div>
+                  }
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">HTTP Method</label>
+                <select class="form-select" formControlName="method">
+                  @for (m of methods; track m) {
+                    <option [value]="m">{{ m }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Target URL</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-globe2 text-muted"></i></span>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    formControlName="url" 
+                    placeholder="e.g., https://api.myproject.com/v1/auth"
+                    [class.is-invalid]="formSubmitted && createTestForm.get('url')?.invalid"
+                  >
+                  @if (formSubmitted && createTestForm.get('url')?.errors?.['required']) {
+                    <div class="invalid-feedback">Target URL is required.</div>
+                  }
+                  @if (formSubmitted && createTestForm.get('url')?.errors?.['pattern']) {
+                    <div class="invalid-feedback">Please enter a valid URL (including http:// or https://).</div>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Load Profile -->
+          <div class="card-premium p-4 mb-4">
+            <div class="d-flex align-items-center mb-4 border-bottom pb-3">
+              <div class="step-badge me-3">2</div>
+              <h5 class="m-0 fw-bold text-slate-800">Load Profile Configuration</h5>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-3 col-6">
+                <label class="form-label">Concurrency (Threads)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-people-fill text-muted"></i></span>
+                  <input 
+                    type="number" 
+                    class="form-control" 
+                    formControlName="threads"
+                    [class.is-invalid]="formSubmitted && createTestForm.get('threads')?.invalid"
+                  >
+                  <div class="invalid-feedback">Min value is 1.</div>
+                </div>
+              </div>
+
+              <div class="col-md-3 col-6">
+                <label class="form-label">Ramp-up Time (s)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-speedometer2 text-muted"></i></span>
+                  <input 
+                    type="number" 
+                    class="form-control" 
+                    formControlName="rampUp"
+                    [class.is-invalid]="formSubmitted && createTestForm.get('rampUp')?.invalid"
+                  >
+                  <div class="invalid-feedback">Min value is 0.</div>
+                </div>
+              </div>
+
+              <div class="col-md-3 col-6">
+                <label class="form-label">Duration (s)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-hourglass-split text-muted"></i></span>
+                  <input 
+                    type="number" 
+                    class="form-control" 
+                    formControlName="duration"
+                    [class.is-invalid]="formSubmitted && createTestForm.get('duration')?.invalid"
+                  >
+                  <div class="invalid-feedback">Min value is 1.</div>
+                </div>
+              </div>
+
+              <div class="col-md-3 col-6">
+                <label class="form-label">Loop Count</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-arrow-repeat text-muted"></i></span>
+                  <input type="number" class="form-control" formControlName="loopCount" placeholder="-1 for infinite">
+                </div>
+                <div class="form-text fs-9 text-muted mt-1">-1 represents infinite loop.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Request Body (Conditional) -->
+          @if (showBody()) {
+            <div class="card-premium p-4 mb-4 fade-in">
+              <div class="d-flex align-items-center mb-4 border-bottom pb-3">
+                <div class="step-badge me-3">3</div>
+                <h5 class="m-0 fw-bold text-slate-800">Payload JSON Body</h5>
+              </div>
+              <textarea 
+                class="form-control code-editor font-monospace" 
+                rows="6" 
+                formControlName="body"
+                placeholder='{ "key": "value" }'
+              ></textarea>
+              <div class="form-text fs-8 text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Ensure the request payload is in raw valid JSON format.</div>
+            </div>
+          }
+
+          <div class="text-end">
+            <button class="btn btn-primary btn-lg px-5 shadow-sm d-inline-flex align-items-center gap-2" type="submit">
+              <i class="bi bi-gear-fill"></i> Generate JMX Script
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- Generating Overlay -->
+@if (isGenerating && !generationSuccess && !generationError) {
+  <div class="generation-overlay d-flex align-items-center justify-content-center text-center">
+    <div class="overlay-card p-4 rounded-4 shadow-lg text-center max-w-400">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <h5 class="fw-bold text-slate-800 m-0">Generating...</h5>
+    </div>
+  </div>
+}
+
+<!-- Success Popup Modal -->
+@if (generationSuccess) {
+  <div class="generation-overlay d-flex align-items-center justify-content-center text-center">
+    <div class="overlay-card p-4 rounded-4 shadow-lg text-center max-w-400">
+      <div class="success-icon-wrapper mb-3" style="width: 54px; height: 54px; font-size: 1.8rem; background: #dcfce7; color: #15803d; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <h4 class="fw-bold mb-2 text-slate-800">Generated Successfully</h4>
+      <p class="text-muted fs-8 mb-4">Your JMeter JMX load test script has been successfully generated on the server.</p>
+      <div class="d-flex gap-2 justify-content-center">
+        <button type="button" class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 8px;" (click)="resetForm()">Create Another</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Error Popup Modal -->
+@if (generationError) {
+  <div class="generation-overlay d-flex align-items-center justify-content-center text-center">
+    <div class="overlay-card p-4 rounded-4 shadow-lg text-center max-w-400">
+      <div class="success-icon-wrapper mb-3" style="width: 54px; height: 54px; font-size: 1.8rem; background: #fee2e2; color: #dc2626; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+        <i class="bi bi-x-circle-fill"></i>
+      </div>
+      <h4 class="fw-bold mb-2 text-slate-800">Generation Failed</h4>
+      <p class="text-muted fs-8 mb-4">{{ generationError }}</p>
+      <div class="d-flex gap-2 justify-content-center">
+        <button type="button" class="btn btn-secondary btn-sm px-4 py-2" style="border-radius: 8px;" (click)="clearError()">Close</button>
+      </div>
+    </div>
+  </div>
+}

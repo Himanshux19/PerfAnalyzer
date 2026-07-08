@@ -14,9 +14,9 @@
         type="button"
         class="btn btn-outline-primary d-flex align-items-center gap-2"
         (click)="loadReports(true)"
-        [disabled]="isLoading"
+        [disabled]="isLoading || isRefreshing"
       >
-        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh List
+        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading || isRefreshing"></i> Refresh List
       </button>
     </div>
 

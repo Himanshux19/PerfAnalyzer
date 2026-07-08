@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { Navbar } from '../navbar/navbar';
 import { FormsModule } from '@angular/forms';
@@ -14,9 +14,10 @@ export class ReportsHistory implements OnInit {
   reports: any[] = [];
   searchQuery: string = '';
   isLoading: boolean = false;
+  isRefreshing: boolean = false;
   errorMessage: string | null = null;
 
-  constructor(protected api: ApiService, private router: Router) {}
+  constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     // Session Guard check
@@ -31,17 +32,25 @@ export class ReportsHistory implements OnInit {
   }
 
   loadReports(sync = false) {
-    this.isLoading = true;
+    if (sync) {
+      this.isRefreshing = true;
+    } else {
+      this.isLoading = true;
+    }
     this.errorMessage = null;
     this.api.listReports(sync).subscribe({
       next: (data) => {
         this.reports = data;
         this.isLoading = false;
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load reports:', err);
         this.errorMessage = 'Failed to load historical reports. Please make sure the backend is running.';
         this.isLoading = false;
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -59,10 +68,12 @@ export class ReportsHistory implements OnInit {
       this.api.deleteReport(testName).subscribe({
         next: () => {
           this.reports = this.reports.filter(r => r.test_name !== testName);
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Failed to delete report:', err);
           alert('Failed to delete report. Please try again.');
+          this.cdr.detectChanges();
         }
       });
     }

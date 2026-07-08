@@ -10,8 +10,8 @@
         <p class="text-muted m-0 fs-7">Create workspaces, upload test files, and manage your load testing resources</p>
       </div>
       <div class="d-flex gap-2">
-        <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadProjects()" [disabled]="isLoading" id="refresh-projects-btn">
-          <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh
+        <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadProjects(true)" [disabled]="isLoading || isRefreshing" id="refresh-projects-btn">
+          <i class="bi bi-arrow-clockwise" [class.spin]="isLoading || isRefreshing"></i> Refresh
         </button>
         <button type="button" class="btn-create-project d-flex align-items-center gap-2" (click)="openCreateModal()" id="create-project-btn">
           <i class="bi bi-plus-lg"></i> New Workspace
@@ -145,7 +145,7 @@
             <!-- Card Footer -->
             <div class="project-card-footer">
               <button type="button" class="btn-manage-files w-100" (click)="openFileDrawer(project)" [id]="'manage-files-' + project.id">
-                <i class="bi bi-folder2-open me-2"></i>Manage Files
+                <i class="bi bi-folder2-open me-2"></i>Manage Workspace
               </button>
             </div>
           </div>
@@ -245,83 +245,171 @@
       </button>
     </div>
 
-    <!-- Drop Zone -->
-    <div
-      class="drop-zone"
-      [class.dragover]="isDragOver"
-      (dragover)="onDragOver($event)"
-      (dragleave)="onDragLeave($event)"
-      (drop)="onDrop($event)"
-    >
-      <i class="bi bi-cloud-arrow-up drop-icon"></i>
-      <p class="m-0 fw-semibold">Drag & drop files here</p>
-      <p class="text-muted fs-7 m-0">JMX, CSV, JTL, YAML, JSON, XML, TXT</p>
-      <label class="btn-browse-files mt-2" for="file-upload-input">
-        <i class="bi bi-folder2-open me-1"></i> Browse Files
-      </label>
-      <input id="file-upload-input" type="file" class="d-none" multiple (change)="onFileInputChange($event)" accept=".jmx,.csv,.jtl,.yaml,.yml,.json,.txt,.xml" />
+    <!-- Tab Controls -->
+    <div class="drawer-tabs d-flex px-3 border-bottom">
+      <button 
+        type="button" 
+        class="drawer-tab-btn py-2 me-4 fw-semibold border-0 bg-transparent"
+        [class.active]="activeDrawerTab === 'files'"
+        (click)="setDrawerTab('files')"
+      >
+        Files
+      </button>
+      <button 
+        type="button" 
+        class="drawer-tab-btn py-2 fw-semibold border-0 bg-transparent"
+        [class.active]="activeDrawerTab === 'reports'"
+        (click)="setDrawerTab('reports')"
+      >
+        Reports
+      </button>
     </div>
 
-    <!-- Upload Queue -->
-    @if (uploadQueue.length > 0) {
-      <div class="upload-queue p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="fw-semibold fs-7">Uploads</span>
-          <button type="button" class="btn btn-link btn-sm p-0 text-muted fs-7" (click)="clearDoneUploads()">Clear done</button>
-        </div>
-        @for (entry of uploadQueue; track entry.file.name) {
-          <div class="upload-entry d-flex align-items-center gap-2 mb-1">
-            <i class="bi fs-6" [class]="entry.status === 'error' ? 'bi-x-circle-fill text-danger' : entry.status === 'done' ? 'bi-check-circle-fill text-success' : 'bi-arrow-up-circle text-primary'"></i>
-            <span class="text-truncate fs-7 flex-grow-1" [title]="entry.file.name">{{ entry.file.name }}</span>
-            @if (entry.status === 'uploading') {
-              <div class="spinner-border spinner-border-sm text-primary" style="width:14px;height:14px;" role="status"></div>
-            }
-            @if (entry.error) {
-              <span class="text-danger fs-7" [title]="entry.error">!</span>
-            }
+    @if (activeDrawerTab === 'files') {
+      <!-- Drop Zone -->
+      <div
+        class="drop-zone"
+        [class.dragover]="isDragOver"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <i class="bi bi-cloud-arrow-up drop-icon"></i>
+        <p class="m-0 fw-semibold">Drag & drop files here</p>
+        <p class="text-muted fs-7 m-0">JMX, CSV, JTL, YAML, JSON, XML, TXT</p>
+        <label class="btn-browse-files mt-2" for="file-upload-input">
+          <i class="bi bi-folder2-open me-1"></i> Browse Files
+        </label>
+        <input id="file-upload-input" type="file" class="d-none" multiple (change)="onFileInputChange($event)" accept=".jmx,.csv,.jtl,.yaml,.yml,.json,.txt,.xml" />
+      </div>
+
+      <!-- Upload Queue -->
+      @if (uploadQueue.length > 0) {
+        <div class="upload-queue p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-semibold fs-7">Uploads</span>
+            <button type="button" class="btn btn-link btn-sm p-0 text-muted fs-7" (click)="clearDoneUploads()">Clear done</button>
           </div>
+          @for (entry of uploadQueue; track entry.file.name) {
+            <div class="upload-entry d-flex align-items-center gap-2 mb-1">
+              <i class="bi fs-6" [class]="entry.status === 'error' ? 'bi-x-circle-fill text-danger' : entry.status === 'done' ? 'bi-check-circle-fill text-success' : 'bi-arrow-up-circle text-primary'"></i>
+              <span class="text-truncate fs-7 flex-grow-1" [title]="entry.file.name">{{ entry.file.name }}</span>
+              @if (entry.status === 'uploading') {
+                <div class="spinner-border spinner-border-sm text-primary" style="width:14px;height:14px;" role="status"></div>
+              }
+              @if (entry.error) {
+                <span class="text-danger fs-7" [title]="entry.error">!</span>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- File List -->
+      <div class="drawer-files-list">
+        @if (drawerLoading) {
+          <div class="d-flex align-items-center justify-content-center py-4">
+            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+            <span class="text-muted ms-2 fs-7">Loading files…</span>
+          </div>
+        } @else if (drawerError) {
+          <div class="text-danger fs-7 text-center py-3">{{ drawerError }}</div>
+        } @else if (drawerFiles.length === 0) {
+          <div class="empty-files-state text-center py-4">
+            <i class="bi bi-file-earmark-slash fs-2 text-muted mb-2 d-block"></i>
+            <span class="text-muted fs-7">No files uploaded yet.<br>Drop files above to get started.</span>
+          </div>
+        } @else {
+          <div class="drawer-files-header d-flex justify-content-between align-items-center px-3 py-2">
+            <span class="fw-semibold fs-7 text-muted">{{ drawerFiles.length }} FILE{{ drawerFiles.length !== 1 ? 'S' : '' }}</span>
+          </div>
+          @for (file of drawerFiles; track file.id) {
+            <div class="drawer-file-row d-flex align-items-center gap-3 px-3 py-2">
+              <div class="file-type-icon" [class]="getFileIconColor(file.file_type)">
+                <i class="bi" [class]="getFileIcon(file.file_type)"></i>
+              </div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="file-name text-truncate fw-semibold fs-7" [title]="file.filename">{{ file.filename }}</div>
+                <div class="text-muted" style="font-size:0.7rem;">{{ file.file_type | uppercase }} · {{ formatSize(file.file_size) }} · {{ (file.uploaded_at || '').slice(0, 10) }}</div>
+              </div>
+              <div class="d-flex gap-1 flex-shrink-0">
+                <a [href]="getFileDownloadUrl(file)" class="action-btn-icon" title="Download" [id]="'download-file-' + file.id" download>
+                  <i class="bi bi-download"></i>
+                </a>
+                <button type="button" class="action-btn-icon delete-btn" title="Delete file" (click)="deleteDrawerFile(file)" [id]="'delete-file-' + file.id">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </div>
+            </div>
+          }
         }
       </div>
     }
 
-    <!-- File List -->
-    <div class="drawer-files-list">
-      @if (drawerLoading) {
-        <div class="d-flex align-items-center justify-content-center py-4">
-          <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
-          <span class="text-muted ms-2 fs-7">Loading files…</span>
-        </div>
-      } @else if (drawerError) {
-        <div class="text-danger fs-7 text-center py-3">{{ drawerError }}</div>
-      } @else if (drawerFiles.length === 0) {
-        <div class="empty-files-state text-center py-4">
-          <i class="bi bi-file-earmark-slash fs-2 text-muted mb-2 d-block"></i>
-          <span class="text-muted fs-7">No files uploaded yet.<br>Drop files above to get started.</span>
-        </div>
-      } @else {
-        <div class="drawer-files-header d-flex justify-content-between align-items-center px-3 py-2">
-          <span class="fw-semibold fs-7 text-muted">{{ drawerFiles.length }} FILE{{ drawerFiles.length !== 1 ? 'S' : '' }}</span>
-        </div>
-        @for (file of drawerFiles; track file.id) {
-          <div class="drawer-file-row d-flex align-items-center gap-3 px-3 py-2">
-            <div class="file-type-icon" [class]="getFileIconColor(file.file_type)">
-              <i class="bi" [class]="getFileIcon(file.file_type)"></i>
-            </div>
-            <div class="flex-grow-1 min-w-0">
-              <div class="file-name text-truncate fw-semibold fs-7" [title]="file.filename">{{ file.filename }}</div>
-              <div class="text-muted" style="font-size:0.7rem;">{{ file.file_type | uppercase }} · {{ formatSize(file.file_size) }} · {{ (file.uploaded_at || '').slice(0, 10) }}</div>
-            </div>
-            <div class="d-flex gap-1 flex-shrink-0">
-              <a [href]="getFileDownloadUrl(file)" class="action-btn-icon" title="Download" [id]="'download-file-' + file.id" download>
-                <i class="bi bi-download"></i>
-              </a>
-              <button type="button" class="action-btn-icon delete-btn" title="Delete file" (click)="deleteDrawerFile(file)" [id]="'delete-file-' + file.id">
-                <i class="bi bi-trash-fill"></i>
-              </button>
-            </div>
+    @if (activeDrawerTab === 'reports') {
+      <!-- Reports List -->
+      <div class="drawer-reports-list p-3">
+        @if (drawerReportsLoading) {
+          <div class="d-flex align-items-center justify-content-center py-4">
+            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+            <span class="text-muted ms-2 fs-7">Loading reports…</span>
           </div>
+        } @else if (drawerReportsError) {
+          <div class="text-danger fs-7 text-center py-3">{{ drawerReportsError }}</div>
+        } @else if (drawerReports.length === 0) {
+          <div class="empty-files-state text-center py-4">
+            <i class="bi bi-bar-chart-line fs-2 text-muted mb-2 d-block"></i>
+            <span class="text-muted fs-7">No reports run for this workspace yet.</span>
+          </div>
+        } @else {
+          <div class="drawer-files-header d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-semibold fs-7 text-muted">{{ drawerReports.length }} REPORT{{ drawerReports.length !== 1 ? 'S' : '' }}</span>
+          </div>
+          @for (report of drawerReports; track report.test_name) {
+            <div class="drawer-report-row p-3 mb-2 rounded border">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="fw-bold fs-7 text-truncate" style="max-width: 200px;" [title]="report.test_name">{{ report.test_name }}</span>
+                <span class="status-badge" [class]="'status-' + report.status">{{ report.status }}</span>
+              </div>
+              <div class="text-muted fs-8 mb-2">{{ report.timestamp }}</div>
+              
+              @if (report.status === 'success') {
+                <div class="row g-2 mb-2" style="margin-left: 0; margin-right: 0;">
+                  <div class="col-4 px-1">
+                    <div class="bg-light p-1 rounded text-center">
+                      <div class="text-muted" style="font-size: 0.6rem;">RPS</div>
+                      <div class="fw-semibold fs-8">{{ report.throughput }}</div>
+                    </div>
+                  </div>
+                  <div class="col-4 px-1">
+                    <div class="bg-light p-1 rounded text-center">
+                      <div class="text-muted" style="font-size: 0.6rem;">Avg RT</div>
+                      <div class="fw-semibold fs-8">{{ report.avg_rt }}ms</div>
+                    </div>
+                  </div>
+                  <div class="col-4 px-1">
+                    <div class="bg-light p-1 rounded text-center">
+                      <div class="text-muted" style="font-size: 0.6rem;">Error</div>
+                      <div class="fw-semibold fs-8">{{ report.error_rate }}%</div>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <div class="d-flex justify-content-end gap-2 mt-2">
+                @if (report.has_report) {
+                  <a [href]="'http://localhost:8000/reports/' + report.test_name + '/HTML_Report/index.html'" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.7rem;">
+                    <i class="bi bi-eye-fill me-1"></i>View HTML
+                  </a>
+                }
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" (click)="deleteDrawerReport(report)">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </div>
+            </div>
+          }
         }
-      }
-    </div>
+      </div>
+    }
   </aside>
 }

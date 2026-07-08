@@ -1,5 +1,5 @@
-.reports-layout {
-  background: var(--bg-primary);
+.create-test-layout {
+  background: #f8fafc;
 }
 
 .font-bold {
@@ -8,43 +8,228 @@
 
 .card-premium {
   background: white;
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+}
+
+.step-badge {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
 }
 
 .form-label {
   font-weight: 600;
   color: #475569;
+  font-size: 0.8rem;
   margin-bottom: 0.5rem;
 }
 
 .form-control,
-.form-select {
+.form-select,
+.input-group-text {
   border-radius: 10px;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  transition: 0.25s;
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
 }
 
 .form-control:focus,
 .form-select:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
-textarea {
+.input-group-text {
+  border-right: none;
+}
+.input-group .form-control {
+  border-left: none;
+}
+
+.code-editor {
   resize: vertical;
+  background: #0f172a;
+  color: #38bdf8;
+  border: 1px solid #334155;
+}
+.code-editor:focus {
+  background: #0f172a;
+  color: #38bdf8;
+  border-color: #38bdf8;
 }
 
-.btn-primary {
-  background: #2563eb;
-  border: none;
+/* JMX Blueprint Card (Semi-dark modern panel) */
+.blueprint-card {
+  background: radial-gradient(circle at top left, #0f172a, #1e293b);
+  color: #e2e8f0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.3);
+  position: sticky;
+  top: 90px;
+}
+
+.jmx-blueprint-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.blueprint-node {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
   border-radius: 10px;
-  padding: 12px 24px;
-  font-weight: 600;
+  padding: 12px 16px;
+  transition: all 0.25s ease;
+}
+.blueprint-node:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.05);
 }
 
-.btn-primary:hover {
-  background: #1d4ed8;
+.blueprint-node .node-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
 }
+
+.blueprint-node .node-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.node-connector {
+  width: 2px;
+  height: 20px;
+  border-left: 2px dotted rgba(255, 255, 255, 0.15);
+  margin-left: 24px;
+}
+
+/* HTTP Method Badges in Blueprint */
+.method-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.method-get { background: #0ea5e9; color: white; }
+.method-post { background: #22c55e; color: white; }
+.method-put { background: #eab308; color: black; }
+.method-delete { background: #ef4444; color: white; }
+.method-patch { background: #a855f7; color: white; }
+.method-head { background: #64748b; color: white; }
+.method-options { background: #64748b; color: white; }
+
+/* Success Dashboard */
+.success-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  background: #dcfce7;
+  color: #15803d;
+  border-radius: 50%;
+  font-size: 2.5rem;
+  animation: pulseSuccess 1.5s infinite ease-in-out;
+}
+@keyframes pulseSuccess {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.2); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(22, 163, 74, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.artifact-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+.artifact-icon.icon-jmx { background: #fef3c7; color: #d97706; }
+.artifact-icon.icon-yaml { background: #fce7f3; color: #db2777; }
+
+/* Monospace Preview Pane */
+.code-preview-container {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+}
+.code-preview-container pre {
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* Stepper Overlay during generation */
+.generation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.overlay-card {
+  background: white;
+  width: 90%;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.overlay-steps .d-flex {
+  color: #94a3b8;
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+.overlay-steps .step-active {
+  color: #2563eb;
+  font-weight: 700;
+  transform: translateX(4px);
+}
+.overlay-steps .step-done {
+  color: #1e293b;
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Utilities */
+.max-w-600 { max-width: 600px; }
+.max-w-400 { max-width: 400px; }
+.fs-8 { font-size: 0.75rem; }
+.fs-9 { font-size: 0.65rem; }
+.text-slate-800 { color: #1e293b; }
+.text-slate-700 { color: #334155; }

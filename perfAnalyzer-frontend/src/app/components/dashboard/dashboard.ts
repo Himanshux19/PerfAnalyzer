@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { Logs } from '../logs/logs';
 import { Navbar } from '../navbar/navbar';
@@ -16,7 +16,7 @@ import { ApiService } from '../../api.service';
 export class Dashboard implements OnInit, OnDestroy {
   private pollingInterval: any = null;
 
-  constructor(protected api: ApiService, private router: Router) {}
+  constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     // Session Guard check (Browser only)
@@ -96,11 +96,13 @@ export class Dashboard implements OnInit, OnDestroy {
         this.pollingInterval = setInterval(() => {
           this.pollStatus(res.test_name);
         }, 1000);
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.api.testStatus.set('error');
         const errorMsg = err.error?.detail || err.message || 'Connection error';
         this.api.addLog(`Execution initialization failed: ${errorMsg}`, 'error');
+        this.cdr.detectChanges();
       }
     });
   }
@@ -180,9 +182,11 @@ export class Dashboard implements OnInit, OnDestroy {
             this.api.addLog(`Error: Test execution failed on server. ${res.error || ''}`, 'error');
           }
         }
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error polling test status:', err);
+        this.cdr.detectChanges();
       }
     });
   }

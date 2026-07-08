@@ -43,6 +43,8 @@ export class Projects implements OnInit {
   drawerReports: any[] = [];
   drawerReportsLoading = false;
   drawerReportsError: string | null = null;
+  reportsPage = 1;
+  reportsPerPage = 10;
 
   // ── Upload State ─────────────────────────────────────────────
   isDragOver = false;
@@ -247,6 +249,7 @@ export class Projects implements OnInit {
     const projectId = this.drawerProject.id;
     this.drawerReportsLoading = true;
     this.drawerReportsError = null;
+    this.reportsPage = 1;
     this.api.listProjectReports(projectId).subscribe({
       next: (reports) => {
         if (this.drawerProject && this.drawerProject.id === projectId) {
@@ -263,6 +266,26 @@ export class Projects implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  get paginatedReports(): any[] {
+    const start = (this.reportsPage - 1) * this.reportsPerPage;
+    return this.drawerReports.slice(start, start + this.reportsPerPage);
+  }
+
+  get totalReportsPages(): number {
+    return Math.ceil(this.drawerReports.length / this.reportsPerPage);
+  }
+
+  get reportsPageNumbers(): number[] {
+    const pages = this.totalReportsPages;
+    return Array.from({ length: pages }, (_, i) => i + 1);
+  }
+
+  setReportsPage(page: number) {
+    if (page < 1 || page > this.totalReportsPages) return;
+    this.reportsPage = page;
+    this.cdr.detectChanges();
   }
 
   deleteDrawerReport(report: any) {

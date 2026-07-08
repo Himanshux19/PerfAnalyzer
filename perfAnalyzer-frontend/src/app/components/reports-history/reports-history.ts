@@ -17,6 +17,10 @@ export class ReportsHistory implements OnInit {
   isRefreshing: boolean = false;
   errorMessage: string | null = null;
 
+  // Pagination
+  page = 1;
+  perPage = 7;
+
   constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
@@ -38,6 +42,7 @@ export class ReportsHistory implements OnInit {
       this.isLoading = true;
     }
     this.errorMessage = null;
+    this.page = 1; // Reset to page 1 on reload
     this.api.listReports(sync).subscribe({
       next: (data) => {
         this.reports = data;
@@ -55,12 +60,37 @@ export class ReportsHistory implements OnInit {
     });
   }
 
+  onSearchQueryChange() {
+    this.page = 1;
+    this.cdr.detectChanges();
+  }
+
   filteredReports() {
     if (!this.searchQuery.trim()) {
       return this.reports;
     }
     const q = this.searchQuery.toLowerCase().trim();
     return this.reports.filter(r => r.test_name.toLowerCase().includes(q));
+  }
+
+  get paginatedReports(): any[] {
+    const start = (this.page - 1) * this.perPage;
+    return this.filteredReports().slice(start, start + this.perPage);
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.filteredReports().length / this.perPage);
+  }
+
+  get pageNumbers(): number[] {
+    const pages = this.totalPages;
+    return Array.from({ length: pages }, (_, i) => i + 1);
+  }
+
+  setPage(page: number) {
+    if (page < 1 || page > this.totalPages) return;
+    this.page = page;
+    this.cdr.detectChanges();
   }
 
   onDeleteReport(testName: string) {

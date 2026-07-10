@@ -1361,7 +1361,7 @@ def generate_custom_html_report(test_name: str):
         <!-- Request Statistics Panel -->
         <div class="panel">
             <div class="panel-title">
-                <i class="bi bi-table" style="color: var(--color-blue);"></i> Request Statistics
+                <i class="bi bi-table" style="color: var(--color-blue);"></i>Statistics
             </div>
             <div class="table-responsive">
                 <table>

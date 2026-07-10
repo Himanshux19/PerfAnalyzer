@@ -55,6 +55,36 @@ O --> Q[PDF/HTML Export]
 
 🚧 Project under development.
 
+## Project Structure
+```
+PerfAnalyzer/
+├── .gitignore
+├── LICENSE
+├── README.md
+├── perfAnalyzer-backend/
+│   ├── jmx_builder.py
+│   ├── main.py
+│   ├── models.py
+│   ├── template.yml
+│   └── yaml_builder.py
+├── perfAnalyzer-frontend/
+│   ├── public/
+│   │   └── favicon.ico
+│   └── src/
+│        └─── app
+│           └── components/
+│               ├── auth
+│               ├── create-test
+│               ├── dashboard
+│               ├── logs
+│               ├── navbar
+│               ├── projects
+│               ├── reports-history
+│               ├── reports
+│               └── test-config
+└── requirements.txt
+```
+
 ## Future Enhancements
 
 - Distributed Load Testing

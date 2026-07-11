@@ -5,8 +5,9 @@ from fastapi.staticfiles import StaticFiles
 import logging
 import uuid
 from jmx_builder import build_jmx
-from models import CreateTestRequest, CreateTestResponse
+from models import CreateTestRequest, CreateTestResponse, ApiRequest
 from yaml_builder import build_taurus_yaml
+from api_discovery import discover_endpoints
 import shutil
 from pathlib import Path
 import yaml
@@ -237,26 +238,31 @@ def ensure_project_files_schema(conn) -> None:
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_name = 'project_files';
+            WHERE table_name = 'project_files' AND table_schema = 'public';
         """)
         existing_columns = {row[0] for row in cur.fetchall()}
 
         if "stored_path" not in existing_columns:
             cur.execute("ALTER TABLE project_files ADD COLUMN stored_path TEXT DEFAULT '';")
+            existing_columns.add("stored_path")
         if "file_path" not in existing_columns:
             cur.execute("ALTER TABLE project_files ADD COLUMN file_path TEXT DEFAULT '';")
+            existing_columns.add("file_path")
         if "file_size" not in existing_columns:
             cur.execute("ALTER TABLE project_files ADD COLUMN file_size BIGINT DEFAULT 0;")
+            existing_columns.add("file_size")
         if "uploaded_at" not in existing_columns:
             cur.execute("ALTER TABLE project_files ADD COLUMN uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+            existing_columns.add("uploaded_at")
         if "file_type" not in existing_columns:
             cur.execute("ALTER TABLE project_files ADD COLUMN file_type VARCHAR(50) DEFAULT 'other';")
+            existing_columns.add("file_type")
         else:
             cur.execute("ALTER TABLE project_files ALTER COLUMN file_type SET DEFAULT 'other';")
 
-        if "file_path" in existing_columns or "file_path" in {row[0] for row in cur.fetchall()}:
+        if "file_path" in existing_columns:
             cur.execute("ALTER TABLE project_files ALTER COLUMN file_path DROP NOT NULL;")
-        if "stored_path" in existing_columns or "stored_path" in {row[0] for row in cur.fetchall()}:
+        if "stored_path" in existing_columns:
             cur.execute("ALTER TABLE project_files ALTER COLUMN stored_path DROP NOT NULL;")
 
         cur.execute("""
@@ -1705,16 +1711,20 @@ def create_test(payload: CreateTestRequest) -> JSONResponse:
         jmx_path = TESTS_DIR / jmx_filename
         yaml_path = TESTS_DIR / yaml_filename
  
-        # --- Generate JMX ---
-        jmx_content = build_jmx(payload)
-        jmx_path.write_text(jmx_content, encoding="utf-8")
+        # --- Discover API Endpoints ---
+        api_requests, mode_used = discover_endpoints(payload)
  
+        # --- Generate JMX ---
+        jmx_content = build_jmx(payload, api_requests)
+        jmx_path.write_text(jmx_content, encoding="utf-8")
+  
         # --- Generate Taurus YAML (references the JMX by filename) ---
         yaml_content = build_taurus_yaml(payload, jmx_filename)
         yaml_path.write_text(yaml_content, encoding="utf-8")
- 
-        logger.info("Generated test artifacts: %s, %s", jmx_filename, yaml_filename)
- 
+  
+        logger.info("Generated test artifacts: %s, %s (Mode: %s, Endpoints: %d)", 
+                    jmx_filename, yaml_filename, mode_used, len(api_requests))
+  
         response = CreateTestResponse(
             success=True,
             message="Test created successfully.",
@@ -1723,9 +1733,13 @@ def create_test(payload: CreateTestRequest) -> JSONResponse:
             jmxFile=jmx_filename,
             yamlFile=yaml_filename,
             directory=str(TESTS_DIR.resolve()),
+            discoveryMode=mode_used,
+            endpointsCount=len(api_requests)
         )
         return JSONResponse(status_code=status.HTTP_201_CREATED, content=response.model_dump())
  
+    except HTTPException:
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to create test")
         raise HTTPException(

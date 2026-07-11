@@ -22,15 +22,14 @@
             </div>
             
             <div class="row g-3">
-              <div class="col-md-8">
+              <div class="col-12">
                 <label class="form-label">Test Name</label>
                 <div class="input-group">
                   <span class="input-group-text bg-light"><i class="bi bi-tag-fill text-muted"></i></span>
                   <input 
                     type="text" 
                     class="form-control" 
-                    formControlName="testName" 
-                    placeholder="e.g., login_stress_test"
+                    formControlName="testName"
                     [class.is-invalid]="formSubmitted && createTestForm.get('testName')?.invalid"
                   >
                   @if (formSubmitted && createTestForm.get('testName')?.errors?.['required']) {
@@ -42,28 +41,19 @@
                 </div>
               </div>
 
-              <div class="col-md-4">
-                <label class="form-label">HTTP Method</label>
-                <select class="form-select" formControlName="method">
-                  @for (m of methods; track m) {
-                    <option [value]="m">{{ m }}</option>
-                  }
-                </select>
-              </div>
-
               <div class="col-12">
-                <label class="form-label">Target URL</label>
+                <label class="form-label">Website / API URL</label>
                 <div class="input-group">
                   <span class="input-group-text bg-light"><i class="bi bi-globe2 text-muted"></i></span>
                   <input 
                     type="text" 
                     class="form-control" 
                     formControlName="url" 
-                    placeholder="e.g., https://api.myproject.com/v1/auth"
+                    placeholder="https://example.com/"
                     [class.is-invalid]="formSubmitted && createTestForm.get('url')?.invalid"
                   >
                   @if (formSubmitted && createTestForm.get('url')?.errors?.['required']) {
-                    <div class="invalid-feedback">Target URL is required.</div>
+                    <div class="invalid-feedback">Website / API URL is required.</div>
                   }
                   @if (formSubmitted && createTestForm.get('url')?.errors?.['pattern']) {
                     <div class="invalid-feedback">Please enter a valid URL (including http:// or https://).</div>
@@ -134,26 +124,9 @@
             </div>
           </div>
 
-          <!-- Section 3: Request Body (Conditional) -->
-          @if (showBody()) {
-            <div class="card-premium p-4 mb-4 fade-in">
-              <div class="d-flex align-items-center mb-4 border-bottom pb-3">
-                <div class="step-badge me-3">3</div>
-                <h5 class="m-0 fw-bold text-slate-800">Payload JSON Body</h5>
-              </div>
-              <textarea 
-                class="form-control code-editor font-monospace" 
-                rows="6" 
-                formControlName="body"
-                placeholder='{ "key": "value" }'
-              ></textarea>
-              <div class="form-text fs-8 text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Ensure the request payload is in raw valid JSON format.</div>
-            </div>
-          }
-
           <div class="text-end">
             <button class="btn btn-primary btn-lg px-5 shadow-sm d-inline-flex align-items-center gap-2" type="submit">
-              <i class="bi bi-gear-fill"></i> Create Test
+              <i class="bi bi-gear-fill"></i> Generate Test
             </button>
           </div>
         </form>
@@ -175,11 +148,36 @@
 <!-- Success Popup Modal -->
 @if (generationSuccess) {
   <div class="generation-overlay d-flex align-items-center justify-content-center text-center">
-    <div class="overlay-card p-4 rounded-4 shadow-lg text-center max-w-400">
+    <div class="overlay-card p-4 rounded-4 shadow-lg text-center max-w-400" style="max-width: 440px;">
       <div class="success-icon-wrapper mb-3" style="width: 54px; height: 54px; font-size: 1.8rem; background: #dcfce7; color: #15803d; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
         <i class="bi bi-check-circle-fill"></i>
       </div>
-      <h4 class="fw-bold mb-2 text-slate-800">Generated Successfully</h4>
+      <h4 class="fw-bold mb-3 text-slate-800">Generated Successfully</h4>
+
+      <!-- Discovery feedback details -->
+      <div class="discovery-feedback p-3 mb-4 rounded text-start border" 
+           [ngStyle]="{
+             'background-color': discoveryMode === 'openapi' ? '#f0fdf4' : '#fffbeb',
+             'border-color': discoveryMode === 'openapi' ? '#bbf7d0' : '#fef3c7',
+             'color': discoveryMode === 'openapi' ? '#166534' : '#92400e'
+           }">
+        @if (discoveryMode === 'openapi') {
+          <div class="d-flex align-items-center gap-2 mb-1 fw-bold">
+            <i class="bi bi-shield-check-fill text-success" style="font-size: 1.1rem;"></i>
+            <span>✓ OpenAPI detected.</span>
+          </div>
+          <div class="fs-7 fw-semibold">{{ endpointsCount }} endpoints discovered.</div>
+          <div class="fs-8 text-muted mt-1" style="color: #4b5563 !important;">Generating comprehensive test plan...</div>
+        } @else {
+          <div class="d-flex align-items-center gap-2 mb-1 fw-bold">
+            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 1.1rem;"></i>
+            <span>No OpenAPI specification found.</span>
+          </div>
+          <div class="fs-7 fw-semibold">Generating single endpoint test.</div>
+          <div class="fs-8 text-muted mt-1" style="color: #4b5563 !important;">Using the entered URL directly as the test endpoint.</div>
+        }
+      </div>
+
       <p class="text-muted fs-8 mb-4">Your JMeter JMX load test script has been successfully generated on the server.</p>
       <div class="d-flex gap-2 justify-content-center">
         <button type="button" class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 8px;" (click)="resetForm()">Create Another</button>

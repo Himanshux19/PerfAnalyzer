@@ -13,12 +13,13 @@ import { Navbar } from '../navbar/navbar';
 })
 export class CreateTest {
   createTestForm: FormGroup;
-  methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
   isGenerating = false;
   generationSuccess = false;
   generationError: string | null = null;
   formSubmitted = false;
+  discoveryMode: string | null = null;
+  endpointsCount = 0;
 
   constructor(
     private fb: FormBuilder,
@@ -29,12 +30,10 @@ export class CreateTest {
     this.createTestForm = this.fb.group({
       testName: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_\-]+$/)]],
       url: ['', [Validators.required, Validators.pattern(/^(https?:\/\/)?([a-zA-Z0-9\.\-_]+)(:\d+)?(\/.*)?$/)]],
-      method: ['GET', Validators.required],
       threads: [10, [Validators.required, Validators.min(1)]],
       rampUp: [5, [Validators.required, Validators.min(0)]],
       duration: [60, [Validators.required, Validators.min(1)]],
       loopCount: [-1, Validators.required],
-      body: [''],
     });
   }
 
@@ -44,25 +43,29 @@ export class CreateTest {
       return;
     }
 
-    const payload: any = {
-      ...this.createTestForm.value,
-    };
-
-    if (this.showBody() && payload.body && payload.body.trim() !== '') {
-      try {
-        JSON.parse(payload.body);
-      } catch {
-        this.generationError = 'Request Body contains invalid JSON. Please correct it.';
-        this.cdr.detectChanges();
-        return;
-      }
-    } else {
-      payload.body = null;
+    const formVal = this.createTestForm.value;
+    
+    // Ensure URL has a scheme (default to https:// if missing)
+    let targetUrl = formVal.url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = 'https://' + targetUrl;
     }
+
+    const payload: any = {
+      testName: formVal.testName,
+      baseUrl: targetUrl,
+      threads: formVal.threads,
+      rampUp: formVal.rampUp,
+      duration: formVal.duration,
+      loopCount: formVal.loopCount,
+      discovery: 'openapi',
+    };
 
     this.isGenerating = true;
     this.generationSuccess = false;
     this.generationError = null;
+    this.discoveryMode = null;
+    this.endpointsCount = 0;
     this.cdr.detectChanges();
 
     this.zone.run(() => {
@@ -71,6 +74,8 @@ export class CreateTest {
           this.zone.run(() => {
             this.isGenerating = false;
             this.generationSuccess = true;
+            this.discoveryMode = res.discoveryMode || 'single';
+            this.endpointsCount = res.endpointsCount || 1;
             this.cdr.detectChanges();
           });
         },
@@ -93,11 +98,6 @@ export class CreateTest {
     });
   }
 
-  showBody(): boolean {
-    const method = this.createTestForm.get('method')?.value;
-    return method === 'POST' || method === 'PUT' || method === 'PATCH';
-  }
-
   clearError() {
     this.generationError = null;
     this.cdr.detectChanges();
@@ -107,16 +107,16 @@ export class CreateTest {
     this.createTestForm.patchValue({
       testName: '',
       url: '',
-      method: 'GET',
       threads: 10,
       rampUp: 5,
       duration: 60,
       loopCount: -1,
-      body: ''
     });
     this.formSubmitted = false;
     this.generationSuccess = false;
     this.generationError = null;
+    this.discoveryMode = null;
+    this.endpointsCount = 0;
     this.cdr.detectChanges();
   }
 }

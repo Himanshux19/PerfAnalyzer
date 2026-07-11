@@ -2,8 +2,9 @@ import json
 from urllib.parse import urlsplit
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
+from typing import List
 
-from models import CreateTestRequest
+from models import CreateTestRequest, ApiRequest
 
 
 def _sub(parent, tag, **attrs):
@@ -50,7 +51,8 @@ def _build_header_manager(parent_ht, headers: dict):
     _hash_tree(parent_ht)
 
 
-def _build_http_sampler(parent_ht, request: CreateTestRequest, parsed_url):
+def _build_http_sampler(parent_ht, api_req: ApiRequest):
+    parsed_url = urlsplit(api_req.url)
     scheme = parsed_url.scheme or "https"
     domain = parsed_url.hostname or ""
     port = parsed_url.port
@@ -58,18 +60,19 @@ def _build_http_sampler(parent_ht, request: CreateTestRequest, parsed_url):
     if parsed_url.query:
         path = f"{path}?{parsed_url.query}"
 
+    sampler_name = api_req.name or f"{api_req.method} {path}"
     sampler = _sub(
         parent_ht,
         "HTTPSamplerProxy",
         guiclass="HttpTestSampleGui",
         testclass="HTTPSamplerProxy",
-        testname=request.testName,
+        testname=sampler_name,
         enabled="true",
     )
 
     body_json = None
-    if request.body:
-        body_json = json.dumps(request.body)
+    if api_req.body:
+        body_json = json.dumps(api_req.body)
 
     # Arguments (POST body / query args)
     args_element = ET.SubElement(
@@ -88,7 +91,7 @@ def _build_http_sampler(parent_ht, request: CreateTestRequest, parsed_url):
     _string_prop(sampler, "HTTPSampler.port", str(port) if port else "")
     _string_prop(sampler, "HTTPSampler.protocol", scheme)
     _string_prop(sampler, "HTTPSampler.path", path)
-    _string_prop(sampler, "HTTPSampler.method", request.method.value)
+    _string_prop(sampler, "HTTPSampler.method", api_req.method)
     _bool_prop(sampler, "HTTPSampler.follow_redirects", True)
     _bool_prop(sampler, "HTTPSampler.auto_redirects", False)
     _bool_prop(sampler, "HTTPSampler.use_keepalive", True)
@@ -100,8 +103,8 @@ def _build_http_sampler(parent_ht, request: CreateTestRequest, parsed_url):
 
     sampler_ht = _hash_tree(parent_ht)
 
-    if request.headers:
-        _build_header_manager(sampler_ht, request.headers)
+    if api_req.headers:
+        _build_header_manager(sampler_ht, api_req.headers)
 
     return sampler
 
@@ -132,9 +135,7 @@ def _build_result_collector(parent_ht, name, testname, gui_class):
     _hash_tree(parent_ht)
 
 
-def build_jmx(request: CreateTestRequest) -> str:
-    parsed_url = urlsplit(str(request.url))
-
+def build_jmx(request: CreateTestRequest, api_requests: List[ApiRequest]) -> str:
     root = ET.Element("jmeterTestPlan", {"version": "1.2", "properties": "5.0", "jmeter": "5.6.3"})
     root_ht = _hash_tree(root)
 
@@ -204,8 +205,9 @@ def build_jmx(request: CreateTestRequest) -> str:
 
     thread_group_ht = _hash_tree(test_plan_ht)
 
-    # ---- HTTP Sampler (+ Header Manager) ----
-    _build_http_sampler(thread_group_ht, request, parsed_url)
+    # ---- HTTP Samplers (+ Header Managers) ----
+    for api_req in api_requests:
+        _build_http_sampler(thread_group_ht, api_req)
 
     # ---- Listeners (basic result collectors so bzt/JMeter has output) ----
     _build_result_collector(

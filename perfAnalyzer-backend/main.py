@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, status
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, status, Depends, Header
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -139,10 +139,14 @@ def init_db():
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 full_name VARCHAR(255) DEFAULT '',
+                role VARCHAR(50) DEFAULT 'user',
+                status VARCHAR(50) DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';")
 
         # Create test_results table
         cur.execute("""
@@ -315,18 +319,21 @@ def login(username: str = Form(...), password: str = Form(...)):
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
-                # Retrieve user hash and full name
-                cur.execute("SELECT password_hash, full_name FROM users WHERE username = %s;", (username,))
+                # Retrieve user hash, full name, role, and status
+                cur.execute("SELECT password_hash, full_name, role, status FROM users WHERE username = %s;", (username,))
                 row = cur.fetchone()
                 
                 if not row or row[0] != hash_password(password):
                     raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
                     
-                pwd_hash, full_name = row
+                pwd_hash, full_name, role, status = row
+                if status == 'suspended':
+                    raise HTTPException(status_code=403, detail="Your account is suspended. Please contact the administrator.")
         
         payload = {
             "username": username,
             "full_name": full_name,
+            "role": role or "user",
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -335,12 +342,235 @@ def login(username: str = Form(...), password: str = Form(...)):
             "message": "Login successful.",
             "token": token,
             "username": username,
-            "full_name": full_name
+            "full_name": full_name,
+            "role": role or "user"
         })
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error during login: {str(e)}")
+
+
+# ── Super Admin Helpers & Endpoints ─────────────────────────
+
+def verify_superadmin_token(authorization: Optional[str] = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header.")
+    try:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid token format.")
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("role") != "superadmin":
+            raise HTTPException(status_code=403, detail="Access denied. Super Admin role required.")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired.")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token.")
+
+
+@app.post("/superadmin/login")
+def superadmin_login(username: str = Form(...), password: str = Form(...)):
+    username = username.strip().lower()
+    
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT password_hash, full_name, role, status FROM users WHERE username = %s;", (username,))
+                row = cur.fetchone()
+                
+                if not row or row[0] != hash_password(password):
+                    raise HTTPException(status_code=401, detail="Invalid username or password.")
+                    
+                pwd_hash, full_name, role, status = row
+                if role != "superadmin":
+                    raise HTTPException(status_code=403, detail="Access denied. User is not a Super Admin.")
+                if status == 'suspended':
+                    raise HTTPException(status_code=403, detail="Your account is suspended. Please contact the administrator.")
+        
+        payload = {
+            "username": username,
+            "full_name": full_name,
+            "role": role,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+        }
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        
+        return JSONResponse({
+            "message": "Super Admin login successful.",
+            "token": token,
+            "username": username,
+            "full_name": full_name,
+            "role": role
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during login: {str(e)}")
+
+
+@app.get("/superadmin/users")
+def list_users(current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT 
+                        u.id, 
+                        u.username, 
+                        u.full_name, 
+                        u.role, 
+                        u.created_at,
+                        u.status,
+                        (SELECT COUNT(*) FROM projects p WHERE p.owner = u.username) AS workspace_count,
+                        (SELECT COUNT(*) FROM project_files pf JOIN projects p ON pf.project_id = p.id WHERE p.owner = u.username) AS file_count,
+                        (SELECT COUNT(*) FROM test_results t WHERE t.username = u.username) AS run_count
+                    FROM users u
+                    ORDER BY u.created_at DESC;
+                """)
+                rows = cur.fetchall()
+        
+        users_list = []
+        for row in rows:
+            uid, username, full_name, role, created_at, status, workspace_count, file_count, run_count = row
+            users_list.append({
+                "id": uid,
+                "username": username,
+                "full_name": full_name,
+                "role": role or "user",
+                "status": status or "active",
+                "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "",
+                "workspace_count": workspace_count,
+                "file_count": file_count,
+                "run_count": run_count
+            })
+        return JSONResponse(users_list)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.delete("/superadmin/users/{user_id}")
+def delete_user(user_id: int, current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username, role FROM users WHERE id = %s;", (user_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="User not found.")
+                    username, role = row
+                    
+                    if username == current_user.get("username"):
+                        raise HTTPException(status_code=400, detail="Super Admin cannot delete themselves.")
+                    
+                    cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
+        return JSONResponse({"message": "User deleted successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.put("/superadmin/users/{user_id}/role")
+def update_user_role(user_id: int, role: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+    role = role.strip().lower()
+    if role not in ["user", "superadmin"]:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'user' or 'superadmin'.")
+        
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username FROM users WHERE id = %s;", (user_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="User not found.")
+                    username = row[0]
+                    
+                    if username == current_user.get("username") and role != "superadmin":
+                        raise HTTPException(status_code=400, detail="Super Admin cannot demote themselves.")
+                        
+                    cur.execute("UPDATE users SET role = %s WHERE id = %s;", (role, user_id))
+        return JSONResponse({"message": "User role updated successfully."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.put("/superadmin/users/{user_id}/status")
+def update_user_status(user_id: int, status: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+    status = status.strip().lower()
+    if status not in ["active", "suspended"]:
+        raise HTTPException(status_code=400, detail="Invalid status. Must be 'active' or 'suspended'.")
+        
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username FROM users WHERE id = %s;", (user_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="User not found.")
+                    username = row[0]
+                    
+                    if username == current_user.get("username") and status != "active":
+                        raise HTTPException(status_code=400, detail="Super Admin cannot suspend themselves.")
+                        
+                    cur.execute("UPDATE users SET status = %s WHERE id = %s;", (status, user_id))
+        return JSONResponse({"message": f"User account is now {status}."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/superadmin/analytics")
+def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                # Users count
+                cur.execute("SELECT COUNT(*) FROM users;")
+                total_users = cur.fetchone()[0]
+
+                # Workspaces count
+                cur.execute("SELECT COUNT(*) FROM projects;")
+                total_workspaces = cur.fetchone()[0]
+                
+                cur.execute("SELECT COUNT(*) FROM projects WHERE created_at >= NOW() - INTERVAL '7 days';")
+                workspaces_this_week = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM projects WHERE created_at >= NOW() - INTERVAL '30 days';")
+                workspaces_this_month = cur.fetchone()[0]
+
+                # Files count
+                cur.execute("SELECT COUNT(*) FROM project_files;")
+                total_files = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM project_files WHERE uploaded_at >= NOW() - INTERVAL '7 days';")
+                files_this_week = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM project_files WHERE uploaded_at >= NOW() - INTERVAL '30 days';")
+                files_this_month = cur.fetchone()[0]
+                
+                # Test runs count
+                cur.execute("SELECT COUNT(*) FROM test_results;")
+                total_test_runs = cur.fetchone()[0]
+
+        return JSONResponse({
+            "total_users": total_users,
+            "total_workspaces": total_workspaces,
+            "workspaces_this_week": workspaces_this_week,
+            "workspaces_this_month": workspaces_this_month,
+            "total_files": total_files,
+            "files_this_week": files_this_week,
+            "files_this_month": files_this_month,
+            "total_test_runs": total_test_runs
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during analytics fetch: {str(e)}")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -1226,7 +1456,33 @@ def generate_custom_html_report(test_name: str):
             margin-bottom: 1.25rem;
             display: flex;
             align-items: center;
+            justify-content: space-between;
+        }}
+        .panel-title-left {{
+            display: flex;
+            align-items: center;
             gap: 0.5rem;
+        }}
+        .btn-export-csv {{
+            background-color: var(--color-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.775rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: var(--transition);
+        }}
+        .btn-export-csv:hover {{
+            background-color: #1d4ed8;
+            transform: translateY(-0.5px);
+        }}
+        .btn-export-csv i {{
+            font-size: 0.9rem;
         }}
         .table-responsive {{
             width: 100%;
@@ -1364,10 +1620,15 @@ def generate_custom_html_report(test_name: str):
         <!-- Request Statistics Panel -->
         <div class="panel">
             <div class="panel-title">
-                <i class="bi bi-table" style="color: var(--color-blue);"></i>Statistics
+                <span class="panel-title-left">
+                    <i class="bi bi-table" style="color: var(--color-blue);"></i>Statistics
+                </span>
+                <button type="button" class="btn-export-csv" onclick="exportTableToCSV('statisticsTable', '{test_name}_statistics.csv')">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                </button>
             </div>
             <div class="table-responsive">
-                <table>
+                <table id="statisticsTable">
                     <thead>
                         <tr>
                             <th>Transaction / Label</th>
@@ -1401,6 +1662,32 @@ def generate_custom_html_report(test_name: str):
             {errors_html}
         </div>
     </div>
+    <script>
+        function exportTableToCSV(tableId, filename) {{
+            var csv = [];
+            var rows = document.querySelectorAll("#" + tableId + " tr");
+            
+            for (var i = 0; i < rows.length; i++) {{
+                var row = [], cols = rows[i].querySelectorAll("td, th");
+                
+                for (var j = 0; j < cols.length; j++) {{
+                    var text = cols[j].innerText.trim();
+                    text = text.replace(/"/g, '""');
+                    row.push('"' + text + '"');
+                }}
+                csv.push(row.join(","));        
+            }}
+
+            var csvFile = new Blob([csv.join("\\n")], {{type: "text/csv;charset=utf-8;"}});
+            var downloadLink = document.createElement("a");
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }}
+    </script>
 </body>
 </html>
 """

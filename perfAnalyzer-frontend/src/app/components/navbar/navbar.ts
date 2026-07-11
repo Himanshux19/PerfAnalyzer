@@ -38,11 +38,21 @@ export class Navbar {
     return email.slice(0, 2).toUpperCase();
   }
 
+  isSuperAdmin(): boolean {
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('role');
+      return role === 'superadmin' || !!localStorage.getItem('admin_auth_token');
+    }
+    return false;
+  }
+
   onLogout() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('admin_auth_token');
       localStorage.removeItem('username');
       localStorage.removeItem('full_name');
+      localStorage.removeItem('role');
       this.router.navigate(['/login']);
     }
   }

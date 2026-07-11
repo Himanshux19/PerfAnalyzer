@@ -217,6 +217,54 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/login`, formData);
   }
 
+  superadminRegister(username: string, password: string, fullName: string = ''): Observable<any> {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('password', password);
+    formData.append('full_name', fullName);
+    return this.http.post<any>(`${this.baseUrl}/superadmin/register`, formData);
+  }
+
+  superadminLogin(username: string, password: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('password', password);
+    return this.http.post<any>(`${this.baseUrl}/superadmin/login`, formData);
+  }
+
+  private getAdminHeaders() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_auth_token') : null;
+    return {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+  }
+
+  superadminListUsers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/superadmin/users`, this.getAdminHeaders());
+  }
+
+  superadminDeleteUser(userId: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/superadmin/users/${userId}`, this.getAdminHeaders());
+  }
+
+  superadminUpdateUserRole(userId: number, role: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('role', role);
+    return this.http.put<any>(`${this.baseUrl}/superadmin/users/${userId}/role`, formData, this.getAdminHeaders());
+  }
+
+  superadminUpdateUserStatus(userId: number, status: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('status', status);
+    return this.http.put<any>(`${this.baseUrl}/superadmin/users/${userId}/status`, formData, this.getAdminHeaders());
+  }
+
+  superadminGetAnalytics(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/superadmin/analytics`, this.getAdminHeaders());
+  }
+
   // Helpers to add log messages to terminal console
   addLog(text: string, type: 'system' | 'success' | 'error' = 'system') {
     const now = new Date();

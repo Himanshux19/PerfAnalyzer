@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Navbar } from '../navbar/navbar';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
@@ -16,12 +16,19 @@ export class ReportsHistory implements OnInit {
   isLoading: boolean = false;
   isRefreshing: boolean = false;
   errorMessage: string | null = null;
+  projectId: number | null = null;
+  projectName: string | null = null;
 
   // Pagination
   page = 1;
   perPage = 7;
 
-  constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(
+    protected api: ApiService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     // Session Guard check
@@ -32,7 +39,16 @@ export class ReportsHistory implements OnInit {
         return;
       }
     }
-    this.loadReports();
+    this.route.queryParams.subscribe(params => {
+      if (params['projectId']) {
+        this.projectId = +params['projectId'];
+        this.projectName = params['projectName'] || null;
+      } else {
+        this.projectId = null;
+        this.projectName = null;
+      }
+      this.loadReports();
+    });
   }
 
   loadReports(sync = false) {
@@ -43,7 +59,12 @@ export class ReportsHistory implements OnInit {
     }
     this.errorMessage = null;
     this.page = 1; // Reset to page 1 on reload
-    this.api.listReports(sync).subscribe({
+
+    const request = this.projectId
+      ? this.api.listProjectReports(this.projectId)
+      : this.api.listReports(sync);
+
+    request.subscribe({
       next: (data) => {
         this.reports = data;
         this.isLoading = false;
@@ -52,11 +73,23 @@ export class ReportsHistory implements OnInit {
       },
       error: (err) => {
         console.error('Failed to load reports:', err);
-        this.errorMessage = 'Failed to load historical reports. Please make sure the backend is running.';
+        this.errorMessage = this.projectId
+          ? 'Failed to load reports for this workspace. Please make sure the backend is running.'
+          : 'Failed to load historical reports. Please make sure the backend is running.';
         this.isLoading = false;
         this.isRefreshing = false;
         this.cdr.detectChanges();
       }
+    });
+  }
+
+  clearProjectFilter() {
+    this.projectId = null;
+    this.projectName = null;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { projectId: null, projectName: null },
+      queryParamsHandling: 'merge'
     });
   }
 

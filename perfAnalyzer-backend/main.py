@@ -640,11 +640,14 @@ def run_test(
             if not row:
                 raise HTTPException(status_code=404, detail="Workspace file not found.")
             stored_path, filename = row
-            test_name = Path(filename).stem
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            stem_name = Path(filename).stem
+            suffix = Path(filename).suffix
+            test_name = f"{stem_name}_{timestamp}"
             test_folder = TEST_RESULT_DIR / test_name
             test_folder.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(stored_path, test_folder / filename)
-            jmx_filename = filename
+            jmx_filename = f"{test_name}{suffix}"
+            shutil.copy2(stored_path, test_folder / jmx_filename)
 
         # Check if user uploaded a CSV/JTL directly instead of JMX
         if jmx_filename.endswith(".csv") or jmx_filename.endswith(".jtl"):

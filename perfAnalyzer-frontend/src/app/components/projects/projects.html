@@ -143,9 +143,12 @@
             </div>
 
             <!-- Card Footer -->
-            <div class="project-card-footer">
-              <button type="button" class="btn-manage-files w-100" (click)="openFileDrawer(project)" [id]="'manage-files-' + project.id">
-                <i class="bi bi-folder2-open me-2"></i>Manage Workspace
+            <div class="project-card-footer d-flex gap-2">
+              <button type="button" class="btn-manage-files flex-grow-1" (click)="openFileDrawer(project)" [id]="'manage-files-' + project.id">
+                <i class="bi bi-folder2-open me-2"></i>Files
+              </button>
+              <button type="button" class="btn-manage-files flex-grow-1" (click)="viewReports(project)" [id]="'view-reports-' + project.id">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>Reports
               </button>
             </div>
           </div>
@@ -237,7 +240,7 @@
     <!-- Drawer Header -->
     <div class="drawer-header">
       <div>
-        <h4 class="m-0 font-bold">Workspace Manager</h4>
+        <h4 class="m-0 font-bold">File Manager</h4>
         <p class="text-muted fs-7 m-0">{{ drawerProject?.name }}</p>
       </div>
       <button type="button" class="action-btn-icon" (click)="closeFileDrawer()" aria-label="Close drawer" id="close-drawer-btn">
@@ -255,14 +258,14 @@
       >
         Files
       </button>
-      <button 
+      <!-- <button 
         type="button" 
         class="drawer-tab-btn py-2 fw-semibold border-0 bg-transparent"
         [class.active]="activeDrawerTab === 'reports'"
         (click)="setDrawerTab('reports')"
       >
         Reports
-      </button>
+      </button> -->
     </div>
 
     @if (activeDrawerTab === 'files') {

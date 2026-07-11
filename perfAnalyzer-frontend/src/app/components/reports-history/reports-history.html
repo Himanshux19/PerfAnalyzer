@@ -7,17 +7,36 @@
       class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4"
     >
       <div>
-        <h1 class="h3 font-bold text-slate-800 m-0">Reports History</h1>
-        <p class="text-muted m-0 fs-7">Browse, view and manage your test execution results</p>
+        <h1 class="h3 font-bold text-slate-800 m-0">
+          Reports History
+        </h1>
+        <p class="text-muted m-0 fs-7">
+          @if (projectName) {
+            Viewing test execution results for the "{{ projectName }}" workspace
+          } @else {
+            Browse, view and manage your test execution results
+          }
+        </p>
       </div>
-      <button
-        type="button"
-        class="btn btn-outline-primary d-flex align-items-center gap-2"
-        (click)="loadReports(true)"
-        [disabled]="isLoading || isRefreshing"
-      >
-        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading || isRefreshing"></i> Refresh List
-      </button>
+      <div class="d-flex gap-2">
+        @if (projectId) {
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-2"
+            (click)="clearProjectFilter()"
+          >
+            <i class="bi bi-x-circle"></i> Clear Filter
+          </button>
+        }
+        <button
+          type="button"
+          class="btn btn-outline-primary d-flex align-items-center gap-2"
+          (click)="loadReports(true)"
+          [disabled]="isLoading || isRefreshing"
+        >
+          <i class="bi bi-arrow-clockwise" [class.spin]="isLoading || isRefreshing"></i> Refresh List
+        </button>
+      </div>
     </div>
 
     <!-- Quick Stats Cards -->
@@ -96,6 +115,8 @@
           <p class="text-muted fs-7 max-w-320 mt-1">
             @if (searchQuery) {
               No results match your search query. Try clearing or using a different keyword.
+            } @else if (projectName) {
+              No performance tests have been run for the "{{ projectName }}" workspace yet.
             } @else {
               You haven't executed any performance tests yet. Go to the Tests page to run your first
               load scenario!

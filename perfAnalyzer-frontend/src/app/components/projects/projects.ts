@@ -237,11 +237,27 @@ export class Projects implements OnInit {
   setDrawerTab(tab: 'files' | 'reports') {
     this.activeDrawerTab = tab;
     if (tab === 'reports') {
-      this.loadDrawerReports();
+      const project = this.drawerProject;
+      this.closeFileDrawer();
+      this.router.navigate(['/reports'], {
+        queryParams: {
+          projectId: project.id,
+          projectName: project.name
+        }
+      });
     } else {
       this.loadDrawerFiles();
     }
     this.cdr.detectChanges();
+  }
+
+  viewReports(project: any) {
+    this.router.navigate(['/reports'], {
+      queryParams: {
+        projectId: project.id,
+        projectName: project.name
+      }
+    });
   }
 
   loadDrawerReports() {

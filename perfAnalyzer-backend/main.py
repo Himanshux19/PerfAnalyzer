@@ -7,7 +7,7 @@ import uuid
 from jmx_builder import build_jmx
 from models import CreateTestRequest, CreateTestResponse, ApiRequest
 from yaml_builder import build_taurus_yaml
-from api_discovery import discover_endpoints
+from services.endpoint_discovery import discover_endpoints
 import shutil
 from pathlib import Path
 import yaml
@@ -1734,7 +1734,8 @@ def create_test(payload: CreateTestRequest) -> JSONResponse:
             yamlFile=yaml_filename,
             directory=str(TESTS_DIR.resolve()),
             discoveryMode=mode_used,
-            endpointsCount=len(api_requests)
+            endpointsCount=len(api_requests),
+            endpoints=api_requests
         )
         return JSONResponse(status_code=status.HTTP_201_CREATED, content=response.model_dump())
  

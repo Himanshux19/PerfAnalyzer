@@ -1,5 +1,5 @@
 import json
-from urllib.parse import urlsplit
+from urllib.parse import urlparse
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 from typing import List
@@ -52,7 +52,7 @@ def _build_header_manager(parent_ht, headers: dict):
 
 
 def _build_http_sampler(parent_ht, api_req: ApiRequest):
-    parsed_url = urlsplit(api_req.url)
+    parsed_url = urlparse(api_req.url)
     scheme = parsed_url.scheme or "https"
     domain = parsed_url.hostname or ""
     port = parsed_url.port
@@ -136,6 +136,13 @@ def _build_result_collector(parent_ht, name, testname, gui_class):
 
 
 def build_jmx(request: CreateTestRequest, api_requests: List[ApiRequest]) -> str:
+    api_requests_objs = []
+    for req in api_requests:
+        if isinstance(req, dict):
+            api_requests_objs.append(ApiRequest(**req))
+        else:
+            api_requests_objs.append(req)
+
     root = ET.Element("jmeterTestPlan", {"version": "1.2", "properties": "5.0", "jmeter": "5.6.3"})
     root_ht = _hash_tree(root)
 
@@ -206,7 +213,7 @@ def build_jmx(request: CreateTestRequest, api_requests: List[ApiRequest]) -> str
     thread_group_ht = _hash_tree(test_plan_ht)
 
     # ---- HTTP Samplers (+ Header Managers) ----
-    for api_req in api_requests:
+    for api_req in api_requests_objs:
         _build_http_sampler(thread_group_ht, api_req)
 
     # ---- Listeners (basic result collectors so bzt/JMeter has output) ----

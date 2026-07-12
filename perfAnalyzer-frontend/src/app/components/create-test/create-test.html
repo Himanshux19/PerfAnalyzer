@@ -153,31 +153,6 @@
         <i class="bi bi-check-circle-fill"></i>
       </div>
       <h4 class="fw-bold mb-3 text-slate-800">Generated Successfully</h4>
-
-      <!-- Discovery feedback details -->
-      <div class="discovery-feedback p-3 mb-4 rounded text-start border" 
-           [ngStyle]="{
-             'background-color': discoveryMode === 'openapi' ? '#f0fdf4' : '#fffbeb',
-             'border-color': discoveryMode === 'openapi' ? '#bbf7d0' : '#fef3c7',
-             'color': discoveryMode === 'openapi' ? '#166534' : '#92400e'
-           }">
-        @if (discoveryMode === 'openapi') {
-          <div class="d-flex align-items-center gap-2 mb-1 fw-bold">
-            <i class="bi bi-shield-check-fill text-success" style="font-size: 1.1rem;"></i>
-            <span>✓ OpenAPI detected.</span>
-          </div>
-          <div class="fs-7 fw-semibold">{{ endpointsCount }} endpoints discovered.</div>
-          <div class="fs-8 text-muted mt-1" style="color: #4b5563 !important;">Generating comprehensive test plan...</div>
-        } @else {
-          <div class="d-flex align-items-center gap-2 mb-1 fw-bold">
-            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 1.1rem;"></i>
-            <span>No OpenAPI specification found.</span>
-          </div>
-          <div class="fs-7 fw-semibold">Generating single endpoint test.</div>
-          <div class="fs-8 text-muted mt-1" style="color: #4b5563 !important;">Using the entered URL directly as the test endpoint.</div>
-        }
-      </div>
-
       <p class="text-muted fs-8 mb-4">Your JMeter JMX load test script has been successfully generated on the server.</p>
       <div class="d-flex gap-2 justify-content-center">
         <button type="button" class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 8px;" (click)="resetForm()">Create Another</button>

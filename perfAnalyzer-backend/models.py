@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
@@ -71,3 +71,4 @@ class CreateTestResponse(BaseModel):
     directory: str
     discoveryMode: Optional[str] = None
     endpointsCount: Optional[int] = None
+    endpoints: Optional[List[ApiRequest]] = None

@@ -65,23 +65,43 @@ PerfAnalyzer/
 │   ├── jmx_builder.py
 │   ├── main.py
 │   ├── models.py
+│   ├── services/
+│   │   └── endpoint_discovery.py
 │   ├── template.yml
 │   └── yaml_builder.py
 ├── perfAnalyzer-frontend/
+│   ├── .editorconfig
+│   ├── .gitignore
+│   ├── .prettierrc
+│   ├── .vscode/
+│   ├── README.md
+│   ├── angular.json
+│   ├── package-lock.json
+│   ├── package.json
 │   ├── public/
 │   │   └── favicon.ico
-│   └── src/
-│        └─── app
-│           └── components/
-│               ├── auth
-│               ├── create-test
-│               ├── dashboard
-│               ├── logs
-│               ├── navbar
-│               ├── projects
-│               ├── reports-history
-│               ├── reports
-│               └── test-config
+│   ├── src/
+│   │   ├── app/
+│   │   │   └── components/
+│   │   │       ├── admin-auth/
+│   │   │       ├── admin-dashboard/
+│   │   │       ├── auth/
+│   │   │       ├── create-test/
+│   │   │       ├── dashboard/
+│   │   │       ├── logs/
+│   │   │       ├── navbar/
+│   │   │       ├── projects/
+│   │   │       ├── reports-history/
+│   │   │       ├── reports/
+│   │   │       └── test-config/
+│   │   ├── index.html
+│   │   ├── main.server.ts
+│   │   ├── main.ts
+│   │   ├── server.ts
+│   │   └── styles.css
+│   ├── tsconfig.app.json
+│   ├── tsconfig.json
+│   └── tsconfig.spec.json
 └── requirements.txt
 ```
 

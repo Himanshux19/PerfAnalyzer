@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import logging
+import re
 import uuid
 from jmx_builder import build_jmx
 from models import CreateTestRequest, CreateTestResponse, ApiRequest
@@ -603,6 +604,72 @@ TEST_RESULT_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATE_YAML = Path("template.yml")
 GENERATED_YAML = Path("generated.yml")
 
+def update_jmx_xml_parameters(jmx_path: Path, threads: int, ramp_up: int, duration: int):
+    """
+    Updates the ThreadGroup XML elements in a .jmx file with user-specified load parameters:
+    concurrency (threads), ramp_up (seconds), and duration (seconds).
+    Ensures that standard static JMX files respect the parameters entered in the UI.
+    """
+    try:
+        if not jmx_path.exists():
+            return
+        
+        content = jmx_path.read_text(encoding="utf-8")
+        
+        # 1. Update ThreadGroup.num_threads (stringProp, intProp, longProp)
+        content = re.sub(
+            r'(<(?:stringProp|intProp|longProp)\s+name="ThreadGroup\.num_threads">)[^<]*(</(?:stringProp|intProp|longProp)>)',
+            rf'\g<1>{threads}\2',
+            content
+        )
+        
+        # 2. Update ThreadGroup.ramp_time (stringProp, intProp, longProp)
+        content = re.sub(
+            r'(<(?:stringProp|intProp|longProp)\s+name="ThreadGroup\.ramp_time">)[^<]*(</(?:stringProp|intProp|longProp)>)',
+            rf'\g<1>{ramp_up}\2',
+            content
+        )
+        
+        # 3. Update ThreadGroup.duration (stringProp, intProp, longProp)
+        content = re.sub(
+            r'(<(?:stringProp|intProp|longProp)\s+name="ThreadGroup\.duration">)[^<]*(</(?:stringProp|intProp|longProp)>)',
+            rf'\g<1>{duration}\2',
+            content
+        )
+        
+        # 4. Enable ThreadGroup.scheduler
+        if 'name="ThreadGroup.scheduler"' in content:
+            content = re.sub(
+                r'(<boolProp\s+name="ThreadGroup\.scheduler">)[^<]*(</boolProp>)',
+                r'\g<1>true\2',
+                content
+            )
+        else:
+            content = re.sub(
+                r'(</ThreadGroup>)',
+                r'  <boolProp name="ThreadGroup.scheduler">true</boolProp>\n\1',
+                content
+            )
+        
+        # 5. If duration > 0, set LoopController.loops to -1 (loop continuously for duration)
+        if duration > 0:
+            content = re.sub(
+                r'(<(?:intProp|stringProp|longProp)\s+name="LoopController\.loops">)[^<]*(</(?:intProp|stringProp|longProp)>)',
+                r'\g<1>-1\2',
+                content
+            )
+            content = re.sub(
+                r'(<boolProp\s+name="LoopController\.continue_forever">)[^<]*(</boolProp>)',
+                r'\g<1>true\2',
+                content
+            )
+            
+        jmx_path.write_text(content, encoding="utf-8")
+        logger.info(f"Updated JMX script '{jmx_path.name}' XML with threads={threads}, ramp_up={ramp_up}, duration={duration}")
+    except Exception as err:
+        logger.warning(f"Could not update JMX XML parameters for '{jmx_path}': {err}")
+
+
 # Sequential filename resolution is deprecated in favor of dynamic timestamped directories.
 
 # Upload JMX File
@@ -966,6 +1033,9 @@ def run_test(
                 status_code=404,
                 detail="Uploaded JMX script file not found in execution directory."
             )
+
+        # Update the JMX script XML elements in-place with user load parameters
+        update_jmx_xml_parameters(target_jmx_path, threads, ramp_up, duration)
 
         # Read template YAML
         with open(TEMPLATE_YAML, "r") as file:

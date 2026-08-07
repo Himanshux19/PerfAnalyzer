@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { CommonModule } from '@angular/common';
 import { Logs } from '../logs/logs';
 import { Navbar } from '../navbar/navbar';
 import { Reports } from '../reports/reports';
@@ -9,12 +10,17 @@ import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [Logs, Navbar, Reports, TestConfig, FormsModule],
+  imports: [CommonModule, RouterLink, Logs, Navbar, Reports, TestConfig, FormsModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
 export class Dashboard implements OnInit, OnDestroy {
   private pollingInterval: any = null;
+
+  // Jenkins queue toast state
+  showJenkinsQueueToast = false;
+  jenkinsTestName: string | null = null;
+  jenkinsQueueId: string | null = null;
 
   constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
 
@@ -72,7 +78,7 @@ export class Dashboard implements OnInit, OnDestroy {
     } else {
       this.api.addLog(`Initializing test execution: ${this.api.jmxFileName()} (Server: ${jmxServer})`, 'system');
       this.api.addLog(`Parameters: Threads: ${threads} | Ramp-up: ${rampUp}s | Duration: ${duration}s`, 'system');
-      this.api.addLog('Firing Taurus execution on backend...', 'system');
+      this.api.addLog('Submitting test to execution queue...', 'system');
     }
 
     // Cancel existing poll just in case
@@ -85,17 +91,38 @@ export class Dashboard implements OnInit, OnDestroy {
 
     this.api.runTest(targetFile!, threads, rampUp, duration, projId, projFileId).subscribe({
       next: (res) => {
-        if (isCsv) {
-          this.api.addLog(`Report generation process initialized: ${res.test_name}`, 'system');
+        const isJenkins = (res as any).source === 'jenkins';
+        const queueId = (res as any).queue_id;
+
+        if (isJenkins) {
+          // Queued - update status and show queue notification
+          this.api.testStatus.set('queued' as any);
+          this.api.activeTestName.set(res.test_name);
+          this.api.addLog(`✅ Test queued successfully!`, 'success');
+          this.api.addLog(`Test Name: ${res.test_name}`, 'system');
+          if (queueId) {
+            this.api.addLog(`Queue Item ID: #${queueId}`, 'system');
+          }
+          this.api.addLog(`🔗 Track progress in Test Queue → /queue`, 'system');
+          this.showJenkinsQueueToast = true;
+          this.jenkinsTestName = res.test_name;
+          this.jenkinsQueueId = queueId || null;
+          // Auto-hide toast after 8 seconds
+          setTimeout(() => { this.showJenkinsQueueToast = false; this.cdr.detectChanges(); }, 8000);
         } else {
-          this.api.addLog(`Test background process initialized: ${res.test_name}`, 'system');
+          // Local execution
+          if (isCsv) {
+            this.api.addLog(`Report generation process initialized: ${res.test_name}`, 'system');
+          } else {
+            this.api.addLog(`Test background process initialized: ${res.test_name}`, 'system');
+          }
+          this.api.activeTestName.set(res.test_name);
+
+          // Start polling logs and metrics every 1 second
+          this.pollingInterval = setInterval(() => {
+            this.pollStatus(res.test_name);
+          }, 1000);
         }
-        this.api.activeTestName.set(res.test_name);
-        
-        // Start polling logs and metrics every 1 second
-        this.pollingInterval = setInterval(() => {
-          this.pollStatus(res.test_name);
-        }, 1000);
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -106,6 +133,7 @@ export class Dashboard implements OnInit, OnDestroy {
       }
     });
   }
+
 
   pollStatus(testName: string) {
     this.api.getTestStatus(testName).subscribe({

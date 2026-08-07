@@ -6,11 +6,13 @@ import { ReportsHistory } from './components/reports-history/reports-history';
 import { Projects } from './components/projects/projects';
 import { AdminAuth } from './components/admin-auth/admin-auth';
 import { AdminDashboard } from './components/admin-dashboard/admin-dashboard';
+import { TestQueue } from './components/test-queue/test-queue';
 
 export const routes: Routes = [
   { path: 'login', component: Auth },
   { path: 'create-test', component: CreateTest },
   { path: 'test', component: Dashboard },
+  { path: 'queue', component: TestQueue },
   { path: 'reports', component: ReportsHistory },
   { path: 'projects', component: Projects },
   { path: 'admin/login', component: AdminAuth },
@@ -18,3 +20,4 @@ export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' }
 ];
+

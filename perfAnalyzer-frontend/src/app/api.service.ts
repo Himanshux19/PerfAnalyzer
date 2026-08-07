@@ -30,6 +30,36 @@ export interface TestStatusResponse {
   active_users?: number;
 }
 
+export interface TestQueueItem {
+  id: string;
+  source: 'local' | 'jenkins';
+  test_name: string;
+  job_name?: string;
+  username: string;
+  concurrency: number;
+  ramp_up: number;
+  duration: number;
+  throughput: number;
+  avg_rt: number;
+  error_rate: number;
+  status: 'running' | 'success' | 'error' | 'queued' | 'completed' | string;
+  error_message: string;
+  created_at: string;
+  project_id?: number | null;
+  project_name?: string;
+  has_report: boolean;
+  build_number?: number | null;
+  jenkins_url?: string | null;
+}
+
+export interface JenkinsConfig {
+  url: string;
+  username: string;
+  api_token: string;
+  enabled: boolean;
+}
+
+
 @Injectable({
   providedIn: 'root'
 })
@@ -265,6 +295,40 @@ export class ApiService {
     return this.http.get<any>(`${this.baseUrl}/superadmin/analytics`, this.getAdminHeaders());
   }
 
+  // ── Unified Queue & Jenkins REST API ───────────────────────
+
+  getTestQueue(username?: string, statusFilter?: string): Observable<TestQueueItem[]> {
+    let url = `${this.baseUrl}/test-queue?`;
+    if (username) url += `username=${encodeURIComponent(username)}&`;
+    if (statusFilter) url += `status_filter=${encodeURIComponent(statusFilter)}`;
+    return this.http.get<TestQueueItem[]>(url);
+  }
+
+  getJenkinsLogs(jobName: string, buildNumber: number): Observable<{ logs: string }> {
+    return this.http.get<{ logs: string }>(`${this.baseUrl}/api/jenkins/logs/${encodeURIComponent(jobName)}/${buildNumber}`);
+  }
+
+  getJenkinsConfig(): Observable<JenkinsConfig> {
+    return this.http.get<JenkinsConfig>(`${this.baseUrl}/api/jenkins/config`);
+  }
+
+  saveJenkinsConfig(url: string, username: string, apiToken: string, enabled: boolean = true): Observable<any> {
+    const fd = new FormData();
+    fd.append('url', url);
+    fd.append('username', username);
+    fd.append('api_token', apiToken);
+    fd.append('enabled', enabled ? 'true' : 'false');
+    return this.http.post<any>(`${this.baseUrl}/api/jenkins/config`, fd);
+  }
+
+  testJenkinsConnection(url: string, username: string, apiToken: string): Observable<any> {
+    const fd = new FormData();
+    fd.append('url', url);
+    fd.append('username', username);
+    fd.append('api_token', apiToken);
+    return this.http.post<any>(`${this.baseUrl}/api/jenkins/test-connection`, fd);
+  }
+
   // Helpers to add log messages to terminal console
   addLog(text: string, type: 'system' | 'success' | 'error' = 'system') {
     const now = new Date();
@@ -276,3 +340,4 @@ export class ApiService {
     this.terminalLogs.set([]);
   }
 }
+

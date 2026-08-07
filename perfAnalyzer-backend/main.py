@@ -17,6 +17,9 @@ import json
 import jwt
 import datetime
 import tempfile
+import base64
+import urllib.request
+import urllib.parse
 from typing import Optional
 from contextlib import contextmanager
 import psycopg2
@@ -699,13 +702,18 @@ def parse_test_metrics(test_name: str) -> dict:
                         header = header_line.strip().split('\t')
                         delim = '\t'
 
-                    try:
-                        ts_idx = header.index("timeStamp")
-                        el_idx = header.index("elapsed")
-                        succ_idx = header.index("success")
-                        threads_idx = header.index("allThreads")
-                    except ValueError:
-                        ts_idx, el_idx, succ_idx, threads_idx = 0, 1, 7, 9
+                    header_lower = [h.strip().lower() for h in header]
+                    
+                    ts_idx = header_lower.index("timestamp") if "timestamp" in header_lower else 0
+                    el_idx = header_lower.index("elapsed") if "elapsed" in header_lower else 1
+                    succ_idx = header_lower.index("success") if "success" in header_lower else (7 if len(header) > 7 else 0)
+                    
+                    if "allthreads" in header_lower:
+                        threads_idx = header_lower.index("allthreads")
+                    elif "grpthreads" in header_lower:
+                        threads_idx = header_lower.index("grpthreads")
+                    else:
+                        threads_idx = 12 if len(header) > 12 else 0
 
                     min_ts = None
                     max_ts_end = None
@@ -977,6 +985,46 @@ def run_test(
         with open(GENERATED_YAML, "w") as file:
             yaml.dump(config, file, sort_keys=False)
 
+        # Insert         # Check if Jenkins integration is enabled
+        jenkins_cfg = get_jenkins_config()
+        if jenkins_cfg.get("enabled", True) and jenkins_cfg.get("url"):
+            try:
+                res = trigger_jenkins_build(
+                    test_name=test_name,
+                    jmx_filename=str(target_jmx_path.resolve()),
+                    threads=threads,
+                    ramp_up=ramp_up,
+                    duration=duration,
+                    username=username
+                )
+                queue_id = res.get("queue_id", "")
+                
+                # Insert into database with 'queued' status
+                try:
+                    with db_session() as conn:
+                        with conn:
+                            with conn.cursor() as cur:
+                                cur.execute("""
+                                    INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status, project_id)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                    ON CONFLICT (test_name) DO UPDATE 
+                                    SET status = 'queued', concurrency = %s, ramp_up = %s, duration = %s, created_at = CURRENT_TIMESTAMP, project_id = EXCLUDED.project_id;
+                                """, (test_name, username, threads, ramp_up, duration, 'queued', project_id, threads, ramp_up, duration))
+                except Exception as db_err:
+                    print(f"Warning: Failed to insert test execution to database: {str(db_err)}")
+
+                test_status_db[test_name] = {"status": "queued", "error": "", "source": "jenkins", "queue_id": queue_id}
+                
+                return JSONResponse({
+                    "message": f"Test execution submitted to Jenkins queue successfully (Queue Item #{queue_id or 'queued'}).",
+                    "test_name": test_name,
+                    "queue_id": queue_id,
+                    "source": "jenkins"
+                })
+            except Exception as j_err:
+                logger.warning(f"Jenkins trigger failed ({j_err}). Falling back to local engine execution.")
+
+        # Standard local JMX execution fallback
         # Insert into database
         try:
             with db_session() as conn:
@@ -2201,3 +2249,446 @@ def list_project_reports(project_id: int):
         return JSONResponse(reports)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list project reports: {str(e)}")
+
+
+# ── Jenkins REST API & Test Execution Queue Endpoints ───────────────────────
+
+def get_jenkins_config():
+    enabled_val = os.getenv("JENKINS_ENABLED", "true").strip().lower()
+    enabled = enabled_val in ("true", "1", "yes")
+    return {
+        "url": os.getenv("JENKINS_URL", "http://localhost:8080").strip(),
+        "username": os.getenv("JENKINS_USER", "").strip(),
+        "api_token": os.getenv("JENKINS_TOKEN", "").strip(),
+        "enabled": enabled
+    }
+
+def fetch_jenkins_api(endpoint: str, timeout: int = 5):
+    cfg = get_jenkins_config()
+    url = cfg.get("url", "").rstrip("/")
+    if not url:
+        raise ValueError("Jenkins URL is not configured.")
+    full_url = f"{url}{endpoint}"
+    req = urllib.request.Request(full_url)
+    
+    username = cfg.get("username", "")
+    token = cfg.get("api_token", "")
+    if username and token:
+        credentials = f"{username}:{token}".encode("utf-8")
+        auth_header = f"Basic {base64.b64encode(credentials).decode('utf-8')}"
+        req.add_header("Authorization", auth_header)
+    
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        content_type = response.headers.get("Content-Type", "")
+        body = response.read()
+        if "application/json" in content_type:
+            return json.loads(body.decode("utf-8"))
+        return body.decode("utf-8", errors="ignore")
+
+
+def trigger_jenkins_build(test_name: str, jmx_filename: str, threads: int, ramp_up: int, duration: int, username: str):
+    cfg = get_jenkins_config()
+    jenkins_url = cfg.get("url", "").rstrip("/")
+    job_name = os.getenv("JENKINS_JOB_NAME", "PerfAnalyzer-Pipeline").strip()
+    if not jenkins_url:
+        raise ValueError("JENKINS_URL is not configured in .env")
+
+    build_url = f"{jenkins_url}/job/{job_name}/buildWithParameters"
+
+    # Resolve full JMX path using JENKINS_JMX_WORKSPACE (Option A: same machine)
+    jmx_workspace = os.getenv("JENKINS_JMX_WORKSPACE", "").strip()
+    perfanalyzer_url = os.getenv("PERFANALYZER_URL", "http://127.0.0.1:8000").strip()
+
+    if jmx_workspace and not Path(jmx_filename).is_absolute():
+        # Relative filename — construct full path using workspace
+        jmx_full_path = str(Path(jmx_workspace) / jmx_filename).replace("\\", "/")
+    else:
+        # Already an absolute path (passed directly from run_test)
+        jmx_full_path = str(jmx_filename).replace("\\", "/")
+
+    post_data = urllib.parse.urlencode({
+        "TEST_NAME": test_name,
+        "JMX_SCRIPT": jmx_full_path,
+        "THREADS": str(threads),
+        "RAMP_UP": str(ramp_up),
+        "DURATION": str(duration),
+        "TRIGGERED_BY": username,
+        "PERFANALYZER_URL": perfanalyzer_url
+    }).encode("utf-8")
+
+    req = urllib.request.Request(build_url, data=post_data, method="POST")
+
+    user = cfg.get("username", "")
+    token = cfg.get("api_token", "")
+    credentials = None
+    if user and token:
+        credentials = f"{user}:{token}".encode("utf-8")
+        req.add_header("Authorization", f"Basic {base64.b64encode(credentials).decode('utf-8')}")
+
+    # Fetch Crumb for CSRF if security enabled
+    try:
+        crumb_url = f"{jenkins_url}/crumbIssuer/api/json"
+        crumb_req = urllib.request.Request(crumb_url)
+        if credentials:
+            crumb_req.add_header("Authorization", f"Basic {base64.b64encode(credentials).decode('utf-8')}")
+        with urllib.request.urlopen(crumb_req, timeout=3) as crumb_resp:
+            crumb_data = json.loads(crumb_resp.read().decode("utf-8"))
+            req.add_header(crumb_data["crumbRequestField"], crumb_data["crumb"])
+    except Exception:
+        pass
+
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        location_header = resp.headers.get("Location", "")
+        queue_id = None
+        if location_header and "/queue/item/" in location_header:
+            try:
+                queue_id = location_header.rstrip("/").split("/")[-1]
+            except Exception:
+                pass
+        return {
+            "success": True,
+            "status_code": resp.status,
+            "location": location_header,
+            "queue_id": queue_id
+        }
+
+
+
+
+@app.get("/api/jenkins/config")
+def get_jenkins_configuration():
+    return JSONResponse(get_jenkins_config())
+
+
+@app.post("/api/jenkins/config")
+def update_jenkins_configuration(
+    url: str = Form(...),
+    username: str = Form(""),
+    api_token: str = Form(""),
+    enabled: bool = Form(True)
+):
+    cfg = {
+        "url": url.strip(),
+        "username": username.strip(),
+        "api_token": api_token.strip(),
+        "enabled": enabled
+    }
+    save_jenkins_config(cfg)
+    return JSONResponse({"message": "Jenkins configuration saved successfully.", "config": cfg})
+
+
+@app.post("/api/jenkins/test-connection")
+def test_jenkins_connection(
+    url: str = Form(...),
+    username: str = Form(""),
+    api_token: str = Form("")
+):
+    try:
+        clean_url = url.strip().rstrip("/")
+        full_url = f"{clean_url}/api/json"
+        req = urllib.request.Request(full_url)
+        if username.strip() and api_token.strip():
+            credentials = f"{username.strip()}:{api_token.strip()}".encode("utf-8")
+            auth_header = f"Basic {base64.b64encode(credentials).decode('utf-8')}"
+            req.add_header("Authorization", auth_header)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            num_executors = data.get("numExecutors", 0)
+            return JSONResponse({
+                "success": True,
+                "message": f"Successfully connected to Jenkins! ({num_executors} executors available)"
+            })
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "message": f"Connection failed: {str(e)}"
+        }, status_code=400)
+
+
+@app.get("/test-queue")
+def get_unified_test_queue(username: Optional[str] = None, status_filter: Optional[str] = None):
+    results = []
+
+    # 1. Fetch Local test runs from DB
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                if username and username.strip():
+                    cur.execute("""
+                        SELECT tr.id, tr.test_name, tr.username, tr.concurrency, tr.ramp_up, tr.duration,
+                               tr.throughput, tr.avg_rt, tr.error_rate, tr.status, tr.error_message, tr.created_at,
+                               tr.project_id, p.name as project_name
+                        FROM test_results tr
+                        LEFT JOIN projects p ON tr.project_id = p.id
+                        WHERE tr.username = %s
+                        ORDER BY tr.created_at DESC;
+                    """, (username.strip(),))
+                else:
+                    cur.execute("""
+                        SELECT tr.id, tr.test_name, tr.username, tr.concurrency, tr.ramp_up, tr.duration,
+                               tr.throughput, tr.avg_rt, tr.error_rate, tr.status, tr.error_message, tr.created_at,
+                               tr.project_id, p.name as project_name
+                        FROM test_results tr
+                        LEFT JOIN projects p ON tr.project_id = p.id
+                        ORDER BY tr.created_at DESC;
+                    """)
+                rows = cur.fetchall()
+
+        for row in rows:
+            (tr_id, test_name, user_name, concurrency, ramp_up, duration,
+             throughput, avg_rt, error_rate, status, error_message, created_at,
+             project_id, project_name) = row
+            
+            html_report_path = TEST_RESULT_DIR / test_name / "HTML_Report" / "index.html"
+            has_report = html_report_path.exists()
+
+            # Dynamic metric recalculation fallback if metrics in DB are zero for completed runs
+            if (not throughput or throughput == 0.0) and (status in ("success", "completed")):
+                parsed_m = parse_test_metrics(test_name)
+                if parsed_m["throughput"] > 0 or parsed_m["avg_rt"] > 0:
+                    throughput = parsed_m["throughput"]
+                    avg_rt = parsed_m["avg_rt"]
+                    error_rate = parsed_m["error_rate"]
+                    # Update DB table so it stays saved
+                    update_db_test_result(test_name, status, error_message or "")
+            
+            results.append({
+                "id": f"local_{tr_id}",
+                "source": "local",
+                "test_name": test_name,
+                "job_name": test_name,
+                "username": user_name or "Guest",
+                "concurrency": concurrency or 0,
+                "ramp_up": ramp_up or 0,
+                "duration": duration or 0,
+                "throughput": throughput or 0.0,
+                "avg_rt": avg_rt or 0.0,
+                "error_rate": error_rate or 0.0,
+                "status": status or "unknown",
+                "error_message": error_message or "",
+                "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "",
+                "project_id": project_id,
+                "project_name": project_name or "Local Execution",
+                "has_report": has_report,
+                "build_number": None,
+                "jenkins_url": None
+            })
+    except Exception as e:
+        logger.warning(f"Error fetching local test queue: {e}")
+
+    # 2. Fetch Jenkins queued items and build executions if enabled
+    jenkins_cfg = get_jenkins_config()
+    if jenkins_cfg.get("enabled", True) and jenkins_cfg.get("url"):
+        # Fetch queued builds from Jenkins /queue/api/json
+        try:
+            queue_data = fetch_jenkins_api("/queue/api/json")
+            if isinstance(queue_data, dict) and "items" in queue_data:
+                for qitem in queue_data["items"]:
+                    task_name = qitem.get("task", {}).get("name", "Jenkins Task")
+                    task_url = qitem.get("task", {}).get("url", "")
+                    in_queue_since = qitem.get("inQueueSince")
+                    created_str = datetime.datetime.fromtimestamp(in_queue_since / 1000.0).strftime("%Y-%m-%d %H:%M:%S") if in_queue_since else ""
+                    why = qitem.get("why", "Queued in Jenkins")
+                    
+                    user_str = "Jenkins System"
+                    for action in qitem.get("actions", []):
+                        for cause in action.get("causes", []):
+                            if "userName" in cause:
+                                user_str = cause["userName"]
+                            elif "shortDescription" in cause:
+                                user_str = cause["shortDescription"]
+
+                    results.append({
+                        "id": f"jenkins_q_{qitem.get('id')}",
+                        "source": "jenkins",
+                        "test_name": task_name,
+                        "job_name": task_name,
+                        "username": user_str,
+                        "concurrency": 0,
+                        "ramp_up": 0,
+                        "duration": 0,
+                        "throughput": 0.0,
+                        "avg_rt": 0.0,
+                        "error_rate": 0.0,
+                        "status": "queued",
+                        "error_message": why,
+                        "created_at": created_str,
+                        "project_id": None,
+                        "project_name": "Jenkins Queue",
+                        "has_report": False,
+                        "build_number": None,
+                        "jenkins_url": task_url
+                    })
+        except Exception as q_err:
+            logger.debug(f"Jenkins queue fetch error: {q_err}")
+
+        # Fetch Jenkins job build runs from /api/json
+        try:
+            jobs_data = fetch_jenkins_api("/api/json?tree=jobs[name,url,builds[number,url,result,building,timestamp,duration,actions[causes[shortDescription,userName]]]]")
+            if isinstance(jobs_data, dict) and "jobs" in jobs_data:
+                for job in jobs_data["jobs"]:
+                    job_name = job.get("name", "")
+                    job_url = job.get("url", "")
+                    builds = job.get("builds", [])
+                    for b in builds[:10]:
+                        b_num = b.get("number")
+                        b_url = b.get("url", f"{job_url}{b_num}/")
+                        is_building = b.get("building", False)
+                        b_result = b.get("result")
+                        b_ts = b.get("timestamp")
+                        b_dur = b.get("duration", 0) // 1000 if b.get("duration") else 0
+                        created_str = datetime.datetime.fromtimestamp(b_ts / 1000.0).strftime("%Y-%m-%d %H:%M:%S") if b_ts else ""
+                        
+                        if is_building:
+                            st = "running"
+                        elif b_result == "SUCCESS":
+                            st = "success"
+                        elif b_result in ("FAILURE", "ABORTED", "UNSTABLE"):
+                            st = "error"
+                        else:
+                            st = "completed"
+
+                        user_str = "Jenkins CI"
+                        for action in b.get("actions", []):
+                            for cause in action.get("causes", []):
+                                if "userName" in cause:
+                                    user_str = cause["userName"]
+                                elif "shortDescription" in cause:
+                                    user_str = cause["shortDescription"]
+
+                        results.append({
+                            "id": f"jenkins_b_{job_name}_{b_num}",
+                            "source": "jenkins",
+                            "test_name": f"{job_name} #{b_num}",
+                            "job_name": job_name,
+                            "username": user_str,
+                            "concurrency": 0,
+                            "ramp_up": 0,
+                            "duration": b_dur,
+                            "throughput": 0.0,
+                            "avg_rt": 0.0,
+                            "error_rate": 0.0,
+                            "status": st,
+                            "error_message": f"Jenkins Result: {b_result}" if b_result else "",
+                            "created_at": created_str,
+                            "project_id": None,
+                            "project_name": "Jenkins Pipeline",
+                            "has_report": False,
+                            "build_number": b_num,
+                            "jenkins_url": b_url
+                        })
+        except Exception as j_err:
+            logger.debug(f"Jenkins jobs fetch error: {j_err}")
+
+    # Filter by username if provided
+    if username and username.strip():
+        target_user = username.strip().lower()
+        results = [r for r in results if (r.get("username") or "").strip().lower() == target_user]
+
+    # Filter by status_filter if requested
+    if status_filter and status_filter.lower() != "all":
+        results = [r for r in results if r.get("status", "").lower() == status_filter.lower()]
+
+    return JSONResponse(results)
+
+
+@app.get("/api/jenkins/logs/{job_name}/{build_number}")
+def get_jenkins_build_logs(job_name: str, build_number: int):
+    try:
+        log_text = fetch_jenkins_api(f"/job/{job_name}/{build_number}/consoleText")
+        return JSONResponse({"logs": log_text if isinstance(log_text, str) else str(log_text)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch Jenkins logs: {str(e)}")
+
+
+@app.post("/api/jenkins/webhook")
+def jenkins_pipeline_webhook(
+    test_name: str = Form(...),
+    status: str = Form("running"),
+    username: str = Form("Jenkins CI"),
+    concurrency: int = Form(0),
+    ramp_up: int = Form(0),
+    duration: int = Form(0),
+    throughput: float = Form(0.0),
+    avg_rt: float = Form(0.0),
+    error_rate: float = Form(0.0),
+    error_message: str = Form("")
+):
+    """Receive execution status and metrics pushed directly from Jenkins Pipelines."""
+    try:
+        # If metrics were not passed directly by caller, attempt parsing kpi.jtl
+        if (throughput == 0.0 or avg_rt == 0.0) and status.lower() in ("success", "completed"):
+            m = parse_test_metrics(test_name)
+            if m["throughput"] > 0 or m["avg_rt"] > 0:
+                throughput = m["throughput"]
+                avg_rt = m["avg_rt"]
+                error_rate = m["error_rate"]
+
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, throughput, avg_rt, error_rate, status, error_message, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                        ON CONFLICT (test_name) DO UPDATE
+                        SET status = EXCLUDED.status,
+                            concurrency = CASE WHEN EXCLUDED.concurrency > 0 THEN EXCLUDED.concurrency ELSE test_results.concurrency END,
+                            ramp_up = CASE WHEN EXCLUDED.ramp_up > 0 THEN EXCLUDED.ramp_up ELSE test_results.ramp_up END,
+                            duration = CASE WHEN EXCLUDED.duration > 0 THEN EXCLUDED.duration ELSE test_results.duration END,
+                            throughput = CASE WHEN EXCLUDED.throughput > 0 THEN EXCLUDED.throughput ELSE test_results.throughput END,
+                            avg_rt = CASE WHEN EXCLUDED.avg_rt > 0 THEN EXCLUDED.avg_rt ELSE test_results.avg_rt END,
+                            error_rate = CASE WHEN EXCLUDED.error_rate > 0 THEN EXCLUDED.error_rate ELSE test_results.error_rate END,
+                            error_message = EXCLUDED.error_message;
+                    """, (test_name, username, concurrency, ramp_up, duration, throughput, avg_rt, error_rate, status, error_message))
+        test_status_db[test_name] = {"status": status, "error": error_message}
+        return JSONResponse({"success": True, "message": f"Recorded status '{status}' for test '{test_name}'."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process Jenkins webhook: {str(e)}")
+
+
+
+@app.post("/api/jenkins/artifacts/{test_name}")
+def upload_jenkins_artifacts(
+    test_name: str,
+    kpi_file: Optional[UploadFile] = File(None),
+    log_file: Optional[UploadFile] = File(None)
+):
+    """Store execution artifacts (kpi.jtl, jmeter.log) uploaded from Jenkins Pipeline into Test Result/{test_name}/."""
+    try:
+        test_folder = TEST_RESULT_DIR / test_name
+        test_folder.mkdir(parents=True, exist_ok=True)
+
+        if kpi_file:
+            kpi_path = test_folder / "kpi.jtl"
+            with open(kpi_path, "wb") as f:
+                shutil.copyfileobj(kpi_file.file, f)
+
+            # Generate HTML Report in Test Result/{test_name}/HTML_Report/
+            html_report_folder = test_folder / "HTML_Report"
+            if not html_report_folder.exists() or not (html_report_folder / "index.html").exists():
+                html_report_folder.mkdir(parents=True, exist_ok=True)
+                subprocess.run([
+                    JMETER_CMD, "-g", str(kpi_path), "-o", str(html_report_folder)
+                ], capture_output=True, text=True)
+                try:
+                    generate_custom_html_report(test_name)
+                except Exception as report_err:
+                    print("Error generating custom HTML report:", report_err)
+
+        if log_file:
+            log_path = test_folder / "jmeter.log"
+            with open(log_path, "wb") as f:
+                shutil.copyfileobj(log_file.file, f)
+
+        update_db_test_result(test_name, "success")
+        test_status_db[test_name] = {"status": "success", "error": ""}
+
+        return JSONResponse({
+            "message": f"Execution artifacts successfully saved in Test Result/{test_name}/",
+            "test_name": test_name
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save artifacts: {str(e)}")
+
+
+

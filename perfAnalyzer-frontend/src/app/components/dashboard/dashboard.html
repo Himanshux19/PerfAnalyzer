@@ -2,6 +2,32 @@
   <!-- Topbar Header -->
   <app-navbar></app-navbar>
 
+  <!-- Execution Queue Toast Notification -->
+  @if (showJenkinsQueueToast) {
+    <div class="jenkins-queue-toast d-flex align-items-start gap-3 shadow-lg">
+      <div class="toast-icon-wrap">
+        <i class="bi bi-cpu-fill text-warning fs-4"></i>
+      </div>
+      <div class="flex-fill">
+        <div class="toast-title fw-bold mb-1">
+          <i class="bi bi-check-circle-fill text-success me-1"></i>
+          Test Queued for Execution!
+        </div>
+        <div class="toast-body text-muted small mb-2">
+          <span class="fw-semibold text-dark">{{ jenkinsTestName }}</span>
+          @if (jenkinsQueueId) {
+            &nbsp;·&nbsp; Queue Item <strong>#{{ jenkinsQueueId }}</strong>
+          }
+          <br>Test is queued and will execute in sequence.
+        </div>
+        <a class="btn btn-sm btn-warning fw-semibold" [routerLink]="['/queue']">
+          <i class="bi bi-list-task me-1"></i> View Test Queue →
+        </a>
+      </div>
+      <button class="btn-close btn-close-sm ms-auto" (click)="showJenkinsQueueToast = false"></button>
+    </div>
+  }
+
   <!-- Main Container -->
   <div class="container-fluid py-4 px-lg-5">
     <!-- Upper Section Grid (Test Setup, Run Control, logs console) -->

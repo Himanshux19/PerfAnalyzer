@@ -85,9 +85,12 @@ export class TestConfig implements OnInit {
 
     this.api.selectedProjectFileId.set(file.id);
 
-    const isJmx = file.filename.toLowerCase().endsWith('.jmx');
+    const filename = file.filename.toLowerCase();
+    const isJmx = filename.endsWith('.jmx');
+    const isYaml = filename.endsWith('.yaml') || filename.endsWith('.yml');
 
-    if (isJmx) {
+    if (isJmx || isYaml) {
+      const label = isYaml ? 'YAML' : 'JMX';
       this.api.csvFileName.set(null);
       this.api.csvServerName.set(null);
       this.api.csvUploadStatus.set('idle');
@@ -96,7 +99,7 @@ export class TestConfig implements OnInit {
       this.api.jmxFileSize.set(this.formatSize(file.file_size));
       this.api.jmxServerName.set(file.filename);
       this.api.jmxUploadStatus.set('success');
-      this.api.addLog(`Selected JMX script from workspace: ${file.filename}`, 'success');
+      this.api.addLog(`Selected ${label} script from workspace: ${file.filename}`, 'success');
     } else {
       this.api.jmxFileName.set(null);
       this.api.jmxServerName.set(null);
@@ -135,7 +138,9 @@ export class TestConfig implements OnInit {
 
     const filename = file.name.toLowerCase();
     
-    if (filename.endsWith('.jmx')) {
+    if (filename.endsWith('.jmx') || filename.endsWith('.yaml') || filename.endsWith('.yml')) {
+      const isYaml = filename.endsWith('.yaml') || filename.endsWith('.yml');
+      const label = isYaml ? 'YAML' : 'JMX';
       this.api.csvFileName.set(null);
       this.api.csvServerName.set(null);
       this.api.csvUploadStatus.set('idle');
@@ -143,18 +148,18 @@ export class TestConfig implements OnInit {
       this.api.jmxFileName.set(file.name);
       this.api.jmxFileSize.set(`${(file.size / 1024).toFixed(0)} KB`);
       this.api.jmxUploadStatus.set('uploading');
-      this.api.addLog(`Uploading JMX script: ${file.name}...`, 'system');
+      this.api.addLog(`Uploading ${label} script: ${file.name}...`, 'system');
 
       this.api.uploadJmxFile(file).subscribe({
         next: (res) => {
           this.api.jmxServerName.set(res.filename);
           this.api.jmxUploadStatus.set('success');
-          this.api.addLog(`JMX uploaded successfully. Saved as ${res.filename} on server.`, 'success');
+          this.api.addLog(`${label} uploaded successfully. Saved as ${res.filename} on server.`, 'success');
         },
         error: (err) => {
           this.api.jmxUploadStatus.set('error');
           const errorMsg = err.error?.detail || err.message || 'Connection error';
-          this.api.addLog(`JMX upload failed: ${errorMsg}`, 'error');
+          this.api.addLog(`${label} upload failed: ${errorMsg}`, 'error');
         }
       });
 
@@ -181,7 +186,7 @@ export class TestConfig implements OnInit {
         }
       });
     } else {
-      this.api.addLog('Error: Only .jmx and .csv files are supported.', 'error');
+      this.api.addLog('Error: Only .jmx, .csv, .yaml, and .yml files are supported.', 'error');
     }
   }
 

@@ -2,18 +2,18 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'TEST_NAME',        defaultValue: 'Jenkins_Performance_Run', description: 'Unique test execution identifier (used as result folder name)')
-        string(name: 'JMX_SCRIPT',       defaultValue: 'D:/Project/PerfAnalyzer/Test Result/sample/sample.jmx', description: 'Full absolute path to JMeter .jmx script on this agent')
-        string(name: 'THREADS',          defaultValue: '50',  description: 'Number of concurrent virtual users (threads)')
+        string(name: 'TEST_NAME',        defaultValue: 'Performance_Run', description: 'Unique test execution identifier (used as result folder name)')
+        string(name: 'JMX_SCRIPT',       defaultValue: '', description: 'Full absolute path to JMeter .jmx script on this agent')
+        string(name: 'THREADS',          defaultValue: '10',  description: 'Number of concurrent virtual users (threads)')
         string(name: 'RAMP_UP',          defaultValue: '10',  description: 'Ramp-up period in seconds')
         string(name: 'DURATION',         defaultValue: '60',  description: 'Test hold duration in seconds')
-        string(name: 'PERFANALYZER_URL', defaultValue: 'http://127.0.0.1:8000', description: 'PerfAnalyzer Backend Base URL')
+        string(name: 'PERFANALYZER_URL', defaultValue: ${env.PERFANALYZER_URL}, description: 'PerfAnalyzer Backend Base URL')
         string(name: 'TRIGGERED_BY',     defaultValue: 'Jenkins CI/CD', description: 'User or system that triggered this run')
     }
 
     environment {
         TEST_ID      = "${params.TEST_NAME}"
-        JMETER_JAR   = '"D:\\Performance Testing\\JMeter\\apache-jmeter-5.6.3\\bin\\ApacheJMeter.jar"'
+        JMETER_JAR   = "${env.JMETER_JAR}"
         RESULTS_DIR  = "target\\results_${BUILD_NUMBER}"
     }
 

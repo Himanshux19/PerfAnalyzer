@@ -595,6 +595,18 @@ app.mount("/generated_tests", StaticFiles(directory="generated_tests"), name="ge
 
 JMETER_CMD = shutil.which("jmeter") or shutil.which("jmeter.bat")
 BZT_CMD = shutil.which("bzt")
+if not BZT_CMD:
+    import sys
+    py_parent = Path(sys.executable).parent
+    for bzt_name in ("bzt.exe", "bzt.bat", "bzt"):
+        opt1 = py_parent / bzt_name
+        if opt1.exists():
+            BZT_CMD = str(opt1)
+            break
+        opt2 = py_parent / "Scripts" / bzt_name
+        if opt2.exists():
+            BZT_CMD = str(opt2)
+            break
 
 TEST_RESULT_DIR = Path("../Test Result")
 TEST_RESULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -675,26 +687,32 @@ def update_jmx_xml_parameters(jmx_path: Path, threads: int, ramp_up: int, durati
 # Upload JMX File
 @app.post("/upload/jmx")
 async def upload_jmx(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".jmx"):
+    ext = Path(file.filename).suffix.lower()
+    if ext not in (".jmx", ".yaml", ".yml"):
         raise HTTPException(
             status_code=400,
-            detail="Only JMX files are allowed."
+            detail="Only JMX or YAML/YML files are allowed."
         )
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     stem_name = Path(file.filename).stem
-    test_name = f"{stem_name}_{timestamp}"
-    
-    test_folder = TEST_RESULT_DIR / test_name
+    n = 0
+    while True:
+        suffix = f"({n})" if n > 0 else ""
+        test_name = f"{stem_name}{suffix}"
+        test_folder = TEST_RESULT_DIR / test_name
+        if not test_folder.exists():
+            break
+        n += 1
+
     test_folder.mkdir(parents=True, exist_ok=True)
-    target_jmx_path = test_folder / f"{test_name}.jmx"
+    target_jmx_path = test_folder / f"{test_name}{ext}"
 
     with open(target_jmx_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     return JSONResponse({
-        "message": "JMX uploaded successfully.",
-        "filename": f"{test_name}.jmx",
+        "message": f"{ext[1:].upper()} uploaded successfully.",
+        "filename": f"{test_name}{ext}",
         "path": str(target_jmx_path)
     })
 
@@ -708,10 +726,16 @@ async def upload_csv(file: UploadFile = File(...)):
             detail="Only CSV or JTL files are allowed."
         )
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     stem_name = Path(file.filename).stem
-    test_name = f"{stem_name}_{timestamp}"
     ext = Path(file.filename).suffix
+    n = 0
+    while True:
+        suffix = f"({n})" if n > 0 else ""
+        test_name = f"{stem_name}{suffix}"
+        test_folder = TEST_RESULT_DIR / test_name
+        if not test_folder.exists():
+            break
+        n += 1
 
     temp_file_fd, temp_file_path_str = tempfile.mkstemp(suffix=ext)
     temp_file_path = Path(temp_file_path_str)
@@ -728,7 +752,6 @@ async def upload_csv(file: UploadFile = File(...)):
                 detail=str(ve)
             )
         
-        test_folder = TEST_RESULT_DIR / test_name
         test_folder.mkdir(parents=True, exist_ok=True)
         target_csv_path = test_folder / f"{test_name}{ext}"
         shutil.copy(temp_file_path, target_csv_path)
@@ -878,6 +901,35 @@ def validate_jmeter_results(file_path: Path):
     except Exception as e:
         raise ValueError(f"JMeter JTL/CSV format verification failed: {str(e)}")
 
+def cleanup_copied_workspace_files(test_name: str):
+    try:
+        project_id = None
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT project_id FROM test_results WHERE test_name = %s;", (test_name,))
+                row = cur.fetchone()
+                if row:
+                    project_id = row[0]
+        
+        if project_id is not None:
+            with db_session() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT filename FROM project_files WHERE project_id = %s;", (project_id,))
+                    files = cur.fetchall()
+            
+            test_folder = TEST_RESULT_DIR / test_name
+            if test_folder.exists():
+                for (fname,) in files:
+                    ext = Path(fname).suffix.lower()
+                    if fname == f"{test_name}{ext}":
+                        continue
+                    p_orig = test_folder / fname
+                    if p_orig.exists() and p_orig.is_file():
+                        p_orig.unlink()
+                        logger.info(f"Cleaned up copied workspace file: {fname} from {test_folder}")
+    except Exception as e:
+        logger.error(f"Error cleaning up workspace files for test {test_name}: {e}")
+
 def run_taurus_in_background(test_name: str, cmd: list):
     try:
         process = subprocess.run(
@@ -927,6 +979,8 @@ def run_taurus_in_background(test_name: str, cmd: list):
     except Exception as e:
         test_status_db[test_name] = {"status": "error", "error": str(e)}
         update_db_test_result(test_name, "error", str(e))
+    finally:
+        cleanup_copied_workspace_files(test_name)
 
 @app.post("/run-test")
 def run_test(
@@ -941,24 +995,46 @@ def run_test(
     try:
         # If a workspace file is specified, copy it to the execution folder
         if project_id is not None and project_file_id is not None:
-            with db_session() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT stored_path, filename FROM project_files WHERE id = %s AND project_id = %s;",
-                        (project_file_id, project_id)
-                    )
-                    row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Workspace file not found.")
-            stored_path, filename = row
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            try:
+                with db_session() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT id, stored_path, filename FROM project_files WHERE project_id = %s;",
+                            (project_id,)
+                        )
+                        proj_files = cur.fetchall()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to fetch workspace files: {str(e)}")
+
+            if not proj_files:
+                raise HTTPException(status_code=404, detail="No files found in workspace.")
+
+            # Identify the selected file path and name
+            selected_row = next((r for r in proj_files if r[0] == project_file_id), None)
+            if not selected_row:
+                raise HTTPException(status_code=404, detail="Selected workspace file not found.")
+
+            stored_path, filename = selected_row[1], selected_row[2]
             stem_name = Path(filename).stem
             suffix = Path(filename).suffix
-            test_name = f"{stem_name}_{timestamp}"
-            test_folder = TEST_RESULT_DIR / test_name
+            n = 0
+            while True:
+                candidate_suffix = f"({n})" if n > 0 else ""
+                candidate_test_name = f"{stem_name}{candidate_suffix}"
+                test_folder = TEST_RESULT_DIR / candidate_test_name
+                if not test_folder.exists():
+                    test_name = candidate_test_name
+                    break
+                n += 1
             test_folder.mkdir(parents=True, exist_ok=True)
             jmx_filename = f"{test_name}{suffix}"
-            shutil.copy2(stored_path, test_folder / jmx_filename)
+
+            # Copy all files belonging to this project workspace to test_folder
+            for fid, spath, fname in proj_files:
+                if fid == project_file_id:
+                    shutil.copy2(spath, test_folder / jmx_filename)
+                else:
+                    shutil.copy2(spath, test_folder / fname)
 
         # Check if user uploaded a CSV/JTL directly instead of JMX
         if jmx_filename.endswith(".csv") or jmx_filename.endswith(".jtl"):
@@ -1014,6 +1090,8 @@ def run_test(
                 except Exception as e:
                     test_status_db[test_name] = {"status": "error", "error": str(e), "type": "csv_report"}
                     update_db_test_result(test_name, "error", str(e))
+                finally:
+                    cleanup_copied_workspace_files(test_name)
             
             thread = threading.Thread(target=run_jmeter_report_only)
             thread.start()
@@ -1027,6 +1105,116 @@ def run_test(
         test_name = Path(jmx_filename).stem
         test_folder = TEST_RESULT_DIR / test_name
         target_jmx_path = test_folder / jmx_filename
+
+        # If input is a Taurus YAML/YML configuration file, compile it to JMX first.
+        if jmx_filename.endswith(".yaml") or jmx_filename.endswith(".yml"):
+            yaml_file_path = test_folder / jmx_filename
+            try:
+                with open(yaml_file_path, "r", encoding="utf-8") as f:
+                    yaml_config = yaml.safe_load(f) or {}
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to parse input YAML file: {str(e)}")
+
+            # Check if this YAML references an existing JMX script
+            referenced_jmx = None
+            scenarios = yaml_config.get("scenarios", {})
+            if isinstance(scenarios, dict):
+                for scen_name, scen_cfg in scenarios.items():
+                    if isinstance(scen_cfg, dict):
+                        script_val = scen_cfg.get("script")
+                        if isinstance(script_val, str) and script_val.lower().endswith(".jmx"):
+                            referenced_jmx = Path(script_val).name
+                            break
+
+            # If it references a JMX script, try to find and use it directly
+            jmx_found = False
+            if referenced_jmx:
+                # Search in the project workspace first (copied files)
+                local_jmx_path = test_folder / referenced_jmx
+                if local_jmx_path.exists():
+                    jmx_filename = f"{test_name}.jmx"
+                    target_jmx_path = test_folder / jmx_filename
+                    if local_jmx_path.resolve() != target_jmx_path.resolve():
+                        shutil.copy2(local_jmx_path, target_jmx_path)
+                    jmx_found = True
+                    logger.info(f"Resolved referenced JMX '{referenced_jmx}' locally from test folder.")
+
+            if not jmx_found:
+                # If it's a standalone YAML, compile JMX from YAML using local Taurus
+                if "execution" not in yaml_config or not isinstance(yaml_config["execution"], list) or not yaml_config["execution"]:
+                    yaml_config["execution"] = [{}]
+                
+                yaml_exec = yaml_config["execution"][0]
+                yaml_exec["concurrency"] = threads
+                yaml_exec["ramp-up"] = f"{ramp_up}s"
+                yaml_exec["hold-for"] = f"{duration}s"
+                if "iterations" in yaml_exec:
+                    del yaml_exec["iterations"]
+                    
+                try:
+                    with open(yaml_file_path, "w", encoding="utf-8") as f:
+                        yaml.dump(yaml_config, f, default_flow_style=False)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to update YAML configuration: {str(e)}")
+
+                compile_temp_dir = test_folder / "compile_temp"
+                compile_temp_dir.mkdir(parents=True, exist_ok=True)
+                
+                compile_cmd = [
+                    BZT_CMD,
+                    str(yaml_file_path),
+                    "-o", f"settings.artifacts-dir={compile_temp_dir}",
+                    "-o", "execution.0.concurrency=1",
+                    "-o", "execution.0.iterations=1",
+                    "-o", "execution.0.hold-for=0s",
+                    "-o", "execution.0.ramp-up=0s"
+                ]
+                
+                try:
+                    proc = subprocess.run(compile_cmd, capture_output=True, text=True)
+                    if proc.returncode != 0:
+                        try:
+                            shutil.rmtree(compile_temp_dir)
+                        except:
+                            pass
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Failed to compile JMX from YAML via Taurus. Error: {proc.stderr or proc.stdout}"
+                        )
+                except Exception as e:
+                    try:
+                        shutil.rmtree(compile_temp_dir)
+                    except:
+                        pass
+                    if isinstance(e, HTTPException):
+                        raise
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to run Taurus compiler: {str(e)}"
+                    )
+                    
+                generated_jmx_path = compile_temp_dir / "modified_requests.jmx"
+                if not generated_jmx_path.exists():
+                    generated_jmx_path = compile_temp_dir / "requests.jmx"
+                    
+                if not generated_jmx_path.exists():
+                    try:
+                        shutil.rmtree(compile_temp_dir)
+                    except:
+                        pass
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Taurus compilation succeeded, but requests.jmx was not found."
+                    )
+                    
+                jmx_filename = f"{test_name}.jmx"
+                target_jmx_path = test_folder / jmx_filename
+                shutil.copy2(generated_jmx_path, target_jmx_path)
+                
+                try:
+                    shutil.rmtree(compile_temp_dir)
+                except Exception as clean_err:
+                    logger.warning(f"Could not clean up compile_temp: {clean_err}")
 
         if not target_jmx_path.exists():
             raise HTTPException(
@@ -1085,6 +1273,8 @@ def run_test(
 
                 test_status_db[test_name] = {"status": "queued", "error": "", "source": "jenkins", "queue_id": queue_id}
                 
+                cleanup_copied_workspace_files(test_name)
+                
                 return JSONResponse({
                     "message": f"Test execution submitted to Jenkins queue successfully (Queue Item #{queue_id or 'queued'}).",
                     "test_name": test_name,
@@ -1126,6 +1316,8 @@ def run_test(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=str(e)
@@ -1821,8 +2013,19 @@ def generate_custom_html_report(test_name: str):
 @app.post("/create-test")
 def create_test(payload: CreateTestRequest) -> JSONResponse:
     try:
-        test_id = uuid.uuid4().hex[:8]
-        base_name = f"{_slugify(payload.testName)}_{test_id}"
+        base_stem = _slugify(payload.testName)
+        n = 0
+        while True:
+            suffix = f"({n})" if n > 0 else ""
+            candidate_base = f"{base_stem}{suffix}"
+            jmx_cand = TESTS_DIR / f"{candidate_base}.jmx"
+            yaml_cand = TESTS_DIR / f"{candidate_base}.yml"
+            if not jmx_cand.exists() and not yaml_cand.exists():
+                base_name = candidate_base
+                break
+            n += 1
+
+        test_id = base_name
         jmx_filename = f"{base_name}.jmx"
         yaml_filename = f"{base_name}.yml"
  
@@ -2180,9 +2383,17 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
     # Save file to disk
     proj_dir = PROJECT_FILES_DIR / str(project_id)
     proj_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_name = f"{Path(file.filename).stem}_{timestamp}{ext}"
-    dest = proj_dir / safe_name
+    stem = Path(file.filename).stem
+    n = 0
+    while True:
+        suffix = f"({n})" if n > 0 else ""
+        candidate_name = f"{stem}{suffix}{ext}"
+        dest = proj_dir / candidate_name
+        if not dest.exists():
+            safe_name = candidate_name
+            break
+        n += 1
+
     content = await file.read()
     with open(dest, "wb") as f_out:
         f_out.write(content)
@@ -2198,7 +2409,7 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
                         INSERT INTO project_files (project_id, filename, file_type, file_size, stored_path, file_path)
                         VALUES (%s, %s, %s, %s, %s, %s)
                         RETURNING id, filename, file_type, file_size, uploaded_at;
-                    """, (project_id, file.filename, file_type, file_size, str(dest), str(dest)))
+                    """, (project_id, safe_name, file_type, file_size, str(dest), str(dest)))
                     row = cur.fetchone()
                     cur.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = %s;", (project_id,))
         return JSONResponse({

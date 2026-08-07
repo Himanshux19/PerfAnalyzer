@@ -51,13 +51,13 @@
         </div>
       </div>
     } @else {
-      <div class="setup-section-title">Upload Script or Dataset (.jmx / .csv)</div>
+      <div class="setup-section-title">Upload Script or Dataset (.jmx / .csv / .yaml)</div>
       <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
-        <span class="text-muted fs-7 mb-2">Drag and drop JMX script or CSV results here</span>
+        <span class="text-muted fs-7 mb-2">Drag and drop JMX/YAML script or CSV results here</span>
         <label for="fileUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
           <i class="bi bi-cloud-upload"></i> Upload File
         </label>
-        <input type="file" id="fileUploadInput" accept=".jmx,.csv" class="d-none" (change)="onFileSelected($event)" />
+        <input type="file" id="fileUploadInput" accept=".jmx,.csv,.yaml,.yml" class="d-none" (change)="onFileSelected($event)" />
       </div>
     }
 
@@ -68,7 +68,7 @@
           <i class="bi bi-file-earmark-code fs-4 text-secondary"></i>
           <div>
             <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160" [title]="api.jmxFileName()">{{ api.jmxFileName() }}</div>
-            <div class="uploaded-file-size text-muted fs-8">{{ api.jmxFileSize() }} (Active JMX Script)</div>
+            <div class="uploaded-file-size text-muted fs-8">{{ api.jmxFileSize() }} (Active {{ api.jmxFileName() && (api.jmxFileName()!.toLowerCase().endsWith('.yaml') || api.jmxFileName()!.toLowerCase().endsWith('.yml')) ? 'YAML' : 'JMX' }} Script)</div>
           </div>
         </div>
         

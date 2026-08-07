@@ -122,7 +122,7 @@ pipeline {
                           -F "test_name=${env.TEST_ID}" ^
                           -F "status=error" ^
                           -F "username=${params.TRIGGERED_BY}" ^
-                          -F "error_message=Jenkins pipeline failed at build #${BUILD_NUMBER}. Check console output." ^
+                          -F "error_message=Failed at build #${BUILD_NUMBER}. Check console output." ^
                         || echo Warning: Error webhook failed
                     """
                 } catch (Exception e) {

@@ -396,3 +396,432 @@
   to { opacity: 1; }
 }
 
+.action {
+  text-align: center;
+}
+
+/* Premium Action Button */
+.btn-action-premium {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    min-width: 92px;
+    height: 34px;
+
+    padding: 0 14px;
+
+    font-size: 0.78rem;
+    font-weight: 600;
+
+    border: 1px solid transparent;
+    border-radius: 8px;
+
+    cursor: pointer;
+    transition: all .25s ease;
+
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-action-premium i {
+    font-size: 0.9rem;
+}
+
+/* Logs */
+.btn-action-premium.logs {
+    background: #eef2ff;
+    color: #4f46e5;
+    border-color: rgba(79, 70, 229, 0.12);
+}
+
+.btn-action-premium.logs:hover {
+    background: #4f46e5;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, .25);
+}
+
+/* Details */
+.btn-action-premium.details {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.btn-action-premium.details:hover {
+    background: #475569;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(71, 85, 105, .25);
+}
+
+/* Report */
+.btn-action-premium.report {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: rgba(5, 150, 105, .12);
+}
+
+.btn-action-premium.report:hover {
+    background: #059669;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(5, 150, 105, .25);
+}
+
+/* Click Effect */
+.btn-action-premium:active {
+    transform: scale(0.97);
+}
+
+/* Disabled */
+.btn-action-premium:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Pagination Container */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 16px 24px;
+
+    border-top: 1px solid #e5e7eb;
+    background: #fff;
+}
+
+/* Left Text */
+.pagination-info {
+    color: #64748b;
+    font-size: .85rem;
+    font-weight: 500;
+}
+
+/* Right Controls */
+.pagination-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Buttons */
+.pagination-btn {
+    min-width: 38px;
+    height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+
+    background: #fff;
+    color: #475569;
+
+    font-size: .85rem;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: all .25s ease;
+}
+
+/* Hover */
+.pagination-btn:hover:not(:disabled):not(.active) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+
+/* Active */
+.pagination-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(37,99,235,.25);
+}
+
+/* Disabled */
+.pagination-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .pagination-container {
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .pagination-info {
+        text-align: center;
+    }
+}
+
+/* Shared */
+.btn-action-premium {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    min-width: 110px;
+    height: 38px;
+
+    padding: 0 16px;
+
+    border: 1px solid transparent;
+    border-radius: 10px;
+
+    font-size: .82rem;
+    font-weight: 600;
+
+    text-decoration: none;
+    cursor: pointer;
+
+    transition: all .25s ease;
+}
+
+.btn-action-premium i {
+    font-size: .95rem;
+}
+
+/* Refresh */
+.btn-action-premium.refresh {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.btn-action-premium.refresh:hover:not(:disabled) {
+    background: #475569;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(71,85,105,.22);
+}
+
+/* Primary */
+.btn-action-premium.primary {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+
+.btn-action-premium.primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37,99,235,.28);
+}
+
+/* Disabled */
+.btn-action-premium:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Refresh animation */
+.spin {
+    animation: spin-anim 1s linear infinite;
+}
+
+@keyframes spin-anim {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================================
+   Execution Details Modal — Custom Styles
+   Companion stylesheet for execution-details-modal.html
+   ============================================================ */
+
+/* ---------- Typography scale (extends Bootstrap's fs-1..fs-6) ---------- */
+.fs-7 {
+  font-size: 0.9375rem; /* 15px */
+}
+
+.fs-7-5 {
+  font-size: 0.875rem; /* 14px */
+}
+
+.fs-8 {
+  font-size: 0.75rem; /* 12px */
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-mono {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+/* ---------- Modal shell ---------- */
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  padding: 1rem;
+}
+
+.details-modal-card {
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 1rem;
+  overflow: hidden;
+  animation: modal-pop-in 0.18s ease-out;
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- Card surfaces ---------- */
+.card-premium {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.setup-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* ---------- KPI scorecards ---------- */
+.runner-kpi-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.runner-kpi-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+/* ---------- Chart headers & legend ---------- */
+.runner-chart-title {
+  color: #0f172a;
+}
+
+.runner-chart-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  color: #64748b;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.bg-blue-dot {
+  background-color: #3b82f6;
+}
+
+.bg-red-dot {
+  background-color: #ef4444;
+}
+
+/* ---------- SVG trend charts ---------- */
+.svg-graph {
+  width: 100%;
+  height: auto;
+  max-height: 180px;
+  overflow: visible;
+}
+
+.graph-grid {
+  stroke-width: 1;
+}
+
+.graph-axis-text {
+  font-size: 9px;
+  fill: #94a3b8;
+  font-family: inherit;
+}
+
+.graph-axis-text.text-right {
+  text-anchor: end;
+}
+
+.graph-axis-text.text-center {
+  text-anchor: middle;
+}
+
+.chart-empty-overlay {
+  fill: #94a3b8;
+  font-style: italic;
+  text-anchor: middle;
+}
+
+/* ---------- Error trace block ---------- */
+.max-h-160 {
+  max-height: 160px;
+}
+
+pre.font-mono {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------- Responsive tweaks ---------- */
+@media (max-width: 767.98px) {
+  .details-modal-card {
+    max-height: 95vh;
+  }
+
+  .runner-kpi-val {
+    font-size: 1.25rem;
+  }
+
+  .svg-graph {
+    max-height: 140px;
+  }
+}

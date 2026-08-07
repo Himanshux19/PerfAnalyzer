@@ -21,7 +21,7 @@ export class ReportsHistory implements OnInit {
 
   // Pagination
   page = 1;
-  perPage = 7;
+  perPage = 10;
 
   constructor(
     protected api: ApiService,

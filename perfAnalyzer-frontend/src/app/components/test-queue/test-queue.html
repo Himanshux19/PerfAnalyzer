@@ -7,26 +7,24 @@
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
       <div>
         <h1 class="h3 font-bold text-slate-800 m-0">Test Execution Queue</h1>
-        <p class="text-muted m-0 fs-7">
-          Automated test runs · Real-time status · Console logs · Artifacts
-        </p>
       </div>
-      <div class="d-flex align-items-center gap-3 flex-wrap">
-        @if (lastRefreshedStr) {
-          <span class="text-muted fs-7">
-            <i class="bi bi-clock me-1"></i>Updated {{ lastRefreshedStr }}
-          </span>
-        }
-        <div class="form-check form-switch d-flex align-items-center gap-2 mb-0">
-          <input class="form-check-input" type="checkbox" id="autoRefreshToggle" [(ngModel)]="autoRefresh">
-          <label class="form-check-label small fw-semibold text-secondary" for="autoRefreshToggle">Auto-refresh 5s</label>
-        </div>
-        <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2 fw-semibold" (click)="loadQueue(false)" [disabled]="isLoading">
-          <i class="bi bi-arrow-clockwise" [class.spin-icon]="isRefreshing || isLoading"></i> Refresh
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+
+        <!-- Refresh -->
+        <button type="button" class="btn-action-premium refresh" (click)="loadQueue(false)" [disabled]="isLoading">
+
+          <i class="bi bi-arrow-clockwise" [class.spin]="isRefreshing || isLoading"></i>
+
+          <span>Refresh</span>
         </button>
-        <a class="btn btn-primary btn-sm d-flex align-items-center gap-2 fw-semibold" [routerLink]="['/']">
-          <i class="bi bi-plus-circle"></i> New Test
+
+        <!-- New Test -->
+        <a class="btn-action-premium primary" [routerLink]="['/']">
+
+          <i class="bi bi-plus-circle-fill"></i>
+          <span>New Test</span>
         </a>
+
       </div>
     </div>
 
@@ -34,7 +32,8 @@
     <div class="row g-3 mb-4">
       <!-- Total Runs -->
       <div class="col-md-2-4 col-sm-6" (click)="setStatusFilter('all')">
-        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover" [class.active-kpi]="statusFilter==='all'">
+        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover"
+          [class.active-kpi]="statusFilter==='all'">
           <div class="stat-icon bg-primary-soft text-primary">
             <i class="bi bi-layers-fill fs-5"></i>
           </div>
@@ -47,7 +46,8 @@
 
       <!-- In Queue -->
       <div class="col-md-2-4 col-sm-6" (click)="setStatusFilter('queued')">
-        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover" [class.active-kpi]="statusFilter==='queued'">
+        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover"
+          [class.active-kpi]="statusFilter==='queued'">
           <div class="stat-icon bg-warning-soft text-warning">
             <i class="bi bi-clock-history fs-5"></i>
           </div>
@@ -60,12 +60,13 @@
 
       <!-- Building -->
       <div class="col-md-2-4 col-sm-6" (click)="setStatusFilter('running')">
-        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover" [class.active-kpi]="statusFilter==='running'">
+        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover"
+          [class.active-kpi]="statusFilter==='running'">
           <div class="stat-icon bg-info-soft text-info">
             <i class="bi bi-play-circle-fill fs-5" [class.spin-icon]="runningCount > 0"></i>
           </div>
           <div>
-            <div class="text-muted fs-8 font-bold text-uppercase">BUILDING</div>
+            <div class="text-muted fs-8 font-bold text-uppercase">RUNNING</div>
             <div class="fs-4 font-bold text-info">{{ runningCount }}</div>
           </div>
         </div>
@@ -73,7 +74,8 @@
 
       <!-- Succeeded -->
       <div class="col-md-2-4 col-sm-6" (click)="setStatusFilter('success')">
-        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover" [class.active-kpi]="statusFilter==='success'">
+        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover"
+          [class.active-kpi]="statusFilter==='success'">
           <div class="stat-icon bg-success-soft text-success">
             <i class="bi bi-check-circle-fill fs-5"></i>
           </div>
@@ -86,7 +88,8 @@
 
       <!-- Failed -->
       <div class="col-md-2-4 col-sm-6" (click)="setStatusFilter('error')">
-        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover" [class.active-kpi]="statusFilter==='error'">
+        <div class="card-premium p-3 d-flex align-items-center gap-3 cursor-pointer kpi-card-hover"
+          [class.active-kpi]="statusFilter==='error'">
           <div class="stat-icon bg-danger-soft text-danger">
             <i class="bi bi-x-circle-fill fs-5"></i>
           </div>
@@ -101,182 +104,196 @@
     <!-- ── Toolbar ──────────────────────────────────────────────────── -->
     <div class="card-premium p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
       <div class="status-pills d-flex align-items-center gap-2 flex-wrap">
-        <button class="btn btn-sm btn-pill" [class.btn-dark]="statusFilter==='all'" [class.btn-outline-secondary]="statusFilter!=='all'" (click)="setStatusFilter('all')">All</button>
-        <button class="btn btn-sm btn-pill pill-queued" [class.active]="statusFilter==='queued'" (click)="setStatusFilter('queued')">
+        <button class="btn btn-sm btn-pill" [class.btn-dark]="statusFilter==='all'"
+          [class.btn-outline-secondary]="statusFilter!=='all'" (click)="setStatusFilter('all')">All</button>
+        <button class="btn btn-sm btn-pill pill-queued" [class.active]="statusFilter==='queued'"
+          (click)="setStatusFilter('queued')">
           <i class="bi bi-clock-history me-1"></i>Queued
         </button>
-        <button class="btn btn-sm btn-pill pill-running" [class.active]="statusFilter==='running'" (click)="setStatusFilter('running')">
-          <i class="bi bi-play-fill me-1"></i>Building
+        <button class="btn btn-sm btn-pill pill-running" [class.active]="statusFilter==='running'"
+          (click)="setStatusFilter('running')">
+          <i class="bi bi-play-fill me-1"></i>Running
         </button>
-        <button class="btn btn-sm btn-pill pill-success" [class.active]="statusFilter==='success'" (click)="setStatusFilter('success')">
+        <button class="btn btn-sm btn-pill pill-success" [class.active]="statusFilter==='success'"
+          (click)="setStatusFilter('success')">
           <i class="bi bi-check me-1"></i>Success
         </button>
-        <button class="btn btn-sm btn-pill pill-failed" [class.active]="statusFilter==='error'" (click)="setStatusFilter('error')">
+        <button class="btn btn-sm btn-pill pill-failed" [class.active]="statusFilter==='error'"
+          (click)="setStatusFilter('error')">
           <i class="bi bi-x me-1"></i>Failed
         </button>
       </div>
 
       <div class="search-input-wrapper">
         <i class="bi bi-search search-icon"></i>
-        <input type="text" class="form-control form-control-sm ps-5 pe-3 py-1-5 search-input-custom" placeholder="Search test name, user..." [(ngModel)]="searchQuery">
+        <input type="text" class="form-control form-control-sm ps-5 pe-3 py-1-5 search-input-custom"
+          placeholder="Search test name, user..." [(ngModel)]="searchQuery">
       </div>
     </div>
 
     <!-- ── Error Alert ──────────────────────────────────────────────── -->
     @if (errorMessage) {
-      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-4 rounded-3 shadow-sm">
-        <div>
-          <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ errorMessage }}
-        </div>
-        <button type="button" class="btn-close" (click)="errorMessage = null"></button>
+    <div class="alert alert-danger d-flex align-items-center justify-content-between mb-4 rounded-3 shadow-sm">
+      <div>
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ errorMessage }}
       </div>
+      <button type="button" class="btn-close" (click)="errorMessage = null"></button>
+    </div>
     }
 
     <!-- ── Queue Table Container ────────────────────────────────────── -->
     <div class="card-premium p-0 overflow-hidden">
 
       @if (isLoading && queueItems.length === 0) {
-        <div class="text-center py-5">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-3 text-muted fs-7 fw-semibold">Loading test queue...</p>
-        </div>
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-3 text-muted fs-7 fw-semibold">Loading test queue...</p>
+      </div>
       } @else if (filteredItems.length === 0) {
-        <div class="text-center py-5">
-          <i class="bi bi-inbox fs-1 text-muted"></i>
-          <p class="mt-3 text-muted fw-semibold mb-1">No executions match your filters.</p>
-          <p class="text-muted small">Run a test from the <a [routerLink]="['/']" class="text-primary fw-semibold">Dashboard</a> to see it here.</p>
-        </div>
+      <div class="text-center py-5">
+        <i class="bi bi-inbox fs-1 text-muted"></i>
+        <p class="mt-3 text-muted fw-semibold mb-1">No executions match your filters.</p>
+        <p class="text-muted small">Run a test from the <a [routerLink]="['/']"
+            class="text-primary fw-semibold">Dashboard</a> to see it here.</p>
+      </div>
       } @else {
-        <div class="table-responsive">
-          <table class="table table-hover table-premium mb-0 align-middle">
-            <thead>
-              <tr>
-                <th class="ps-4">Status</th>
-                <th>Test / Job Name</th>
-                <th>Triggered By</th>
-                <th>Parameters</th>
-                <th>Metrics</th>
-                <th>Started</th>
-                <th class="pe-4 text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of paginatedItems; track item.id) {
-                <tr [class.table-light-running]="isRunning(item.status)" [class.table-light-queued]="item.status==='queued'">
+      <div class="table-responsive">
+        <table class="table table-hover table-premium mb-0 align-middle">
+          <thead>
+            <tr>
+              <th class="ps-4">Status</th>
+              <th>Test / Job Name</th>
+              <th>Parameters</th>
+              <th>Metrics</th>
+              <th>Started</th>
+              <th class="action">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of paginatedItems; track item.id) {
+            <tr [class.table-light-running]="isRunning(item.status)"
+              [class.table-light-queued]="item.status==='queued'">
 
-                  <!-- Status Badge -->
-                  <td class="ps-4">
-                    <span class="badge rounded-pill px-2.5 py-1-5 fs-8" [ngClass]="getStatusClass(item.status)">
-                      <i [class]="getStatusIcon(item.status)" [class.spin-icon]="isRunning(item.status)" class="me-1"></i>
-                      {{ item.status | uppercase }}
-                    </span>
-                  </td>
+              <!-- Status Badge -->
+              <td class="ps-4">
+                <span class="badge rounded-pill px-2.5 py-1-5 fs-8" [ngClass]="getStatusClass(item.status)">
+                  <i [class]="getStatusIcon(item.status)" [class.spin-icon]="isRunning(item.status)" class="me-1"></i>
+                  {{ item.status | uppercase }}
+                </span>
+              </td>
 
-                  <!-- Test Name -->
-                  <td>
-                    <div class="fw-bold text-dark fs-7-5 text-truncate max-w-260">{{ item.test_name }}</div>
-                    <div class="d-flex align-items-center gap-1.5 mt-1 flex-wrap">
-                      @if (item.build_number) {
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-semibold fs-8">Run #{{ item.build_number }}</span>
-                      } @else {
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-semibold fs-8">Automated</span>
-                      }
-                      @if (item.project_name) {
-                        <span class="badge bg-secondary-subtle text-secondary font-medium fs-8">{{ item.project_name }}</span>
-                      }
-                    </div>
-                  </td>
+              <!-- Test Name -->
+              <td>
+                <div class="fw-bold text-dark fs-7-5 text-truncate max-w-260">{{ item.test_name }}</div>
+                <div class="d-flex align-items-center gap-1.5 mt-1 flex-wrap">
+                  @if (item.project_name) {
+                  <span class="badge bg-secondary-subtle text-secondary font-medium fs-8">{{ item.project_name }}</span>
+                  }
+                </div>
+              </td>
 
-                  <!-- Triggered By -->
-                  <td>
-                    <div class="d-flex align-items-center gap-2">
-                      <div class="user-avatar-circle">{{ item.username.substring(0, 2).toUpperCase() }}</div>
-                      <span class="text-secondary font-medium fs-7-5">{{ item.username }}</span>
-                    </div>
-                  </td>
+              <!-- Parameters -->
+              <td>
+                @if (item.concurrency > 0) {
+                <div class="fs-7-5 font-semibold text-dark"><i class="bi bi-people-fill me-1 text-primary"></i>{{
+                  item.concurrency }} users</div>
+                <div class="text-muted fs-8">Ramp {{ item.ramp_up }}s · Hold {{ item.duration }}s</div>
+                } @else if (item.duration > 0) {
+                <div class="text-muted fs-8">Duration: {{ item.duration }}s</div>
+                } @else {
+                <span class="text-muted fs-8">—</span>
+                }
+              </td>
 
-                  <!-- Parameters -->
-                  <td>
-                    @if (item.concurrency > 0) {
-                      <div class="fs-7-5 font-semibold text-dark"><i class="bi bi-people-fill me-1 text-primary"></i>{{ item.concurrency }} users</div>
-                      <div class="text-muted fs-8">Ramp {{ item.ramp_up }}s · Hold {{ item.duration }}s</div>
-                    } @else if (item.duration > 0) {
-                      <div class="text-muted fs-8">Duration: {{ item.duration }}s</div>
-                    } @else {
-                      <span class="text-muted fs-8">—</span>
-                    }
-                  </td>
+              <!-- Metrics -->
+              <td>
+                @if (item.status === 'success' || item.status === 'completed') {
+                <div class="fs-8 text-secondary"><span class="text-muted min-w-30">Avg. Throughput : </span> <strong
+                    class="text-dark">{{ item.throughput | number:'1.0-1' }}</strong></div>
+                <div class="fs-8 text-secondary"><span class="text-muted min-w-30">Response Time : </span> <strong
+                    class="text-dark">{{ item.avg_rt | number:'1.0-0' }}ms</strong></div>
+                <div class="fs-8 text-secondary">
+                  <span class="text-muted min-w-30">Error : </span>
+                  <strong [class.text-danger]="item.error_rate > 0" [class.text-success]="item.error_rate === 0">
+                    {{ item.error_rate | number:'1.1-2' }}%
+                  </strong>
+                </div>
+                } @else if (isRunning(item.status)) {
+                <span class="text-info font-semibold fs-8"><i
+                    class="bi bi-circle-fill me-1 spin-icon"></i>Live...</span>
+                } @else {
+                <span class="text-muted fs-8">—</span>
+                }
+              </td>
 
-                  <!-- Metrics -->
-                  <td>
-                    @if (item.status === 'success' || item.status === 'completed') {
-                      <div class="fs-8 text-secondary"><span class="text-muted min-w-30">RPS:</span> <strong class="text-dark">{{ item.throughput | number:'1.0-1' }}</strong></div>
-                      <div class="fs-8 text-secondary"><span class="text-muted min-w-30">RT:</span> <strong class="text-dark">{{ item.avg_rt | number:'1.0-0' }}ms</strong></div>
-                      <div class="fs-8 text-secondary">
-                        <span class="text-muted min-w-30">Err:</span>
-                        <strong [class.text-danger]="item.error_rate > 0" [class.text-success]="item.error_rate === 0">
-                          {{ item.error_rate | number:'1.1-2' }}%
-                        </strong>
-                      </div>
-                    } @else if (isRunning(item.status)) {
-                      <span class="text-info font-semibold fs-8"><i class="bi bi-circle-fill me-1 spin-icon"></i>Live...</span>
-                    } @else {
-                      <span class="text-muted fs-8">—</span>
-                    }
-                  </td>
+              <!-- Started At -->
+              <td>
+                <span class="text-muted fs-8">{{ item.created_at || '—' }}</span>
+              </td>
 
-                  <!-- Started At -->
-                  <td>
-                    <span class="text-muted fs-8">{{ item.created_at || '—' }}</span>
-                  </td>
+              <!-- Actions -->
+              <td>
+                <div class="d-flex align-items-center justify-content-center gap-2">
 
-                  <!-- Actions -->
-                  <td class="pe-4 text-end">
-                    <div class="d-flex align-items-center justify-content-end gap-1.5">
+                  <!-- Logs -->
+                  <button type="button" class="btn-action-premium logs" (click)="openLogModal(item)"
+                    title="View Console Logs">
+                    <i class="bi bi-terminal-fill"></i>
+                    <span>Logs</span>
+                  </button>
 
-                      <!-- View Console Logs -->
-                      <button type="button" class="btn btn-sm btn-dark px-2.5 py-1 fs-8 fw-semibold d-flex align-items-center gap-1" (click)="openLogModal(item)" title="View Console Logs">
-                        <i class="bi bi-terminal-fill"></i> Logs
-                      </button>
+                  <!-- Details -->
+                  <button type="button" class="btn-action-premium details" (click)="openDetailsModal(item)"
+                    title="Execution Details">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <span>Details</span>
+                  </button>
 
-                      <!-- Details -->
-                      <button type="button" class="btn btn-sm btn-outline-secondary px-2 py-1 fs-8" (click)="openDetailsModal(item)" title="Execution Details">
-                        <i class="bi bi-info-circle-fill"></i>
-                      </button>
+                  <!-- Report -->
+                  @if (isSuccess(item)) {
+                  <button type="button" class="btn-action-premium report" (click)="openReport(item)"
+                    title="View HTML Report">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Report</span>
+                  </button>
+                  }
 
-                      <!-- Open HTML Report (success only) -->
-                      @if (isSuccess(item)) {
-                        <button type="button" class="btn btn-sm btn-success px-2.5 py-1 fs-8 fw-semibold d-flex align-items-center gap-1" (click)="openReport(item)" title="View HTML Report">
-                          <i class="bi bi-file-earmark-bar-graph-fill"></i> Report
-                        </button>
-                      }
+                </div>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
 
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+      <!-- Pagination -->
+      @if (totalPages > 1) {
+      <div class="pagination-container">
+        <div class="pagination-info">
+          {{ filteredItems.length }} executions · Page {{ page }} of {{ totalPages }}
         </div>
 
-        <!-- Pagination -->
-        @if (totalPages > 1) {
-          <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top bg-light-subtle">
-            <span class="text-muted fs-8">{{ filteredItems.length }} executions · Page {{ page }} of {{ totalPages }}</span>
-            <div class="d-flex gap-1">
-              <button class="btn btn-sm btn-outline-secondary px-2" [disabled]="page === 1" (click)="setPage(page-1)">
-                <i class="bi bi-chevron-left"></i>
-              </button>
-              @for (p of pageNumbers; track p) {
-                <button class="btn btn-sm" [class.btn-primary]="p === page" [class.btn-outline-secondary]="p !== page" (click)="setPage(p)">{{ p }}</button>
-              }
-              <button class="btn btn-sm btn-outline-secondary px-2" [disabled]="page === totalPages" (click)="setPage(page+1)">
-                <i class="bi bi-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-        }
+        <div class="pagination-actions">
+
+          <button class="pagination-btn" [disabled]="page === 1" (click)="setPage(page-1)">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+
+          @for (p of pageNumbers; track p) {
+          <button class="pagination-btn" [class.active]="p === page" (click)="setPage(p)">
+            {{ p }}
+          </button>
+          }
+
+          <button class="pagination-btn" [disabled]="page === totalPages" (click)="setPage(page+1)">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+
+        </div>
+      </div>
       }
+      }
+
     </div>
 
   </div>
@@ -287,88 +304,91 @@
      Console Log Modal
      ════════════════════════════════════════════════════════════════════ -->
 @if (showLogModal && selectedLogItem) {
-  <div class="modal-backdrop-custom d-flex align-items-center justify-content-center" (click)="closeLogModal()">
-    <div class="log-modal-card card-premium p-0" (click)="$event.stopPropagation()">
+<div class="modal-backdrop-custom d-flex align-items-center justify-content-center" (click)="closeLogModal()">
+  <div class="log-modal-card card-premium p-0" (click)="$event.stopPropagation()">
 
-      <!-- Modal Header -->
-      <div class="d-flex align-items-center justify-content-between px-4 py-3 bg-dark text-white rounded-top-3">
-        <div class="d-flex align-items-center gap-2 font-mono fs-7-5">
-          <i class="bi bi-terminal-fill text-success fs-6"></i>
-          <span>Console Log:</span>
-          <span class="text-info font-bold">{{ selectedLogItem.test_name }}</span>
-          @if (selectedLogItem.build_number) {
-            <span class="badge bg-secondary text-white font-mono fs-8">Run #{{ selectedLogItem.build_number }}</span>
-          }
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          @if (isRunning(selectedLogItem.status)) {
-            <button class="btn btn-sm btn-outline-light py-0.5 px-2 fs-8" (click)="refreshLogs()" title="Refresh Logs">
-              <i class="bi bi-arrow-clockwise"></i>
-            </button>
-          }
-          <button class="btn btn-sm btn-outline-light py-0.5 px-2 fs-8" (click)="copyLogs()" title="Copy to Clipboard">
-            <i class="bi bi-clipboard"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-light py-0.5 px-2 fs-8" (click)="downloadLogs()" title="Download Log">
-            <i class="bi bi-download"></i>
-          </button>
-          <button class="btn-close btn-close-white ms-2" (click)="closeLogModal()"></button>
-        </div>
-      </div>
-
-      <!-- Search Bar -->
-      <div class="d-flex align-items-center px-4 py-2 bg-dark-subtle border-bottom border-secondary-subtle">
-        <i class="bi bi-search text-muted me-2 fs-8"></i>
-        <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary-subtle font-mono fs-8 py-1" placeholder="Filter log lines..." [(ngModel)]="logSearchQuery">
-        <span class="text-muted fs-8 ms-3 text-nowrap">{{ filteredLogLines.length }} lines</span>
-        <label class="d-flex align-items-center gap-1 ms-3 small text-secondary cursor-pointer mb-0 text-nowrap">
-          <input type="checkbox" [(ngModel)]="logAutoScroll" class="form-check-input m-0">
-          Auto-scroll
-        </label>
-      </div>
-
-      <!-- Terminal Viewport -->
-      <div class="terminal-shell-box flex-grow-1 p-3 font-monospace" id="terminal-viewport">
-        @if (isLoadingLogs) {
-          <div class="d-flex align-items-center justify-content-center h-100 py-5 text-muted">
-            <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
-            Streaming console log output...
-          </div>
-        } @else {
-          @for (line of formattedTerminalLogs; track $index) {
-            <div class="terminal-log-line font-monospace fs-8">
-              @if (line.date) {
-                <span class="log-date">{{ line.date }}</span>
-                <span class="log-time ms-1">{{ line.time }}</span>
-                <span class="log-level ms-2" [class]="'level-' + line.level.toLowerCase()">{{ line.level }}</span>
-                <span class="log-category ms-2">{{ line.category }}</span>
-                <span class="log-message ms-2">{{ line.message }}</span>
-              } @else {
-                <span class="log-raw">{{ line.raw }}</span>
-              }
-            </div>
-          }
+    <!-- Modal Header -->
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 bg-dark text-white rounded-top-3">
+      <div class="d-flex align-items-center gap-2 font-mono fs-7-5">
+        <i class="bi bi-terminal-fill text-success fs-6"></i>
+        <span>Console Log:</span>
+        <span class="text-info font-bold">{{ selectedLogItem.test_name }}</span>
+        @if (selectedLogItem.build_number) {
+        <span class="badge bg-secondary text-white font-mono fs-8">Run #{{ selectedLogItem.build_number }}</span>
         }
       </div>
-
-      <!-- Footer -->
-      <div class="d-flex align-items-center justify-content-between px-4 py-2.5 bg-light-subtle border-top rounded-bottom-3">
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge rounded-pill px-2 py-1 fs-8" [ngClass]="getStatusClass(selectedLogItem.status)">
-            <i [class]="getStatusIcon(selectedLogItem.status)" class="me-1"></i>
-            {{ selectedLogItem.status | uppercase }}
-          </span>
-          @if (isSuccess(selectedLogItem)) {
-            <button class="btn btn-xs btn-success font-semibold" (click)="openReport(selectedLogItem)">
-              <i class="bi bi-file-earmark-bar-graph-fill me-1"></i>View HTML Report
-            </button>
-          }
-        </div>
-        <button class="btn btn-sm btn-secondary font-semibold" (click)="closeLogModal()">Close</button>
+      <div class="d-flex align-items-center gap-2">
+        @if (isRunning(selectedLogItem.status)) {
+        <button class="btn btn-sm btn-outline-light py-0.5 px-2 fs-8" (click)="refreshLogs()" title="Refresh Logs">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+        }
+        <button class="btn btn-sm btn-outline-light py-0.5 px-2 fs-8" (click)="copyLogs()" title="Copy to Clipboard">
+          <i class="bi bi-clipboard"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-light py-0.5 px-2 fs-8" (click)="downloadLogs()" title="Download Log">
+          <i class="bi bi-download"></i>
+        </button>
+        <button class="btn-close btn-close-white ms-2" (click)="closeLogModal()"></button>
       </div>
-
     </div>
+
+    <!-- Search Bar -->
+    <div class="d-flex align-items-center px-4 py-2 bg-dark-subtle border-bottom border-secondary-subtle">
+      <i class="bi bi-search text-muted me-2 fs-8"></i>
+      <input type="text"
+        class="form-control form-control-sm bg-dark text-light border-secondary-subtle font-mono fs-8 py-1"
+        placeholder="Filter log lines..." [(ngModel)]="logSearchQuery">
+      <span class="text-muted fs-8 ms-3 text-nowrap">{{ filteredLogLines.length }} lines</span>
+      <label class="d-flex align-items-center gap-1 ms-3 small text-secondary cursor-pointer mb-0 text-nowrap">
+        <input type="checkbox" [(ngModel)]="logAutoScroll" class="form-check-input m-0">
+        Auto-scroll
+      </label>
+    </div>
+
+    <!-- Terminal Viewport -->
+    <div class="terminal-shell-box flex-grow-1 p-3 font-monospace" id="terminal-viewport">
+      @if (isLoadingLogs) {
+      <div class="d-flex align-items-center justify-content-center h-100 py-5 text-muted">
+        <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+        Streaming console log output...
+      </div>
+      } @else {
+      @for (line of formattedTerminalLogs; track $index) {
+      <div class="terminal-log-line font-monospace fs-8">
+        @if (line.date) {
+        <span class="log-date">{{ line.date }}</span>
+        <span class="log-time ms-1">{{ line.time }}</span>
+        <span class="log-level ms-2" [class]="'level-' + line.level.toLowerCase()">{{ line.level }}</span>
+        <span class="log-category ms-2">{{ line.category }}</span>
+        <span class="log-message ms-2">{{ line.message }}</span>
+        } @else {
+        <span class="log-raw">{{ line.raw }}</span>
+        }
+      </div>
+      }
+      }
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="d-flex align-items-center justify-content-between px-4 py-2.5 bg-light-subtle border-top rounded-bottom-3">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge rounded-pill px-2 py-1 fs-8" [ngClass]="getStatusClass(selectedLogItem.status)">
+          <i [class]="getStatusIcon(selectedLogItem.status)" class="me-1"></i>
+          {{ selectedLogItem.status | uppercase }}
+        </span>
+        @if (isSuccess(selectedLogItem)) {
+        <button class="btn btn-xs btn-success font-semibold" (click)="openReport(selectedLogItem)">
+          <i class="bi bi-file-earmark-bar-graph-fill me-1"></i>View HTML Report
+        </button>
+        }
+      </div>
+      <button class="btn btn-sm btn-secondary font-semibold" (click)="closeLogModal()">Close</button>
+    </div>
+
   </div>
+</div>
 }
 
 
@@ -376,251 +396,272 @@
      Details Modal
      ════════════════════════════════════════════════════════════════════ -->
 @if (showDetailsModal && selectedDetailsItem) {
-  <div class="modal-backdrop-custom d-flex align-items-center justify-content-center" (click)="closeDetailsModal()">
-    <div class="details-modal-card card-premium p-0" (click)="$event.stopPropagation()">
+<div
+  class="modal-backdrop-custom d-flex align-items-center justify-content-center"
+  (click)="closeDetailsModal()"
+  (keydown.escape)="closeDetailsModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="executionDetailsTitle"
+>
+  <div class="details-modal-card card-premium p-0" (click)="$event.stopPropagation()">
 
-      <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-light">
-        <h5 class="modal-title h6 font-bold text-dark m-0">
-          <i class="bi bi-info-circle-fill text-primary me-2"></i>Execution Details
-        </h5>
-        <button class="btn-close" (click)="closeDetailsModal()"></button>
-      </div>
-
-      <div class="p-4 overflow-y-auto flex-grow-1" style="max-height: 78vh;">
-
-        <!-- Meta Grid -->
-        <div class="row g-3 mb-4">
-          <div class="col-md-3 col-6">
-            <div class="p-3 bg-light rounded-3 border h-100">
-              <div class="text-muted fs-8 font-bold text-uppercase mb-1">Test Name</div>
-              <div class="font-bold text-dark fs-7-5 text-truncate" [title]="selectedDetailsItem.test_name">{{ selectedDetailsItem.test_name }}</div>
-            </div>
-          </div>
-          <div class="col-md-3 col-6">
-            <div class="p-3 bg-light rounded-3 border h-100">
-              <div class="text-muted fs-8 font-bold text-uppercase mb-1">Status</div>
-              <div>
-                <span class="badge rounded-pill px-2.5 py-1 fs-8" [ngClass]="getStatusClass(selectedDetailsItem.status)">
-                  <i [class]="getStatusIcon(selectedDetailsItem.status)" class="me-1"></i>
-                  {{ selectedDetailsItem.status | uppercase }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3 col-6">
-            <div class="p-3 bg-light rounded-3 border h-100">
-              <div class="text-muted fs-8 font-bold text-uppercase mb-1">Execution Engine</div>
-              <div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-semibold fs-8"><i class="bi bi-cpu-fill me-1"></i>Automated Pipeline</span>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3 col-6">
-            <div class="p-3 bg-light rounded-3 border h-100">
-              <div class="text-muted fs-8 font-bold text-uppercase mb-1">Triggered By</div>
-              <div class="font-medium text-dark fs-7-5 text-truncate">{{ selectedDetailsItem.username }}</div>
-            </div>
-          </div>
-          <div class="col-md-3 col-6">
-            <div class="p-3 bg-light rounded-3 border h-100">
-              <div class="text-muted fs-8 font-bold text-uppercase mb-1">Started At</div>
-              <div class="text-secondary fs-7-5">{{ selectedDetailsItem.created_at || '—' }}</div>
-            </div>
-          </div>
-          @if (selectedDetailsItem.build_number) {
-            <div class="col-md-3 col-6">
-              <div class="p-3 bg-light rounded-3 border h-100">
-                <div class="text-muted fs-8 font-bold text-uppercase mb-1">Run ID</div>
-                <div class="font-bold text-primary fs-7-5">#{{ selectedDetailsItem.build_number }}</div>
-              </div>
-            </div>
-          }
-          @if (selectedDetailsItem.project_name) {
-            <div class="col-md-3 col-6">
-              <div class="p-3 bg-light rounded-3 border h-100">
-                <div class="text-muted fs-8 font-bold text-uppercase mb-1">Project Workspace</div>
-                <div class="font-semibold text-dark fs-7-5 text-truncate">{{ selectedDetailsItem.project_name }}</div>
-              </div>
-            </div>
-          }
-        </div>
-
-        <!-- Parameters -->
-        <div class="setup-section-title mb-2">TEST PARAMETERS</div>
-        <div class="row g-3 mb-4">
-          <div class="col-4">
-            <div class="p-3 bg-light rounded-3 border text-center">
-              <div class="text-muted fs-8 font-bold">Concurrency</div>
-              <div class="fs-4 font-bold text-primary">{{ selectedDetailsItem.concurrency }}</div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div class="p-3 bg-light rounded-3 border text-center">
-              <div class="text-muted fs-8 font-bold">Ramp-up</div>
-              <div class="fs-4 font-bold text-dark">{{ selectedDetailsItem.ramp_up }}s</div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div class="p-3 bg-light rounded-3 border text-center">
-              <div class="text-muted fs-8 font-bold">Duration</div>
-              <div class="fs-4 font-bold text-dark">{{ selectedDetailsItem.duration }}s</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Real-Time Metrics Scorecards -->
-        <div class="setup-section-title mb-2">REAL-TIME EXECUTION METRICS</div>
-        <div class="row g-3 mb-4">
-          <!-- Active Users -->
-          <div class="col-6 col-md-3">
-            <div class="card-premium p-3 text-center">
-              <div class="runner-kpi-label">ACTIVE USERS</div>
-              <div class="runner-kpi-val">{{ selectedDetailsItem.concurrency || 0 }}</div>
-            </div>
-          </div>
-          <!-- Throughput -->
-          <div class="col-6 col-md-3">
-            <div class="card-premium p-3 text-center">
-              <div class="runner-kpi-label">AVG. THROUGHPUT</div>
-              <div class="runner-kpi-val text-primary">{{ selectedDetailsItem.throughput | number:'1.0-1' }} <span class="fs-8">RPS</span></div>
-            </div>
-          </div>
-          <!-- Response Time -->
-          <div class="col-6 col-md-3">
-            <div class="card-premium p-3 text-center">
-              <div class="runner-kpi-label">AVG. RESPONSE TIME</div>
-              <div class="runner-kpi-val text-dark">{{ selectedDetailsItem.avg_rt | number:'1.0-0' }} <span class="fs-8">ms</span></div>
-            </div>
-          </div>
-          <!-- Error Rate -->
-          <div class="col-6 col-md-3">
-            <div class="card-premium p-3 text-center">
-              <div class="runner-kpi-label">ERROR RATE</div>
-              <div class="runner-kpi-val" [class.text-danger]="selectedDetailsItem.error_rate > 0" [class.text-success]="selectedDetailsItem.error_rate === 0">
-                {{ selectedDetailsItem.error_rate | number:'1.1-2' }}%
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Performance Trend Graphs (Wide Side-by-Side 50/50 Layout) -->
-        <div class="setup-section-title mb-2">PERFORMANCE TREND CHARTS</div>
-        <div class="row g-4 mb-4">
-
-          <!-- Left: Throughput RPS Chart (col-md-6) -->
-          <div class="col-md-6">
-            <div class="card-premium p-4 d-flex flex-column h-100">
-              <div class="runner-chart-header mb-3 d-flex justify-content-between align-items-center">
-                <div>
-                  <div class="runner-chart-title font-bold fs-7">Throughput (RPS) over Time</div>
-                  <div class="text-muted fs-8">Requests processed per second</div>
-                </div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-8 font-semibold">
-                  Peak: {{ selectedDetailsItem.throughput | number:'1.0-1' }} RPS
-                </span>
-              </div>
-              
-              <div class="flex-grow-1 d-flex align-items-center justify-content-center pt-2">
-                <svg viewBox="0 0 450 140" class="svg-graph">
-                  <defs>
-                    <linearGradient id="detRpsGradWide" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.28"/>
-                      <stop offset="100%" stop-color="#2563eb" stop-opacity="0.01"/>
-                    </linearGradient>
-                  </defs>
-
-                  <line x1="45" y1="15" x2="435" y2="15" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
-                  <line x1="45" y1="60" x2="435" y2="60" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
-                  <line x1="45" y1="105" x2="435" y2="105" class="graph-grid" stroke="#cbd5e1" />
-
-                  <text x="36" y="19" class="graph-axis-text text-right fw-bold">{{ getWideRpsMax() }}</text>
-                  <text x="36" y="64" class="graph-axis-text text-right fw-bold">{{ getWideRpsMiddle() }}</text>
-                  <text x="36" y="109" class="graph-axis-text text-right fw-bold">0</text>
-                  
-                  <text x="45" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[0] }}</text>
-                  <text x="175" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[1] }}</text>
-                  <text x="305" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[2] }}</text>
-                  <text x="435" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[3] }}</text>
-
-                  <path [attr.d]="getWideRpsAreaPath()" fill="url(#detRpsGradWide)" />
-                  <path [attr.d]="getWideRpsPath()" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" />
-
-                  @if (!selectedDetailsItem.throughput || selectedDetailsItem.throughput === 0) {
-                    <text x="240" y="64" class="chart-empty-overlay text-center fs-7">Awaiting execution...</text>
-                  }
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right: Response Time & Errors Chart (col-md-6) -->
-          <div class="col-md-6">
-            <div class="card-premium p-4 d-flex flex-column h-100">
-              <div class="runner-chart-header mb-3 d-flex justify-content-between align-items-center">
-                <div>
-                  <div class="runner-chart-title font-bold fs-7">Response Time (ms) & Errors</div>
-                  <div class="text-muted fs-8">Latency and error rate progression</div>
-                </div>
-                <div class="d-flex gap-3 runner-chart-legend fs-8">
-                  <span class="legend-item"><span class="legend-dot bg-blue-dot me-1"></span>Avg. RT</span>
-                  <span class="legend-item"><span class="legend-dot bg-red-dot me-1"></span>Errors</span>
-                </div>
-              </div>
-
-              <div class="flex-grow-1 d-flex align-items-center justify-content-center pt-2">
-                <svg viewBox="0 0 450 140" class="svg-graph">
-                  <defs>
-                    <linearGradient id="detRtGradWide" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22"/>
-                      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.01"/>
-                    </linearGradient>
-                  </defs>
-
-                  <line x1="45" y1="15" x2="435" y2="15" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
-                  <line x1="45" y1="60" x2="435" y2="60" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
-                  <line x1="45" y1="105" x2="435" y2="105" class="graph-grid" stroke="#cbd5e1" />
-
-                  <text x="36" y="19" class="graph-axis-text text-right fw-bold">{{ getWideRtMax() }}</text>
-                  <text x="36" y="64" class="graph-axis-text text-right fw-bold">{{ getWideRtMiddle() }}</text>
-                  <text x="36" y="109" class="graph-axis-text text-right fw-bold">0</text>
-
-                  <text x="45" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[0] }}</text>
-                  <text x="175" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[1] }}</text>
-                  <text x="305" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[2] }}</text>
-                  <text x="435" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[3] }}</text>
-
-                  <path [attr.d]="getWideRtAreaPath()" fill="url(#detRtGradWide)" />
-                  <path [attr.d]="getWideRtPath()" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" />
-                  <path [attr.d]="getWideErrorPath()" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-dasharray="4,4" />
-
-                  @if (!selectedDetailsItem.avg_rt || selectedDetailsItem.avg_rt === 0) {
-                    <text x="240" y="64" class="chart-empty-overlay text-center fs-7">Awaiting execution...</text>
-                  }
-                </svg>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Error trace -->
-        @if (selectedDetailsItem.error_message) {
-          <div class="alert alert-danger mb-0 rounded-3">
-            <div class="fw-bold mb-1"><i class="bi bi-exclamation-diamond me-1"></i>Error / Failure Trace</div>
-            <pre class="font-mono fs-8 text-danger mb-0 text-wrap max-h-160 overflow-y-auto">{{ selectedDetailsItem.error_message }}</pre>
-          </div>
-        }
-      </div>
-
-      <div class="d-flex align-items-center justify-content-end gap-2 px-4 py-3 border-top bg-light rounded-bottom-3">
-        @if (isSuccess(selectedDetailsItem)) {
-          <button type="button" class="btn btn-sm btn-success font-semibold" (click)="openReport(selectedDetailsItem)">
-            <i class="bi bi-file-earmark-bar-graph-fill me-1"></i>View HTML Report
-          </button>
-        }
-        <button type="button" class="btn btn-sm btn-secondary font-semibold" (click)="closeDetailsModal()">Close</button>
-      </div>
-
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-light">
+      <h5 id="executionDetailsTitle" class="modal-title h6 font-bold text-dark m-0">
+        <i class="bi bi-info-circle-fill text-primary me-2" aria-hidden="true"></i>Execution Details
+      </h5>
+      <button
+        type="button"
+        class="btn-close"
+        aria-label="Close"
+        (click)="closeDetailsModal()"
+      ></button>
     </div>
+
+    <div class="p-4 overflow-y-auto flex-grow-1" style="max-height: 78vh;">
+
+      <!-- Meta Grid -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+          <div class="p-3 bg-light rounded-3 border h-100">
+            <div class="text-muted fs-8 font-bold text-uppercase mb-1">Test Name</div>
+            <div class="font-bold text-dark fs-7-5 text-truncate" [title]="selectedDetailsItem.test_name">
+              {{ selectedDetailsItem.test_name }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3 col-6">
+          <div class="p-3 bg-light rounded-3 border h-100">
+            <div class="text-muted fs-8 font-bold text-uppercase mb-1">Status</div>
+            <div>
+              <span
+                class="badge rounded-pill px-2 py-1 fs-8"
+                [ngClass]="getStatusClass(selectedDetailsItem.status)"
+              >
+                <i [class]="getStatusIcon(selectedDetailsItem.status)" class="me-1" aria-hidden="true"></i>
+                {{ selectedDetailsItem.status | uppercase }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3 col-6">
+          <div class="p-3 bg-light rounded-3 border h-100">
+            <div class="text-muted fs-8 font-bold text-uppercase mb-1">Started At</div>
+            <div class="text-secondary fs-7-5">{{ selectedDetailsItem.created_at || '—' }}</div>
+          </div>
+        </div>
+
+        @if (selectedDetailsItem.project_name) {
+        <div class="col-md-3 col-6">
+          <div class="p-3 bg-light rounded-3 border h-100">
+            <div class="text-muted fs-8 font-bold text-uppercase mb-1">Project Workspace</div>
+            <div
+              class="font-semibold text-dark fs-7-5 text-truncate"
+              [title]="selectedDetailsItem.project_name"
+            >
+              {{ selectedDetailsItem.project_name }}
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+
+      <!-- Test Parameters -->
+      <div class="setup-section-title mb-2">TEST PARAMETERS</div>
+      <div class="row g-3 mb-4">
+        <div class="col-4">
+          <div class="p-3 bg-light rounded-3 border text-center">
+            <div class="text-muted fs-8 font-bold">Concurrency</div>
+            <div class="fs-4 font-bold text-primary">{{ selectedDetailsItem.concurrency }}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="p-3 bg-light rounded-3 border text-center">
+            <div class="text-muted fs-8 font-bold">Ramp-up</div>
+            <div class="fs-4 font-bold text-dark">{{ selectedDetailsItem.ramp_up }}s</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="p-3 bg-light rounded-3 border text-center">
+            <div class="text-muted fs-8 font-bold">Duration</div>
+            <div class="fs-4 font-bold text-dark">{{ selectedDetailsItem.duration }}s</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Metrics Scorecards -->
+      <div class="setup-section-title mb-2">REAL-TIME EXECUTION METRICS</div>
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="card-premium p-3 text-center">
+            <div class="runner-kpi-label">ACTIVE USERS</div>
+            <div class="runner-kpi-val">{{ selectedDetailsItem.concurrency || 0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card-premium p-3 text-center">
+            <div class="runner-kpi-label">AVG. THROUGHPUT</div>
+            <div class="runner-kpi-val text-primary">
+              {{ selectedDetailsItem.throughput | number:'1.0-1' }} <span class="fs-8">RPS</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card-premium p-3 text-center">
+            <div class="runner-kpi-label">AVG. RESPONSE TIME</div>
+            <div class="runner-kpi-val text-dark">
+              {{ selectedDetailsItem.avg_rt | number:'1.0-0' }} <span class="fs-8">ms</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card-premium p-3 text-center">
+            <div class="runner-kpi-label">ERROR RATE</div>
+            <div
+              class="runner-kpi-val"
+              [class.text-danger]="selectedDetailsItem.error_rate > 0"
+              [class.text-success]="selectedDetailsItem.error_rate === 0"
+            >
+              {{ selectedDetailsItem.error_rate | number:'1.1-2' }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Trend Charts -->
+      <div class="setup-section-title mb-2">PERFORMANCE TREND CHARTS</div>
+      <div class="row g-4 mb-4">
+
+        <!-- Throughput (RPS) -->
+        <div class="col-md-6">
+          <div class="card-premium p-4 d-flex flex-column h-100">
+            <div class="runner-chart-header mb-3 d-flex justify-content-between align-items-center">
+              <div>
+                <div class="runner-chart-title font-bold fs-7">Throughput (RPS) over Time</div>
+                <div class="text-muted fs-8">Requests processed per second</div>
+              </div>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-8 font-semibold">
+                Peak: {{ selectedDetailsItem.throughput | number:'1.0-1' }} RPS
+              </span>
+            </div>
+
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center pt-2">
+              <svg viewBox="0 0 450 140" class="svg-graph" role="img" aria-label="Throughput over time chart">
+                <defs>
+                  <linearGradient id="detRpsGradWide" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.28" />
+                    <stop offset="100%" stop-color="#2563eb" stop-opacity="0.01" />
+                  </linearGradient>
+                </defs>
+
+                <line x1="45" y1="15" x2="435" y2="15" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
+                <line x1="45" y1="60" x2="435" y2="60" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
+                <line x1="45" y1="105" x2="435" y2="105" class="graph-grid" stroke="#cbd5e1" />
+
+                <text x="36" y="19" class="graph-axis-text text-right fw-bold">{{ getWideRpsMax() }}</text>
+                <text x="36" y="64" class="graph-axis-text text-right fw-bold">{{ getWideRpsMiddle() }}</text>
+                <text x="36" y="109" class="graph-axis-text text-right fw-bold">0</text>
+
+                <text x="45" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[0] }}</text>
+                <text x="175" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[1] }}</text>
+                <text x="305" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[2] }}</text>
+                <text x="435" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[3] }}</text>
+
+                <path [attr.d]="getWideRpsAreaPath()" fill="url(#detRpsGradWide)" />
+                <path [attr.d]="getWideRpsPath()" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" />
+
+                @if (!selectedDetailsItem.throughput || selectedDetailsItem.throughput === 0) {
+                <text x="240" y="64" class="chart-empty-overlay text-center fs-7">Awaiting execution...</text>
+                }
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Response Time & Errors -->
+        <div class="col-md-6">
+          <div class="card-premium p-4 d-flex flex-column h-100">
+            <div class="runner-chart-header mb-3 d-flex justify-content-between align-items-center">
+              <div>
+                <div class="runner-chart-title font-bold fs-7">Response Time (ms) & Errors</div>
+                <div class="text-muted fs-8">Latency and error rate progression</div>
+              </div>
+              <div class="d-flex gap-3 runner-chart-legend fs-8">
+                <span class="legend-item"><span class="legend-dot bg-blue-dot me-1" aria-hidden="true"></span>Avg. RT</span>
+                <span class="legend-item"><span class="legend-dot bg-red-dot me-1" aria-hidden="true"></span>Errors</span>
+              </div>
+            </div>
+
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center pt-2">
+              <svg viewBox="0 0 450 140" class="svg-graph" role="img" aria-label="Response time and error rate chart">
+                <defs>
+                  <linearGradient id="detRtGradWide" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22" />
+                    <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.01" />
+                  </linearGradient>
+                </defs>
+
+                <line x1="45" y1="15" x2="435" y2="15" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
+                <line x1="45" y1="60" x2="435" y2="60" class="graph-grid" stroke="#e2e8f0" stroke-dasharray="3,3" />
+                <line x1="45" y1="105" x2="435" y2="105" class="graph-grid" stroke="#cbd5e1" />
+
+                <text x="36" y="19" class="graph-axis-text text-right fw-bold">{{ getWideRtMax() }}</text>
+                <text x="36" y="64" class="graph-axis-text text-right fw-bold">{{ getWideRtMiddle() }}</text>
+                <text x="36" y="109" class="graph-axis-text text-right fw-bold">0</text>
+
+                <text x="45" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[0] }}</text>
+                <text x="175" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[1] }}</text>
+                <text x="305" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[2] }}</text>
+                <text x="435" y="126" class="graph-axis-text text-center">{{ getDetailsTimeLabels()[3] }}</text>
+
+                <path [attr.d]="getWideRtAreaPath()" fill="url(#detRtGradWide)" />
+                <path [attr.d]="getWideRtPath()" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" />
+                <path [attr.d]="getWideErrorPath()" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-dasharray="4,4" />
+
+                @if (!selectedDetailsItem.avg_rt || selectedDetailsItem.avg_rt === 0) {
+                <text x="240" y="64" class="chart-empty-overlay text-center fs-7">Awaiting execution...</text>
+                }
+              </svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Error / Failure Trace -->
+      @if (selectedDetailsItem.error_message) {
+      <div class="alert alert-danger mb-0 rounded-3">
+        <div class="fw-bold mb-1">
+          <i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Error / Failure Trace
+        </div>
+        <pre class="font-mono fs-8 text-danger mb-0 text-wrap overflow-y-auto" style="max-height: 160px;">{{ selectedDetailsItem.error_message }}</pre>
+      </div>
+      }
+    </div>
+
+    <!-- Footer -->
+    <div class="d-flex align-items-center justify-content-end gap-2 px-4 py-3 border-top bg-light rounded-bottom-3">
+      @if (isSuccess(selectedDetailsItem)) {
+      <button
+        type="button"
+        class="btn btn-sm btn-success font-semibold"
+        (click)="openReport(selectedDetailsItem)"
+      >
+        <i class="bi bi-file-earmark-bar-graph-fill me-1" aria-hidden="true"></i>View HTML Report
+      </button>
+      }
+      <button
+        type="button"
+        class="btn btn-sm btn-secondary font-semibold"
+        (click)="closeDetailsModal()"
+      >
+        Close
+      </button>
+    </div>
+
   </div>
+</div>
 }

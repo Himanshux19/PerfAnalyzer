@@ -58,57 +58,52 @@ O --> Q[PDF/HTML Export]
 ## Project Structure
 ```
 PerfAnalyzer/
-├── .gitignore
-├── LICENSE
-├── README.md
+├── .env                        ← Root env 
+├── Jenkinsfile                 ← Jenkins Declarative Pipeline
+├── requirements.txt
+├── JMeter/
+│   └── apache-jmeter-5.6.3/   ← Bundled JMeter engine
+├── Test Result/                ← All test output folders
+│   └── <test_name>/
+│       ├── kpi.jtl
+│       ├── jmeter.log
+│       └── HTML_Report/
+│           └── index.html      ← Custom + JMeter generated report
 ├── perfAnalyzer-backend/
-│   ├── jmx_builder.py
-│   ├── main.py
-│   ├── models.py
-│   ├── services/
-│   │   └── endpoint_discovery.py
-│   ├── template.yml
-│   └── yaml_builder.py
-├── perfAnalyzer-frontend/
-│   ├── .editorconfig
-│   ├── .gitignore
-│   ├── .prettierrc
-│   ├── .vscode/
-│   ├── README.md
-│   ├── angular.json
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── public/
-│   │   └── favicon.ico
-│   ├── src/
-│   │   ├── app/
-│   │   │   └── components/
-│   │   │       ├── admin-auth/
-│   │   │       ├── admin-dashboard/
-│   │   │       ├── auth/
-│   │   │       ├── create-test/
-│   │   │       ├── dashboard/
-│   │   │       ├── logs/
-│   │   │       ├── navbar/
-│   │   │       ├── projects/
-│   │   │       ├── reports-history/
-│   │   │       ├── reports/
-│   │   │       └── test-config/
-│   │   ├── index.html
-│   │   ├── main.server.ts
-│   │   ├── main.ts
-│   │   ├── server.ts
-│   │   └── styles.css
-│   ├── tsconfig.app.json
-│   ├── tsconfig.json
-│   └── tsconfig.spec.json
-└── requirements.txt
+│   ├── .env                    
+│   ├── main.py                 ← All FastAPI routes 
+│   ├── models.py               ← Pydantic models
+│   ├── jmx_builder.py          ← JMX XML generator
+│   ├── yaml_builder.py         ← Taurus YAML generator
+│   ├── template.yml            ← Base Taurus config template
+│   ├── generated.yml           ← Runtime-generated Taurus config
+│   ├── generated_tests/        ← Auto-created .jmx + .yml from /create-test
+│   ├── project_files/          ← Uploaded workspace files per project
+│   └── services/
+│       └── endpoint_discovery.py ← 5-strategy API auto-discovery
+└── perfAnalyzer-frontend/
+    └── src/app/
+        ├── api.service.ts       ← Angular singleton HTTP service
+        ├── app.routes.ts        ← Client-side routing
+        └── components/
+            ├── auth/            ← User login/register
+            ├── admin-auth/      ← Super admin login
+            ├── admin-dashboard/ ← User management + analytics
+            ├── dashboard/       ← Live test monitoring
+            ├── create-test/     ← Auto-generate JMX from URL
+            ├── test-config/     ← Upload JMX/CSV + configure params
+            ├── projects/        ← Project workspaces
+            ├── test-queue/      ← Unified queue 
+            ├── reports-history/ ← Past test results
+            ├── reports/         ← HTML report viewer
+            ├── logs/            ← Log viewer
+            └── navbar/          ← Navigation bar
 ```
 
 ## Future Enhancements
 
 - Distributed Load Testing
 - AI-Powered Performance Insights
-- Scheduled Test Execution
-- PDF Report Export
+- Scheduled Test Execution ✔️
+- PDF Report Export ✔️
 - Team Collaboration Features

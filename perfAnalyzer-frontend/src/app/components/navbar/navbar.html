@@ -13,6 +13,7 @@
   <nav class="runner-nav-links d-none d-lg-block">
     <ul class="d-flex align-items-center gap-4 list-unstyled m-0">
       @if (!isSuperAdmin()) {
+        <li><a class="runner-nav-item" routerLink="/dashboard" routerLinkActive="active"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
         <li><a class="runner-nav-item" routerLink="/create-test" routerLinkActive="active"><i class="bi bi-plus-circle me-2"></i>Create Test</a></li>
         <li><a class="runner-nav-item" routerLink="/test" routerLinkActive="active"><i class="bi bi-check-circle me-2"></i>Tests</a></li>
         <li><a class="runner-nav-item" routerLink="/queue" routerLinkActive="active"><i class="bi bi-list-task me-2"></i>Test Queue</a></li>
@@ -20,6 +21,7 @@
         <li><a class="runner-nav-item" routerLink="/reports" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph me-2"></i>Reports</a></li>
       }
       @if (isSuperAdmin()) {
+        <li><a class="runner-nav-item" routerLink="/dashboard" routerLinkActive="active"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
         <li><a class="runner-nav-item" routerLink="/admin/dashboard" routerLinkActive="active"><i class="bi bi-people me-2"></i>Manage Users</a></li>
       }
     </ul>
@@ -27,9 +29,9 @@
 
   <!-- Right Profile / Controls -->
   <div class="d-flex align-items-center gap-3">
-    <div class="user-circle-initials font-semibold">{{ getInitials() }}</div>
-    <div class="d-none d-md-flex flex-column text-start" style="line-height: 1.25;">
-      <span class="text-dark font-bold" style="font-size: 0.825rem; font-weight: 700; color: #1e293b;">{{ getFullName() || 'Guest User' }}</span>
+    <div class="user-circle-initials font-semibold bg-primary-subtle text-primary border border-primary-subtle">{{ getInitials() || 'GU' }}</div>
+    <div class="d-none d-md-flex flex-column justify-content-center" style="line-height: 1.2;">
+      <span class="text-dark font-bold" style="font-size: 0.85rem; font-weight: 700; color: #0f172a;">{{ getFullName() || 'Guest User' }}</span>
     </div>
     <button type="button" class="btn-logout-premium ms-2" (click)="onLogout()" title="Log Out">
       <i class="bi bi-box-arrow-right"></i> <span class="d-none d-sm-inline">LOG OUT</span>

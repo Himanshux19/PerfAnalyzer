@@ -30,7 +30,7 @@ export class Auth {
   constructor(private api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {
     // Skip login if already authenticated
     if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
-      this.router.navigate(['/test']);
+      this.router.navigate(['/dashboard']);
     }
   }
 
@@ -73,7 +73,7 @@ export class Auth {
         this.successMessage = 'Login successful! Redirecting...';
         this.cdr.detectChanges();
         setTimeout(() => {
-          this.router.navigate(['/test']);
+          this.router.navigate(['/dashboard']);
         }, 1000);
       },
       error: (err) => {

@@ -59,6 +59,87 @@ export interface JenkinsConfig {
   enabled: boolean;
 }
 
+export interface DashboardSummary {
+  kpis: {
+    total_tests: number;
+    total_tests_trend: string;
+    tests_run: number;
+    tests_run_trend: string;
+    scheduled_tests: number;
+    scheduled_tests_sub: string;
+    success_rate: number;
+    success_rate_trend: string;
+    failed_tests: number;
+    failed_tests_trend: string;
+  };
+  recent_runs: Array<{
+    id: string;
+    test_name: string;
+    status: string;
+    users: number;
+    started_at: string;
+    duration: string;
+    workspace: string;
+    throughput?: number;
+    avg_rt?: number;
+    error_rate?: number;
+  }>;
+  active_tests: Array<{
+    id: string;
+    test_name: string;
+    workspace: string;
+    users: number;
+    duration: string;
+    status: string;
+    progress: number;
+  }>;
+  scheduled_tests: Array<{
+    id: string;
+    test_name: string;
+    workspace: string;
+    schedule: string;
+    next_run: string;
+    status: string;
+  }>;
+  recent_reports: Array<{
+    test_name: string;
+    created_at: string;
+    workspace: string;
+    size: string;
+    type: string;
+    download_url: string;
+    view_url: string;
+  }>;
+  status_summary: {
+    completed: number;
+    completed_pct: number;
+    running: number;
+    running_pct: number;
+    failed: number;
+    failed_pct: number;
+    scheduled: number;
+    scheduled_pct: number;
+    total_tests: number;
+  };
+  performance_overview: Array<{
+    time: string;
+    users: number;
+    throughput: number;
+    avg_rt: number;
+    error_rate: number;
+  }>;
+  performance_snapshot: {
+    avg_response_time: number;
+    p95_response_time?: number;
+    p99_response_time?: number;
+    avg_throughput: number;
+    total_requests?: number;
+    rt_series: number[];
+    tput_series: number[];
+  };
+  timestamp: string;
+}
+
 
 @Injectable({
   providedIn: 'root'
@@ -327,6 +408,15 @@ export class ApiService {
     fd.append('username', username);
     fd.append('api_token', apiToken);
     return this.http.post<any>(`${this.baseUrl}/api/jenkins/test-connection`, fd);
+  }
+
+  getDashboardSummary(username?: string, range: string = 'Last 1 Hour', startDate?: string, endDate?: string): Observable<DashboardSummary> {
+    const user = username || (typeof window !== 'undefined' ? localStorage.getItem('username') || '' : '');
+    let url = `${this.baseUrl}/dashboard/summary?username=${encodeURIComponent(user)}&range=${encodeURIComponent(range)}`;
+    if (startDate && endDate) {
+      url += `&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
+    }
+    return this.http.get<DashboardSummary>(url);
   }
 
   // Helpers to add log messages to terminal console

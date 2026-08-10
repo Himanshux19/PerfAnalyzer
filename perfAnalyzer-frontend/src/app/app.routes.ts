@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { Auth } from './components/auth/auth';
 import { CreateTest } from './components/create-test/create-test';
 import { Dashboard } from './components/dashboard/dashboard';
+import { OverviewDashboard } from './components/overview-dashboard/overview-dashboard';
 import { ReportsHistory } from './components/reports-history/reports-history';
 import { Projects } from './components/projects/projects';
 import { AdminAuth } from './components/admin-auth/admin-auth';
@@ -10,6 +11,7 @@ import { TestQueue } from './components/test-queue/test-queue';
 
 export const routes: Routes = [
   { path: 'login', component: Auth },
+  { path: 'dashboard', component: OverviewDashboard },
   { path: 'create-test', component: CreateTest },
   { path: 'test', component: Dashboard },
   { path: 'queue', component: TestQueue },
@@ -17,7 +19,8 @@ export const routes: Routes = [
   { path: 'projects', component: Projects },
   { path: 'admin/login', component: AdminAuth },
   { path: 'admin/dashboard', component: AdminDashboard },
-  { path: '', redirectTo: 'login', pathMatch: 'full' },
-  { path: '**', redirectTo: 'login' }
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '**', redirectTo: 'dashboard' }
 ];
+
 

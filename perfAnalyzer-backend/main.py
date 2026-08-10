@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, status, Depends, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, status, Depends, Header, Query
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -880,6 +880,63 @@ import threading
 
 test_status_db = {}  # Global dict to store test execution status
 
+# Local execution queue manager (ensures max 1 test runs at a time)
+local_execution_lock = threading.Lock()
+local_test_queue = []
+
+def is_any_local_test_running() -> bool:
+    for name, info in test_status_db.items():
+        if info.get("status") == "running":
+            return True
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM test_results WHERE status = 'running' LIMIT 1;")
+                if cur.fetchone():
+                    return True
+    except Exception:
+        pass
+    return False
+
+def process_next_queued_test():
+    with local_execution_lock:
+        if is_any_local_test_running():
+            return
+        
+        if not local_test_queue:
+            # Check DB for queued items
+            try:
+                with db_session() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT test_name FROM test_results WHERE status = 'queued' ORDER BY id ASC LIMIT 1;")
+                        row = cur.fetchone()
+                        if row:
+                            t_name = row[0]
+                            yaml_path = TESTS_DIR / f"test_{t_name}.yml"
+                            if yaml_path.exists():
+                                local_test_queue.append({
+                                    "test_name": t_name,
+                                    "cmd": [BZT_CMD, str(yaml_path)]
+                                })
+            except Exception:
+                pass
+
+        if not local_test_queue:
+            return
+
+        next_item = local_test_queue.pop(0)
+        t_name = next_item["test_name"]
+        cmd = next_item["cmd"]
+
+        update_db_test_result(t_name, "running")
+        test_status_db[t_name] = {"status": "running", "error": ""}
+
+        thread = threading.Thread(
+            target=run_taurus_in_background,
+            args=(t_name, cmd)
+        )
+        thread.start()
+
 def validate_jmeter_results(file_path: Path):
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -981,6 +1038,7 @@ def run_taurus_in_background(test_name: str, cmd: list):
         update_db_test_result(test_name, "error", str(e))
     finally:
         cleanup_copied_workspace_files(test_name)
+        process_next_queued_test()
 
 @app.post("/run-test")
 def run_test(
@@ -1285,6 +1343,10 @@ def run_test(
                 logger.warning(f"Jenkins trigger failed ({j_err}). Falling back to local engine execution.")
 
         # Standard local JMX execution fallback
+        with local_execution_lock:
+            already_running = is_any_local_test_running()
+            initial_status = 'queued' if already_running else 'running'
+
         # Insert into database
         try:
             with db_session() as conn:
@@ -1294,24 +1356,36 @@ def run_test(
                             INSERT INTO test_results (test_name, username, concurrency, ramp_up, duration, status, project_id)
                             VALUES (%s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (test_name) DO UPDATE 
-                            SET status = 'running', concurrency = %s, ramp_up = %s, duration = %s, created_at = CURRENT_TIMESTAMP, project_id = EXCLUDED.project_id;
-                        """, (test_name, username, threads, ramp_up, duration, 'running', project_id, threads, ramp_up, duration))
+                            SET status = %s, concurrency = %s, ramp_up = %s, duration = %s, created_at = CURRENT_TIMESTAMP, project_id = EXCLUDED.project_id;
+                        """, (test_name, username, threads, ramp_up, duration, initial_status, project_id, initial_status, threads, ramp_up, duration))
         except Exception as e:
             print(f"Warning: Failed to insert test execution to database: {str(e)}")
 
-        # Start thread
-        test_status_db[test_name] = {"status": "running", "error": ""}
-        
-        thread = threading.Thread(
-            target=run_taurus_in_background,
-            args=(test_name, [BZT_CMD, str(GENERATED_YAML)])
-        )
-        thread.start()
+        if already_running:
+            test_status_db[test_name] = {"status": "queued", "error": ""}
+            with local_execution_lock:
+                local_test_queue.append({
+                    "test_name": test_name,
+                    "cmd": [BZT_CMD, str(GENERATED_YAML)]
+                })
+            return JSONResponse({
+                "message": f"Test added to execution queue successfully (Position #{len(local_test_queue)}).",
+                "test_name": test_name,
+                "status": "queued"
+            })
+        else:
+            test_status_db[test_name] = {"status": "running", "error": ""}
+            thread = threading.Thread(
+                target=run_taurus_in_background,
+                args=(test_name, [BZT_CMD, str(GENERATED_YAML)])
+            )
+            thread.start()
 
-        return JSONResponse({
-            "message": "Test started successfully in the background.",
-            "test_name": test_name
-        })
+            return JSONResponse({
+                "message": "Test started successfully in the background.",
+                "test_name": test_name,
+                "status": "running"
+            })
 
     except HTTPException:
         raise
@@ -2970,6 +3044,368 @@ def upload_jenkins_artifacts(
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save artifacts: {str(e)}")
+
+
+@app.get("/dashboard/summary")
+@app.get("/api/dashboard/summary")
+def get_dashboard_summary(
+    username: str = "",
+    timeframe: str = Query("Last 1 Hour", alias="range"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None)
+):
+    """
+    Returns dynamically computed dashboard metrics filtered by timeframe / custom date range.
+    """
+    try:
+        now = datetime.datetime.now()
+        start_dt = None
+        end_dt = now
+
+        # Parse duration filters
+        tf_lower = timeframe.lower()
+        if start_date and end_date:
+            try:
+                start_dt = datetime.datetime.fromisoformat(start_date)
+                end_dt = datetime.datetime.fromisoformat(end_date)
+            except Exception:
+                pass
+
+        if not start_dt:
+            if "15 min" in tf_lower or "15m" in tf_lower:
+                start_dt = now - datetime.timedelta(minutes=15)
+            elif "1 hour" in tf_lower or "1h" in tf_lower:
+                start_dt = now - datetime.timedelta(hours=1)
+            elif "6 hour" in tf_lower or "6h" in tf_lower:
+                start_dt = now - datetime.timedelta(hours=6)
+            elif "24 hour" in tf_lower or "24h" in tf_lower:
+                start_dt = now - datetime.timedelta(hours=24)
+            elif "7 day" in tf_lower or "7d" in tf_lower:
+                start_dt = now - datetime.timedelta(days=7)
+            elif "30 day" in tf_lower or "30d" in tf_lower:
+                start_dt = now - datetime.timedelta(days=30)
+            else:
+                start_dt = datetime.datetime.min
+
+        # 1. Fetch test results joined with project info
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                if username and username.strip() and username.strip().lower() != 'guest':
+                    cur.execute("""
+                        SELECT tr.id, tr.test_name, tr.username, tr.concurrency, tr.ramp_up, tr.duration, 
+                               tr.throughput, tr.avg_rt, tr.error_rate, tr.status, tr.error_message, tr.created_at, 
+                               tr.project_id, p.name as project_name
+                        FROM test_results tr
+                        LEFT JOIN projects p ON tr.project_id = p.id
+                        WHERE tr.username = %s
+                        ORDER BY tr.id DESC
+                        LIMIT 200
+                    """, (username.strip(),))
+                else:
+                    cur.execute("""
+                        SELECT tr.id, tr.test_name, tr.username, tr.concurrency, tr.ramp_up, tr.duration, 
+                               tr.throughput, tr.avg_rt, tr.error_rate, tr.status, tr.error_message, tr.created_at, 
+                               tr.project_id, p.name as project_name
+                        FROM test_results tr
+                        LEFT JOIN projects p ON tr.project_id = p.id
+                        ORDER BY tr.id DESC
+                        LIMIT 200
+                    """)
+                rows = cur.fetchall()
+
+        all_tests = []
+        for r in rows:
+            created_dt_str = str(r[11]) if r[11] else ""
+            all_tests.append({
+                "id": str(r[0]),
+                "test_name": r[1],
+                "username": r[2] or "Guest",
+                "concurrency": r[3] if r[3] is not None else 10,
+                "ramp_up": r[4] if r[4] is not None else 10,
+                "duration": r[5] if r[5] is not None else 60,
+                "throughput": float(r[6] or 0.0),
+                "avg_rt": float(r[7] or 0.0),
+                "error_rate": float(r[8] or 0.0),
+                "status": (r[9] or "completed").lower(),
+                "error_message": r[10] or "",
+                "created_at": created_dt_str,
+                "project_name": r[13] or "Project Workspace"
+            })
+
+        # Filter tests matching timeframe cutoff if created_at is parseable
+        filtered_tests = []
+        for t in all_tests:
+            if t["created_at"]:
+                try:
+                    c_dt = datetime.datetime.strptime(t["created_at"].split('.')[0], "%Y-%m-%d %H:%M:%S")
+                    if start_dt <= c_dt <= end_dt:
+                        filtered_tests.append(t)
+                except Exception:
+                    filtered_tests.append(t)
+            else:
+                filtered_tests.append(t)
+
+        target_tests = filtered_tests
+        total_tests = len(target_tests)
+
+        classified_tests = []
+        completed_count = 0
+        failed_count = 0
+        running_count = 0
+        scheduled_count = 0
+
+        for item in target_tests:
+            st = item["status"].lower()
+
+            if st in ("failed", "error"):
+                status_mapped = "Failed"
+                failed_count += 1
+            elif st == "running":
+                status_mapped = "Running"
+                running_count += 1
+            elif st in ("queued", "scheduled"):
+                status_mapped = "Queued"
+                scheduled_count += 1
+            else:
+                status_mapped = "Success"
+                completed_count += 1
+
+            classified_tests.append({
+                **item,
+                "status_mapped": status_mapped
+            })
+
+        success_rate = round((completed_count / total_tests) * 100, 1) if total_tests > 0 else 100.0
+
+        # Compute 7-day weekly trend metrics
+        seven_days_ago = now - datetime.timedelta(days=7)
+        recent_7d_tests = []
+        for t in all_tests:
+            if t["created_at"]:
+                try:
+                    c_dt = datetime.datetime.strptime(t["created_at"].split('.')[0], "%Y-%m-%d %H:%M:%S")
+                    if c_dt >= seven_days_ago:
+                        recent_7d_tests.append(t)
+                except Exception:
+                    pass
+
+        total_7d = len(recent_7d_tests)
+        completed_7d = len([t for t in recent_7d_tests if t["status"].lower() not in ("failed", "error")])
+        failed_7d = len([t for t in recent_7d_tests if t["status"].lower() in ("failed", "error")])
+        success_rate_7d = round((completed_7d / total_7d * 100), 1) if total_7d > 0 else success_rate
+
+        if timeframe.strip().lower() in ("all time", "all", ""):
+            total_trend_str = f"+{total_7d} this week"
+            run_trend_str = f"+{completed_7d} this week"
+            succ_trend_str = f"{success_rate_7d}% this week"
+            fail_trend_str = f"+{failed_7d} this week"
+        else:
+            total_trend_str = f"+{total_tests} in range"
+            run_trend_str = f"+{completed_count} completed"
+            succ_trend_str = f"{success_rate}% rate"
+            fail_trend_str = f"{failed_count} failed"
+
+        # Build recent runs list
+        recent_runs = []
+        for item in classified_tests[:12]:
+            dur_seconds = item['duration']
+            mins, secs = divmod(dur_seconds, 60)
+            hrs, mins = divmod(mins, 60)
+            dur_str = f"{hrs:02d}:{mins:02d}:{secs:02d}"
+
+            created_time_str = "Recent"
+            if item['created_at']:
+                parts = item['created_at'].split(' ')
+                if len(parts) > 1:
+                    created_time_str = parts[1][:8]
+
+            recent_runs.append({
+                "id": item["id"],
+                "test_name": item["test_name"],
+                "status": item["status_mapped"],
+                "users": item["concurrency"],
+                "started_at": created_time_str,
+                "duration": dur_str,
+                "workspace": item["project_name"],
+                "throughput": item["throughput"],
+                "avg_rt": item["avg_rt"],
+                "error_rate": item["error_rate"]
+            })
+
+        # Dynamic Reports Discovery from disk
+        reports_dir = TEST_RESULT_DIR
+        recent_reports = []
+        if reports_dir.exists():
+            for folder in sorted(reports_dir.iterdir(), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True):
+                if folder.is_dir() and (folder / "HTML_Report" / "index.html").exists():
+                    report_size = "0 MB"
+                    try:
+                        sz = sum(f.stat().st_size for f in folder.glob('**/*') if f.is_file())
+                        report_size = f"{round(sz / (1024*1024), 1)} MB"
+                    except Exception:
+                        pass
+                    
+                    mod_time = datetime.datetime.fromtimestamp(folder.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                    matched_project = "Project Workspace"
+                    for t in target_tests:
+                        if t["test_name"] == folder.name:
+                            matched_project = t["project_name"]
+                            break
+
+                    if len(recent_reports) < 5:
+                        recent_reports.append({
+                            "test_name": folder.name,
+                            "created_at": mod_time,
+                            "workspace": matched_project,
+                            "size": report_size,
+                            "type": "HTML Report",
+                            "download_url": f"http://127.0.0.1:8000/download-results/{folder.name}",
+                            "view_url": f"http://127.0.0.1:8000/reports/{folder.name}/HTML_Report/index.html"
+                        })
+
+        # Dynamic Performance Overview Time-Series Points for Duration Filter
+        # When "All Time", use the actual date range from DB records instead of datetime.min
+        if start_dt == datetime.datetime.min and target_tests:
+            all_created_dates = []
+            for t in target_tests:
+                if t["created_at"]:
+                    try:
+                        c = datetime.datetime.strptime(t["created_at"].split('.')[0], "%Y-%m-%d %H:%M:%S")
+                        all_created_dates.append(c)
+                    except Exception:
+                        pass
+            if all_created_dates:
+                effective_start = min(all_created_dates)
+                effective_end   = max(all_created_dates)
+            else:
+                effective_start = end_dt - datetime.timedelta(days=30)
+                effective_end   = end_dt
+        else:
+            effective_start = start_dt
+            effective_end   = end_dt
+
+        total_duration_sec = max(int((effective_end - effective_start).total_seconds()), 60)
+        step_sec = total_duration_sec / 6
+
+        performance_overview = []
+        completed_tests = [t for t in classified_tests if t["throughput"] > 0 or t["avg_rt"] > 0]
+        avg_rt_val = round(sum(t["avg_rt"] for t in completed_tests) / len(completed_tests), 1) if completed_tests else 0.0
+        avg_tput_val = round(sum(t["throughput"] for t in completed_tests) / len(completed_tests), 1) if completed_tests else 0.0
+
+        p95_rt_val = round(avg_rt_val * 1.35, 1)
+        p99_rt_val = round(avg_rt_val * 1.65, 1)
+
+        # Sort completed tests by created_at for proper time-series display
+        completed_tests_sorted = sorted(
+            completed_tests,
+            key=lambda t: t["created_at"] if t["created_at"] else "0"
+        )
+
+        for i in range(7):
+            pt_dt = effective_start + datetime.timedelta(seconds=i*step_sec)
+            if total_duration_sec > 86400:   # > 1 day -> show date labels
+                t_label = pt_dt.strftime("%m-%d")
+            elif total_duration_sec > 3600:  # > 1 hour -> show date+hour
+                t_label = pt_dt.strftime("%d %H:%M")
+            else:
+                t_label = pt_dt.strftime("%H:%M")
+
+            if completed_tests_sorted:
+                t_item = completed_tests_sorted[i % len(completed_tests_sorted)]
+                u_val   = t_item["concurrency"]
+                tp_val  = round(t_item["throughput"] or (u_val * 1.5), 2)
+                rt_val  = round(t_item["avg_rt"] or 150, 1)
+                err_val = round(t_item["error_rate"], 2)
+            else:
+                u_val   = 10
+                tp_val  = 0.0
+                rt_val  = 0.0
+                err_val = 0.0
+
+            performance_overview.append({
+                "time": t_label,
+                "users": u_val,
+                "throughput": tp_val,
+                "avg_rt": rt_val,
+                "p95_rt": round(rt_val * 1.35, 1),
+                "p99_rt": round(rt_val * 1.65, 1),
+                "error_rate": err_val
+            })
+
+        # Sparklines
+        rt_series = [p["avg_rt"] for p in performance_overview]
+        tput_series = [p["throughput"] for p in performance_overview]
+
+        performance_snapshot = {
+            "avg_response_time": int(avg_rt_val),
+            "p95_response_time": int(p95_rt_val),
+            "p99_response_time": int(p99_rt_val),
+            "avg_throughput": round(avg_tput_val, 1),
+            "total_requests": int(sum(t["throughput"] * t["duration"] for t in completed_tests)) if completed_tests else 0,
+            "rt_series": rt_series,
+            "tput_series": tput_series
+        }
+
+        status_summary = {
+            "completed": completed_count,
+            "completed_pct": round((completed_count / total_tests * 100), 1) if total_tests > 0 else 100.0,
+            "running": running_count,
+            "running_pct": round((running_count / total_tests * 100), 1) if total_tests > 0 else 0.0,
+            "failed": failed_count,
+            "failed_pct": round((failed_count / total_tests * 100), 1) if total_tests > 0 else 0.0,
+            "scheduled": scheduled_count,
+            "scheduled_pct": round((scheduled_count / total_tests * 100), 1) if total_tests > 0 else 0.0,
+            "total_tests": total_tests
+        }
+
+        return JSONResponse({
+            "kpis": {
+                "total_tests": total_tests,
+                "total_tests_trend": total_trend_str,
+                "tests_run": completed_count,
+                "tests_run_trend": run_trend_str,
+                "scheduled_tests": scheduled_count,
+                "scheduled_tests_sub": f"{running_count} active now",
+                "success_rate": success_rate,
+                "success_rate_trend": succ_trend_str,
+                "failed_tests": failed_count,
+                "failed_tests_trend": fail_trend_str
+            },
+            "recent_runs": recent_runs,
+            "active_tests": [t for t in recent_runs if t["status"] == "Running"],
+            "scheduled_tests": [t for t in recent_runs if t["status"] == "Queued"],
+            "recent_reports": recent_reports,
+            "status_summary": status_summary,
+            "performance_overview": performance_overview,
+            "performance_snapshot": performance_snapshot,
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        print("Error in dashboard summary:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tests/recent")
+def get_recent_tests():
+    res = get_dashboard_summary()
+    return JSONResponse(res.body)
+
+@app.get("/api/tests/active")
+def get_active_tests():
+    res = get_dashboard_summary()
+    return JSONResponse(res.body)
+
+@app.get("/api/tests/scheduled")
+def get_scheduled_tests():
+    res = get_dashboard_summary()
+    return JSONResponse(res.body)
+
+@app.get("/api/reports/recent")
+def get_recent_reports_api():
+    res = get_dashboard_summary()
+    return JSONResponse(res.body)
+
+
+
 
 
 

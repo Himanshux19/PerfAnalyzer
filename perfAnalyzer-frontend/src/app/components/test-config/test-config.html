@@ -25,13 +25,13 @@
         <div class="mb-3">
           <label class="form-label-premium" for="workspace-select">1. Select Project Workspace</label>
           <div class="d-flex gap-2">
-            <select id="workspace-select" class="form-select form-input-premium" [(ngModel)]="selectedWorkspaceId" (change)="onWorkspaceChange()">
+            <select id="workspace-select" class="form-select form-input-premium" [(ngModel)]="selectedWorkspaceId" (change)="onWorkspaceChange()" [disabled]="isEmbeddedInWorkspace()">
               <option [value]="null">Select Workspace</option>
               @for (ws of workspaces; track ws.id) {
                 <option [value]="ws.id">{{ ws.name }} ({{ ws.file_count }} file{{ ws.file_count !== 1 ? 's' : '' }})</option>
               }
             </select>
-            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadWorkspaces()" title="Refresh Workspaces">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadWorkspaces()" title="Refresh Workspaces" [disabled]="isEmbeddedInWorkspace()">
               <i class="bi bi-arrow-clockwise"></i>
             </button>
           </div>

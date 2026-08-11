@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UpperCasePipe } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../api.service';
 
 @Component({
@@ -21,10 +22,28 @@ export class TestConfig implements OnInit {
   isLoadingWorkspaces = false;
   isLoadingFiles = false;
 
-  constructor(protected api: ApiService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    protected api: ApiService,
+    private route: ActivatedRoute,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  isEmbeddedInWorkspace(): boolean {
+    return this.router.url.includes('/projects');
+  }
 
   ngOnInit() {
     this.loadWorkspaces();
+    this.route.queryParams.subscribe(params => {
+      if (params['projectId']) {
+        const pid = Number(params['projectId']);
+        if (this.selectedWorkspaceId !== pid) {
+          this.selectedWorkspaceId = pid;
+          this.onWorkspaceChange();
+        }
+      }
+    });
   }
 
   loadWorkspaces() {

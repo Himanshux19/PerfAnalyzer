@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { Navbar } from '../navbar/navbar';
 import { ApiService, TestQueueItem } from '../../api.service';
 
@@ -43,9 +43,12 @@ export class TestQueue implements OnInit, OnDestroy {
   showDetailsModal = false;
   selectedDetailsItem: TestQueueItem | null = null;
 
+  projectIdFilter: number | null = null;
+
   constructor(
     protected api: ApiService,
     private router: Router,
+    private route: ActivatedRoute,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -54,7 +57,16 @@ export class TestQueue implements OnInit, OnDestroy {
       const token = localStorage.getItem('auth_token');
       if (!token) { this.router.navigate(['/login']); return; }
     }
-    this.loadQueue(false);
+
+    this.route.queryParams.subscribe(params => {
+      if (params['projectId']) {
+        this.projectIdFilter = Number(params['projectId']);
+      } else {
+        this.projectIdFilter = null;
+      }
+      this.loadQueue(false);
+    });
+
     this.refreshInterval = setInterval(() => {
       if (this.autoRefresh && !this.showLogModal && !this.showDetailsModal) {
         this.loadQueue(true);
@@ -106,8 +118,14 @@ export class TestQueue implements OnInit, OnDestroy {
 
   get userItems(): TestQueueItem[] {
     const currentUser = this.getCurrentUsername();
-    if (!currentUser || currentUser.toLowerCase() === 'admin') return this.queueItems;
-    return this.queueItems.filter(i => (i.username || '').toLowerCase() === currentUser.toLowerCase());
+    let items = this.queueItems;
+    if (currentUser && currentUser.toLowerCase() !== 'admin') {
+      items = items.filter(i => (i.username || '').toLowerCase() === currentUser.toLowerCase());
+    }
+    if (this.projectIdFilter) {
+      items = items.filter(i => i.project_id === this.projectIdFilter);
+    }
+    return items;
   }
 
   get filteredItems(): TestQueueItem[] {

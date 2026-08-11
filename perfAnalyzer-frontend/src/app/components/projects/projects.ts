@@ -1,17 +1,34 @@
 import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { UpperCasePipe } from '@angular/common';
-import { Navbar } from '../navbar/navbar';
+import { CommonModule, UpperCasePipe } from '@angular/common';
 import { ApiService } from '../../api.service';
+
+import { CreateTest } from '../create-test/create-test';
+import { Dashboard } from '../dashboard/dashboard';
+import { ReportsHistory } from '../reports-history/reports-history';
+import { TestQueue } from '../test-queue/test-queue';
 
 @Component({
   selector: 'app-projects',
-  imports: [Navbar, FormsModule, UpperCasePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    UpperCasePipe,
+    CreateTest,
+    Dashboard,
+    ReportsHistory,
+    TestQueue
+  ],
   templateUrl: './projects.html',
   styleUrl: './projects.css',
 })
 export class Projects implements OnInit {
+  // ── Navigation & Sidebar State ───────────────────────────────
+  activeSection: 'workspaces' | 'create-test' | 'test' | 'files' | 'reports' | 'queue' = 'workspaces';
+  sidebarCollapsed = false;
+  selectedWorkspaceId: number | null = null;
+
   // ── Data ────────────────────────────────────────────────────
   projects: any[] = [];
   isLoading = false;
@@ -52,7 +69,12 @@ export class Projects implements OnInit {
 
   isRefreshing = false;
 
-  constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(
+    protected api: ApiService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     if (typeof window !== 'undefined') {
@@ -62,6 +84,20 @@ export class Projects implements OnInit {
         return;
       }
     }
+
+    this.route.queryParams.subscribe(params => {
+      if (params['section']) {
+        this.activeSection = params['section'];
+      }
+      if (params['projectId']) {
+        this.selectedWorkspaceId = Number(params['projectId']);
+        this.api.selectedProjectId.set(this.selectedWorkspaceId);
+      }
+      if (this.projects.length > 0 && this.activeSection === 'files') {
+        this.loadDrawerFiles();
+      }
+    });
+
     this.loadProjects();
   }
 
@@ -79,7 +115,25 @@ export class Projects implements OnInit {
         this.projects = data;
         this.isLoading = false;
         this.isRefreshing = false;
-        this.cdr.detectChanges();
+
+        if (this.selectedWorkspaceId) {
+           const project = this.projects.find((p) => p.id === this.selectedWorkspaceId);
+           if (project) {
+             this.drawerProject = project;
+             if (this.activeSection === 'files') {
+               this.loadDrawerFiles();
+             }
+           }
+         } else if (this.projects.length > 0) {
+           this.selectedWorkspaceId = this.projects[0].id;
+           this.drawerProject = this.projects[0];
+           this.api.selectedProjectId.set(this.selectedWorkspaceId);
+           if (this.activeSection === 'files') {
+             this.loadDrawerFiles();
+           }
+         }
+
+         this.cdr.detectChanges();
       },
       error: () => {
         this.errorMessage = 'Failed to load workspaces. Make sure the backend is running.';
@@ -258,6 +312,55 @@ export class Projects implements OnInit {
         projectName: project.name
       }
     });
+  }
+
+  goToRunner(project: any) {
+    this.selectedWorkspaceId = project.id;
+    this.drawerProject = project;
+    this.api.selectedProjectId.set(project.id);
+    this.setSection('test');
+  }
+
+  toggleSidebar() {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+    this.cdr.detectChanges();
+  }
+
+  setSection(section: 'workspaces' | 'create-test' | 'test' | 'files' | 'reports' | 'queue') {
+    this.activeSection = section;
+    this.router.navigate([], {
+      queryParams: {
+        projectId: this.selectedWorkspaceId,
+        projectName: this.drawerProject?.name || null,
+        section: this.activeSection
+      },
+      queryParamsHandling: 'merge'
+    });
+    if (section === 'files') {
+      this.loadDrawerFiles();
+    }
+    this.cdr.detectChanges();
+  }
+
+  selectWorkspace(projectId: number) {
+    this.selectedWorkspaceId = projectId;
+    const project = this.projects.find(p => p.id === projectId);
+    if (project) {
+      this.drawerProject = project;
+      this.api.selectedProjectId.set(projectId);
+      this.router.navigate([], {
+        queryParams: {
+          projectId: projectId,
+          projectName: project.name
+        },
+        queryParamsHandling: 'merge'
+      });
+      if (this.activeSection === 'files') {
+        this.loadDrawerFiles();
+      }
+    }
+    this.closeWorkspaceDropdown();
+    this.cdr.detectChanges();
   }
 
   loadDrawerReports() {
@@ -482,5 +585,51 @@ export class Projects implements OnInit {
     if (this.showDeleteModal) this.closeDeleteModal();
     else if (this.showFormModal) this.closeFormModal();
     else if (this.showFileDrawer) this.closeFileDrawer();
+  }
+
+  workspaceDropdownOpen = false;
+
+  toggleWorkspaceDropdown(event: Event) {
+    event.stopPropagation();
+    this.workspaceDropdownOpen = !this.workspaceDropdownOpen;
+    this.cdr.detectChanges();
+  }
+
+  closeWorkspaceDropdown() {
+    this.workspaceDropdownOpen = false;
+    this.cdr.detectChanges();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    this.closeWorkspaceDropdown();
+  }
+
+  getUsername(): string {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('username') || 'Guest';
+    }
+    return 'Guest';
+  }
+
+  getFullName(): string {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('full_name') || '';
+    }
+    return '';
+  }
+
+  getInitials(): string {
+    const fullName = this.getFullName();
+    if (fullName) {
+      const parts = fullName.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    const email = this.getUsername();
+    if (email === 'Guest') return 'G';
+    return email.slice(0, 2).toUpperCase();
   }
 }

@@ -91,7 +91,7 @@ PerfAnalyzer/
             ├── admin-dashboard/ ← User management + analytics
             ├── dashboard/       ← Live test monitoring
             ├── create-test/     ← Auto-generate JMX from URL
-            ├── overview-dashboard/ ← Gives the overview of all the tests +  
+            ├── overview-dashboard/ ← Gives the overview of all the tests + Summary Data
             ├── test-config/     ← Upload JMX/CSV + configure params
             ├── projects/        ← Project workspaces
             ├── test-queue/      ← Unified queue 

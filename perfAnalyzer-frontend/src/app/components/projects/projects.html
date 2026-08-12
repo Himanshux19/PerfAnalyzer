@@ -255,15 +255,22 @@
             <div class="projects-grid">
               @for (project of filteredProjects; track project.id) {
                 <div class="project-card" [class.active-drawer]="selectedWorkspaceId === project.id" (click)="goToRunner(project)">
-                  <!-- Card Top Accent -->
+                  <!-- Card Top Accent Bar -->
                   <div class="project-card-accent"></div>
 
                   <!-- Card Header -->
-                  <div class="project-card-header d-flex justify-content-between align-items-start gap-2">
-                    <div class="project-icon-wrap">
-                      <i class="bi bi-folder2-open"></i>
+                  <div class="project-card-header d-flex justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2.5">
+                      <div class="project-icon-wrap">
+                        <i class="bi bi-folder2-open"></i>
+                      </div>
+                      @if (selectedWorkspaceId === project.id) {
+                        <span class="active-workspace-badge">
+                          <span class="active-pulse-dot"></span> Active
+                        </span>
+                      }
                     </div>
-                    <div class="project-card-actions d-flex gap-1">
+                    <div class="project-card-actions d-flex align-items-center gap-1.5">
                       <button type="button" class="action-btn-icon" title="Edit Workspace" (click)="openEditModal(project); $event.stopPropagation()" [id]="'edit-project-' + project.id">
                         <i class="bi bi-pencil-fill"></i>
                       </button>
@@ -275,33 +282,36 @@
 
                   <!-- Card Body -->
                   <div class="project-card-body mt-3">
-                    <h3 class="project-name text-truncate" [title]="project.name">{{ project.name }}</h3>
-                    <p class="project-description text-muted fs-8 mb-2">{{ project.description || 'No description provided.' }}</p>
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                      <h3 class="project-name text-truncate" [title]="project.name">{{ project.name }}</h3>
+                      <i class="bi bi-arrow-up-right project-card-arrow"></i>
+                    </div>
+                    <p class="project-description text-muted mb-3">
+                      {{ project.description || 'No description provided for this workspace.' }}
+                    </p>
 
                     <!-- Tags -->
                     @if (getTagsArray(project.tags).length > 0) {
-                      <div class="project-tags d-flex flex-wrap gap-1 mb-3">
+                      <div class="project-tags d-flex flex-wrap gap-1.5 mb-3">
                         @for (tag of getTagsArray(project.tags); track tag) {
-                          <span class="project-tag">{{ tag }}</span>
+                          <span class="project-tag">
+                            <i class="bi bi-tag-fill me-1 text-primary-soft"></i>{{ tag }}
+                          </span>
                         }
                       </div>
                     }
 
-                    <!-- Meta -->
-                    <div class="project-meta d-flex align-items-center gap-3 mt-auto pt-2">
-                      <span class="meta-item"><i class="bi bi-file-earmark me-1"></i>{{ project.file_count || 0 }} file{{ project.file_count !== 1 ? 's' : '' }}</span>
-                      <span class="meta-item"><i class="bi bi-clock me-1"></i>{{ (project.updated_at || project.created_at || '').slice(0, 10) }}</span>
+                    <!-- Meta Bar -->
+                    <div class="project-meta d-flex align-items-center justify-content-between mt-auto pt-3">
+                      <span class="meta-chip">
+                        <i class="bi bi-file-earmark-code me-1 text-primary"></i>
+                        {{ project.file_count || 0 }} file{{ project.file_count !== 1 ? 's' : '' }}
+                      </span>
+                      <span class="meta-chip">
+                        <i class="bi bi-clock-history me-1"></i>
+                        {{ (project.updated_at || project.created_at || '').slice(0, 10) }}
+                      </span>
                     </div>
-                  </div>
-
-                  <!-- Card Footer -->
-                  <div class="project-card-footer d-flex gap-2">
-                    <button type="button" class="btn-manage-files flex-grow-1" (click)="selectWorkspace(project.id); setSection('files'); $event.stopPropagation()" [id]="'manage-files-' + project.id">
-                      <i class="bi bi-folder2-open me-1.5"></i>Files
-                    </button>
-                    <button type="button" class="btn-manage-files flex-grow-1" (click)="selectWorkspace(project.id); setSection('reports'); $event.stopPropagation()" [id]="'view-reports-' + project.id">
-                      <i class="bi bi-file-earmark-bar-graph me-1.5"></i>Reports
-                    </button>
                   </div>
                 </div>
               }

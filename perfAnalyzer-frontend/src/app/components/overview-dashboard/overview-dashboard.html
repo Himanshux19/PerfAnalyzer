@@ -29,32 +29,32 @@
 
   <!-- API Error -->
   @if (apiError) {
-    <div class="api-error-bar">
-      <span><i class="bi bi-exclamation-triangle-fill"></i> Could not connect to backend. Showing last known data.</span>
-      <button (click)="fetchData(true)">Retry</button>
-    </div>
+  <div class="api-error-bar">
+    <span><i class="bi bi-exclamation-triangle-fill"></i> Could not connect to backend. Showing last known data.</span>
+    <button (click)="fetchData(true)">Retry</button>
+  </div>
   }
 
   <!-- Custom Date Modal -->
   @if (showManualDateModal) {
-    <div class="modal-backdrop-custom" (click)="closeManualModal()">
-      <div class="modal-box" (click)="$event.stopPropagation()">
-        <div class="modal-box-header">
-          <h5><i class="bi bi-calendar-range me-2"></i>Custom Date Range</h5>
-          <button class="btn-close-small" (click)="closeManualModal()">×</button>
-        </div>
-        <div class="modal-box-body">
-          <label>Start Date &amp; Time</label>
-          <input type="datetime-local" [(ngModel)]="manualStartDate">
-          <label class="mt-2">End Date &amp; Time</label>
-          <input type="datetime-local" [(ngModel)]="manualEndDate">
-        </div>
-        <div class="modal-box-footer">
-          <button class="btn-secondary-sm" (click)="closeManualModal()">Cancel</button>
-          <button class="btn-primary-sm" (click)="applyManualDuration()">Apply</button>
-        </div>
+  <div class="modal-backdrop-custom" (click)="closeManualModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-box-header">
+        <h5><i class="bi bi-calendar-range me-2"></i>Custom Date Range</h5>
+        <button class="btn-close-small" (click)="closeManualModal()">×</button>
+      </div>
+      <div class="modal-box-body">
+        <label>Start Date &amp; Time</label>
+        <input type="datetime-local" [(ngModel)]="manualStartDate">
+        <label class="mt-2">End Date &amp; Time</label>
+        <input type="datetime-local" [(ngModel)]="manualEndDate">
+      </div>
+      <div class="modal-box-footer">
+        <button class="btn-secondary-sm" (click)="closeManualModal()">Cancel</button>
+        <button class="btn-primary-sm" (click)="applyManualDuration()">Apply</button>
       </div>
     </div>
+  </div>
   }
 
   <!-- ── KPI Cards Row ────────────────────────────────────── -->
@@ -65,7 +65,8 @@
       <div class="kpi-content">
         <span class="kpi-label">Total Tests</span>
         <span class="kpi-number">{{ summaryData.kpis.total_tests }}</span>
-        <span class="kpi-trend kpi-up"><i class="bi bi-arrow-up-short"></i> {{ summaryData.kpis.total_tests_trend }}</span>
+        <span class="kpi-trend kpi-up"><i class="bi bi-arrow-up-short"></i> {{ summaryData.kpis.total_tests_trend
+          }}</span>
       </div>
     </div>
 
@@ -75,7 +76,8 @@
       <div class="kpi-content">
         <span class="kpi-label">Tests Run</span>
         <span class="kpi-number">{{ summaryData.kpis.tests_run }}</span>
-        <span class="kpi-trend kpi-up"><i class="bi bi-arrow-up-short"></i> {{ summaryData.kpis.tests_run_trend }}</span>
+        <span class="kpi-trend kpi-up"><i class="bi bi-arrow-up-short"></i> {{ summaryData.kpis.tests_run_trend
+          }}</span>
       </div>
     </div>
 
@@ -107,7 +109,8 @@
       <div class="kpi-content">
         <span class="kpi-label">Failed Tests</span>
         <span class="kpi-number">{{ summaryData.kpis.failed_tests }}</span>
-        <span class="kpi-trend kpi-down"><i class="bi bi-exclamation-triangle-fill"></i> {{ summaryData.kpis.failed_tests_trend }}</span>
+        <span class="kpi-trend kpi-down"><i class="bi bi-exclamation-triangle-fill"></i> {{
+          summaryData.kpis.failed_tests_trend }}</span>
       </div>
     </div>
   </div>
@@ -118,7 +121,7 @@
     <div class="panel panel-wide">
       <div class="panel-header">
         <div class="panel-title-group">
-          <h5 class="panel-title">Performance Overview <i class="bi bi-info-circle text-muted" style="font-size:0.8rem;"></i></h5>
+          <h5 class="panel-title">Performance Overview</h5>
         </div>
         <div class="chart-controls">
           <span class="legend-toggle" (click)="toggleMetric('users')" [class.dimmed]="!showUsers">
@@ -133,50 +136,45 @@
           <span class="legend-toggle" (click)="toggleMetric('err')" [class.dimmed]="!showErrorRate">
             <span class="legend-dot ld-red"></span> Error Rate (%)
           </span>
-          <select class="chart-tf-select" [(ngModel)]="selectedTimeframe" (change)="onTimeframeChange(selectedTimeframe)">
-            <option value="All Time">All Time</option>
-            <option value="Last 15 Minutes">Last 15 Min</option>
-            <option value="Last 1 Hour">Last 1 Hour</option>
-            <option value="Last 6 Hours">Last 6 Hours</option>
-            <option value="Last 24 Hours">Last 24 Hours</option>
-            <option value="Last 7 Days">Last 7 Days</option>
-            <option value="Last 30 Days">Last 30 Days</option>
-          </select>
         </div>
       </div>
       <div class="panel-body">
         <div class="svg-chart-area">
           <svg viewBox="0 0 800 180" preserveAspectRatio="none" class="chart-svg">
             <!-- Grid lines -->
-            <line x1="40" y1="15"  x2="780" y2="15"  stroke="#f1f5f9" stroke-width="1"/>
-            <line x1="40" y1="52"  x2="780" y2="52"  stroke="#f1f5f9" stroke-width="1"/>
-            <line x1="40" y1="89"  x2="780" y2="89"  stroke="#f1f5f9" stroke-width="1"/>
-            <line x1="40" y1="126" x2="780" y2="126" stroke="#f1f5f9" stroke-width="1"/>
-            <line x1="40" y1="163" x2="780" y2="163" stroke="#e2e8f0" stroke-width="1"/>
+            <line x1="40" y1="15" x2="780" y2="15" stroke="#f1f5f9" stroke-width="1" />
+            <line x1="40" y1="52" x2="780" y2="52" stroke="#f1f5f9" stroke-width="1" />
+            <line x1="40" y1="89" x2="780" y2="89" stroke="#f1f5f9" stroke-width="1" />
+            <line x1="40" y1="126" x2="780" y2="126" stroke="#f1f5f9" stroke-width="1" />
+            <line x1="40" y1="163" x2="780" y2="163" stroke="#e2e8f0" stroke-width="1" />
             <!-- Y labels left -->
-            <text x="3" y="19"  fill="#94a3b8" font-size="9">{{ yAxisLabels.top }}</text>
-            <text x="3" y="56"  fill="#94a3b8" font-size="9">{{ yAxisLabels.midTop }}</text>
-            <text x="3" y="93"  fill="#94a3b8" font-size="9">{{ yAxisLabels.mid }}</text>
+            <text x="3" y="19" fill="#94a3b8" font-size="9">{{ yAxisLabels.top }}</text>
+            <text x="3" y="56" fill="#94a3b8" font-size="9">{{ yAxisLabels.midTop }}</text>
+            <text x="3" y="93" fill="#94a3b8" font-size="9">{{ yAxisLabels.mid }}</text>
             <text x="3" y="130" fill="#94a3b8" font-size="9">{{ yAxisLabels.midLow }}</text>
             <text x="3" y="167" fill="#94a3b8" font-size="9">0</text>
             <!-- Y labels right -->
-            <text x="783" y="19"  fill="#94a3b8" font-size="9">100%</text>
-            <text x="783" y="56"  fill="#94a3b8" font-size="9">75%</text>
-            <text x="783" y="93"  fill="#94a3b8" font-size="9">50%</text>
+            <text x="783" y="19" fill="#94a3b8" font-size="9">100%</text>
+            <text x="783" y="56" fill="#94a3b8" font-size="9">75%</text>
+            <text x="783" y="93" fill="#94a3b8" font-size="9">50%</text>
             <text x="783" y="130" fill="#94a3b8" font-size="9">25%</text>
             <text x="783" y="167" fill="#94a3b8" font-size="9">0%</text>
             <!-- Lines -->
             @if (showUsers && usersPath) {
-              <polyline [attr.points]="usersPath" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline [attr.points]="usersPath" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"
+              stroke-linejoin="round" />
             }
             @if (showThroughput && throughputPath) {
-              <polyline [attr.points]="throughputPath" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline [attr.points]="throughputPath" fill="none" stroke="#16a34a" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round" />
             }
             @if (showResponseTime && rtPath) {
-              <polyline [attr.points]="rtPath" fill="none" stroke="#9333ea" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline [attr.points]="rtPath" fill="none" stroke="#9333ea" stroke-width="2.5" stroke-linecap="round"
+              stroke-linejoin="round" />
             }
             @if (showErrorRate && errorPath) {
-              <polyline [attr.points]="errorPath" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline [attr.points]="errorPath" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"
+              stroke-linejoin="round" />
             }
           </svg>
           <!-- X axis labels -->
@@ -208,29 +206,32 @@
             </thead>
             <tbody>
               @for (run of summaryData.recent_runs; track run.id) {
-                <tr>
-                  <td class="td-name" routerLink="/reports">{{ run.test_name }}</td>
-                  <td>
-                    <span class="status-badge" [ngClass]="getStatusBadgeClass(run.status)">{{ run.status }}</span>
-                  </td>
-                  <td class="td-mono">{{ run.users }}</td>
-                  <td class="td-mono">{{ run.started_at }}</td>
-                  <td class="td-mono">{{ run.duration }}</td>
-                  <td class="td-actions">
-                    <button class="btn-dots" (click)="toggleActionMenu('run-' + run.id, $event)">
-                      <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    @if (activeActionMenuId === 'run-' + run.id) {
-                      <div class="action-dropdown">
-                        <button (click)="onViewReport(run.test_name)"><i class="bi bi-file-earmark-bar-graph me-2"></i>Report</button>
-                        <button (click)="onViewLogs(run.test_name)"><i class="bi bi-terminal me-2"></i>Logs</button>
-                        <button (click)="onRerunTest(run.test_name)"><i class="bi bi-arrow-repeat me-2"></i>Rerun</button>
-                      </div>
-                    }
-                  </td>
-                </tr>
+              <tr>
+                <td class="td-name" routerLink="/reports">{{ run.test_name }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="getStatusBadgeClass(run.status)">{{ run.status }}</span>
+                </td>
+                <td class="td-mono">{{ run.users }}</td>
+                <td class="td-mono">{{ run.started_at }}</td>
+                <td class="td-mono">{{ run.duration }}</td>
+                <td class="td-actions">
+                  <button class="btn-dots" (click)="toggleActionMenu('run-' + run.id, $event)">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  @if (activeActionMenuId === 'run-' + run.id) {
+                  <div class="action-dropdown">
+                    <button (click)="onViewReport(run.test_name)"><i
+                        class="bi bi-file-earmark-bar-graph me-2"></i>Report</button>
+                    <button (click)="onViewLogs(run.test_name)"><i class="bi bi-terminal me-2"></i>Logs</button>
+                    <button (click)="onRerunTest(run.test_name)"><i class="bi bi-arrow-repeat me-2"></i>Rerun</button>
+                  </div>
+                  }
+                </td>
+              </tr>
               } @empty {
-                <tr><td colspan="6" class="td-empty">No test runs found for selected period.</td></tr>
+              <tr>
+                <td colspan="6" class="td-empty">No test runs found for selected period.</td>
+              </tr>
               }
             </tbody>
           </table>
@@ -262,28 +263,28 @@
             </thead>
             <tbody>
               @for (act of summaryData.active_tests; track act.id) {
-                <tr>
-                  <td class="td-name"><i class="bi bi-play-circle text-primary me-1"></i>{{ act.test_name }}</td>
-                  <td class="td-secondary">{{ act.workspace }}</td>
-                  <td class="td-mono">{{ act.users }}</td>
-                  <td class="td-mono">{{ act.duration }}</td>
-                  <td><span class="status-badge badge-running">Running</span></td>
-                  <td>
-                    <div class="progress-cell">
-                      <span class="progress-pct">{{ act.progress }}%</span>
-                      <div class="progress-bar-track">
-                        <div class="progress-bar-fill" [style.width.%]="act.progress"></div>
-                      </div>
+              <tr>
+                <td class="td-name"><i class="bi bi-play-circle text-primary me-1"></i>{{ act.test_name }}</td>
+                <td class="td-secondary">{{ act.workspace }}</td>
+                <td class="td-mono">{{ act.users }}</td>
+                <td class="td-mono">{{ act.duration }}</td>
+                <td><span class="status-badge badge-running">Running</span></td>
+                <td>
+                  <div class="progress-cell">
+                    <span class="progress-pct">{{ act.progress }}%</span>
+                    <div class="progress-bar-track">
+                      <div class="progress-bar-fill" [style.width.%]="act.progress"></div>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </td>
+              </tr>
               } @empty {
-                <tr>
-                  <td colspan="6" class="td-empty">
-                    <i class="bi bi-info-circle me-1"></i> No active tests running currently.
-                    <a routerLink="/create-test" class="btn-start-test ms-2">Start Test</a>
-                  </td>
-                </tr>
+              <tr>
+                <td colspan="6" class="td-empty">
+                  <i class="bi bi-info-circle me-1"></i> No active tests running currently.
+                  <a routerLink="/create-test" class="btn-start-test ms-2">Start Test</a>
+                </td>
+              </tr>
               }
             </tbody>
           </table>
@@ -311,19 +312,19 @@
             </thead>
             <tbody>
               @for (sch of summaryData.scheduled_tests; track sch.id) {
-                <tr>
-                  <td class="td-name"><i class="bi bi-list-task text-purple me-1"></i>{{ sch.test_name }}</td>
-                  <td class="td-secondary">{{ sch.workspace }}</td>
-                  <td class="td-secondary">{{ sch.schedule }}</td>
-                  <td class="td-mono">{{ sch.next_run }}</td>
-                  <td><span class="status-badge badge-running">Queued</span></td>
-                </tr>
+              <tr>
+                <td class="td-name"><i class="bi bi-list-task text-purple me-1"></i>{{ sch.test_name }}</td>
+                <td class="td-secondary">{{ sch.workspace }}</td>
+                <td class="td-secondary">{{ sch.schedule }}</td>
+                <td class="td-mono">{{ sch.next_run }}</td>
+                <td><span class="status-badge badge-running">Queued</span></td>
+              </tr>
               } @empty {
-                <tr>
-                  <td colspan="5" class="td-empty">
-                    <i class="bi bi-inbox me-1"></i> No queued tests in pipeline.
-                  </td>
-                </tr>
+              <tr>
+                <td colspan="5" class="td-empty">
+                  <i class="bi bi-inbox me-1"></i> No queued tests in pipeline.
+                </td>
+              </tr>
               }
             </tbody>
           </table>
@@ -333,34 +334,9 @@
   </div>
 
   <!-- ── Row 4: Recent Reports + Test Status Summary + Perf Snapshot ── -->
-  <div class="three-col-row mb-section">
-    <!-- Recent Reports -->
-    <div class="panel">
-      <div class="panel-header">
-        <h5 class="panel-title">Recent Reports</h5>
-        <a routerLink="/reports" class="view-all-link">View All</a>
-      </div>
-      <div class="panel-body">
-        @if (summaryData.recent_reports.length === 0) {
-          <div class="td-empty"><i class="bi bi-file-earmark-x me-1"></i> No reports available.</div>
-        }
-        <div class="reports-list">
-          <div *ngFor="let rep of summaryData.recent_reports" class="report-row">
-            <div class="report-icon-box"><i class="bi bi-file-earmark-bar-graph-fill"></i></div>
-            <div class="report-meta">
-              <span class="report-name">{{ rep.test_name }}</span>
-              <span class="report-sub">{{ rep.workspace }} &bull; {{ rep.size }} &bull; {{ rep.type }}</span>
-            </div>
-            <a [href]="rep.view_url" target="_blank" class="btn-open-report">
-              <i class="bi bi-box-arrow-up-right"></i>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Test Status Summary (Donut) -->
-    <div class="panel">
+  <!-- <div class="three-col-row mb-section"> -->
+  <!-- Test Status Summary (Donut) -->
+  <!-- <div class="panel">
       <div class="panel-header">
         <h5 class="panel-title">Test Status Summary</h5>
       </div>
@@ -401,47 +377,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Performance Snapshot -->
-    <div class="panel">
-      <div class="panel-header">
-        <h5 class="panel-title">Performance Snapshot</h5>
-      </div>
-      <div class="panel-body snap-body">
-        <!-- Avg Response Time -->
-        <div class="snap-metric">
-          <div class="snap-metric-left">
-            <span class="snap-metric-label">Avg Response Time</span>
-            <div class="snap-metric-value">
-              {{ summaryData.performance_snapshot.avg_response_time }}
-              <span class="snap-unit">ms</span>
-              <span class="snap-badge snap-badge-purple">P95: {{ summaryData.performance_snapshot.p95_response_time || 0 }} ms</span>
-            </div>
-          </div>
-          <div class="snap-sparkline">
-            <svg viewBox="0 0 140 36" class="sparkline-svg">
-              <path [attr.d]="rtSparklinePath" fill="none" stroke="#9333ea" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-        </div>
-        <!-- Avg Throughput -->
-        <div class="snap-metric">
-          <div class="snap-metric-left">
-            <span class="snap-metric-label">Avg Throughput</span>
-            <div class="snap-metric-value">
-              {{ summaryData.performance_snapshot.avg_throughput }}
-              <span class="snap-unit">RPS</span>
-              <span class="snap-badge snap-badge-green">Total: {{ summaryData.performance_snapshot.total_requests || 0 }} reqs</span>
-            </div>
-          </div>
-          <div class="snap-sparkline">
-            <svg viewBox="0 0 140 36" class="sparkline-svg">
-              <path [attr.d]="tputSparklinePath" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    </div> -->
+  <!-- </div> -->
 </div>

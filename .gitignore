@@ -25,3 +25,6 @@ __pycache__/
 
 # Project Files
 project_files
+
+# Logs Files
+logs

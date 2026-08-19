@@ -1,5 +1,6 @@
 import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
 import { CommonModule, UpperCasePipe } from '@angular/common';
 import { ApiService } from '../../api.service';
@@ -8,6 +9,7 @@ import { CreateTest } from '../create-test/create-test';
 import { Dashboard } from '../dashboard/dashboard';
 import { ReportsHistory } from '../reports-history/reports-history';
 import { TestQueue } from '../test-queue/test-queue';
+import { OverviewDashboard } from '../overview-dashboard/overview-dashboard';
 
 @Component({
   selector: 'app-projects',
@@ -18,15 +20,29 @@ import { TestQueue } from '../test-queue/test-queue';
     CreateTest,
     Dashboard,
     ReportsHistory,
-    TestQueue
+    TestQueue,
+    OverviewDashboard,
   ],
   templateUrl: './projects.html',
   styleUrl: './projects.css',
 })
 export class Projects implements OnInit {
   // ── Navigation & Sidebar State ───────────────────────────────
-  activeSection: 'workspaces' | 'create-test' | 'test' | 'files' | 'reports' | 'queue' = 'workspaces';
-  sidebarCollapsed = false;
+  activeSection:
+    | 'dashboard'
+    | 'workspaces'
+    | 'about'
+    | 'create-test'
+    | 'test'
+    | 'files'
+    | 'reports'
+    | 'queue' = 'dashboard';
+  get sidebarCollapsed(): boolean {
+    return this.api.sidebarCollapsed();
+  }
+  set sidebarCollapsed(val: boolean) {
+    this.api.sidebarCollapsed.set(val);
+  }
   selectedWorkspaceId: number | null = null;
 
   // ── Data ────────────────────────────────────────────────────
@@ -42,10 +58,10 @@ export class Projects implements OnInit {
   formName = '';
   formDescription = '';
   formTags = '';
-  formError: string | null = null;
   formSaving = false;
+  formError: string | null = null;
 
-  // ── Delete Confirmation ──────────────────────────────────────
+  // ── Delete Confirm Modal ─────────────────────────────────────
   showDeleteModal = false;
   deletingProject: any = null;
   deleteConfirming = false;
@@ -53,19 +69,25 @@ export class Projects implements OnInit {
   // ── File Manager Drawer ──────────────────────────────────────
   showFileDrawer = false;
   drawerProject: any = null;
-  drawerFiles: any[] = [];
-  drawerLoading = false;
-  drawerError: string | null = null;
   activeDrawerTab: 'files' | 'reports' = 'files';
+  drawerFiles: any[] = [];
   drawerReports: any[] = [];
+  drawerLoading = false;
   drawerReportsLoading = false;
+  drawerError: string | null = null;
   drawerReportsError: string | null = null;
-  reportsPage = 1;
-  reportsPerPage = 10;
 
-  // ── Upload State ─────────────────────────────────────────────
+  // Reports Pagination
+  reportsPage = 1;
+  reportsPerPage = 5;
+
+  // File Upload State
   isDragOver = false;
-  uploadQueue: { file: File; status: 'pending' | 'uploading' | 'done' | 'error'; error?: string }[] = [];
+  uploadQueue: {
+    file: File;
+    status: 'pending' | 'uploading' | 'done' | 'error';
+    error?: string;
+  }[] = [];
 
   isRefreshing = false;
 
@@ -73,7 +95,7 @@ export class Projects implements OnInit {
     protected api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
@@ -85,7 +107,15 @@ export class Projects implements OnInit {
       }
     }
 
-    this.route.queryParams.subscribe(params => {
+    this.resolveSectionFromUrl(this.router.url);
+
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe((e: NavigationEnd) => {
+        this.resolveSectionFromUrl(e.urlAfterRedirects || e.url);
+      });
+
+    this.route.queryParams.subscribe((params) => {
       if (params['section']) {
         this.activeSection = params['section'];
       }
@@ -93,12 +123,52 @@ export class Projects implements OnInit {
         this.selectedWorkspaceId = Number(params['projectId']);
         this.api.selectedProjectId.set(this.selectedWorkspaceId);
       }
-      if (this.projects.length > 0 && this.activeSection === 'files') {
-        this.loadDrawerFiles();
+      if (this.projects.length > 0) {
+        const found = this.projects.find((p) => p.id === this.selectedWorkspaceId);
+        if (found) {
+          this.drawerProject = found;
+        }
       }
+      if (
+        this.selectedWorkspaceId &&
+        (this.activeSection === 'files' || this.activeSection === 'about')
+      ) {
+        this.loadDrawerFiles();
+        this.loadDrawerReports();
+      }
+      this.cdr.detectChanges();
     });
 
     this.loadProjects();
+  }
+
+  resolveSectionFromUrl(url: string) {
+    const cleanUrl = url.split('?')[0].replace(/^\//, '');
+    if (cleanUrl === 'dashboard' || cleanUrl === '') {
+      this.activeSection = 'dashboard';
+    } else if (cleanUrl === 'workspaces' || cleanUrl === 'projects') {
+      this.activeSection = 'workspaces';
+    } else if (cleanUrl === 'about') {
+      this.activeSection = 'about';
+    } else if (cleanUrl === 'create-test') {
+      this.activeSection = 'create-test';
+    } else if (cleanUrl === 'test') {
+      this.activeSection = 'test';
+    } else if (cleanUrl === 'files') {
+      this.activeSection = 'files';
+    } else if (cleanUrl === 'reports') {
+      this.activeSection = 'reports';
+    } else if (cleanUrl === 'queue') {
+      this.activeSection = 'queue';
+    }
+    if (
+      this.selectedWorkspaceId &&
+      (this.activeSection === 'files' || this.activeSection === 'about')
+    ) {
+      this.loadDrawerFiles();
+      this.loadDrawerReports();
+    }
+    this.cdr.detectChanges();
   }
 
   // ── Projects ─────────────────────────────────────────────────
@@ -117,23 +187,23 @@ export class Projects implements OnInit {
         this.isRefreshing = false;
 
         if (this.selectedWorkspaceId) {
-           const project = this.projects.find((p) => p.id === this.selectedWorkspaceId);
-           if (project) {
-             this.drawerProject = project;
-             if (this.activeSection === 'files') {
-               this.loadDrawerFiles();
-             }
-           }
-         } else if (this.projects.length > 0) {
-           this.selectedWorkspaceId = this.projects[0].id;
-           this.drawerProject = this.projects[0];
-           this.api.selectedProjectId.set(this.selectedWorkspaceId);
-           if (this.activeSection === 'files') {
-             this.loadDrawerFiles();
-           }
-         }
+          const project = this.projects.find((p) => p.id === this.selectedWorkspaceId);
+          if (project) {
+            this.drawerProject = project;
+            if (this.activeSection === 'files') {
+              this.loadDrawerFiles();
+            }
+          }
+        } else if (this.projects.length > 0) {
+          this.selectedWorkspaceId = this.projects[0].id;
+          this.drawerProject = this.projects[0];
+          this.api.selectedProjectId.set(this.selectedWorkspaceId);
+          if (this.activeSection === 'files') {
+            this.loadDrawerFiles();
+          }
+        }
 
-         this.cdr.detectChanges();
+        this.cdr.detectChanges();
       },
       error: () => {
         this.errorMessage = 'Failed to load workspaces. Make sure the backend is running.';
@@ -151,7 +221,7 @@ export class Projects implements OnInit {
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q) ||
-        (p.tags || '').toLowerCase().includes(q)
+        (p.tags || '').toLowerCase().includes(q),
     );
   }
 
@@ -194,28 +264,30 @@ export class Projects implements OnInit {
     this.formError = null;
 
     if (this.isEditMode && this.editingProject) {
-      this.api.updateProject(this.editingProject.id, this.formName, this.formDescription, this.formTags).subscribe({
-        next: () => {
-          const idx = this.projects.findIndex((p) => p.id === this.editingProject.id);
-          if (idx !== -1) {
-            this.projects[idx] = {
-              ...this.projects[idx],
-              name: this.formName,
-              description: this.formDescription,
-              tags: this.formTags,
-            };
-            this.projects = [...this.projects];
-          }
-          this.formSaving = false;
-          this.showFormModal = false;
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          this.formError = err?.error?.detail || 'Failed to update workspace.';
-          this.formSaving = false;
-          this.cdr.detectChanges();
-        },
-      });
+      this.api
+        .updateProject(this.editingProject.id, this.formName, this.formDescription, this.formTags)
+        .subscribe({
+          next: () => {
+            const idx = this.projects.findIndex((p) => p.id === this.editingProject.id);
+            if (idx !== -1) {
+              this.projects[idx] = {
+                ...this.projects[idx],
+                name: this.formName,
+                description: this.formDescription,
+                tags: this.formTags,
+              };
+              this.projects = [...this.projects];
+            }
+            this.formSaving = false;
+            this.showFormModal = false;
+            this.cdr.detectChanges();
+          },
+          error: (err) => {
+            this.formError = err?.error?.detail || 'Failed to update workspace.';
+            this.formSaving = false;
+            this.cdr.detectChanges();
+          },
+        });
     } else {
       this.api.createProject(this.formName, this.formDescription, this.formTags).subscribe({
         next: (newProject) => {
@@ -293,12 +365,10 @@ export class Projects implements OnInit {
     if (tab === 'reports') {
       const project = this.drawerProject;
       this.closeFileDrawer();
-      this.router.navigate(['/reports'], {
-        queryParams: {
-          projectId: project.id,
-          projectName: project.name
-        }
-      });
+      if (project) {
+        this.selectWorkspace(project.id);
+      }
+      this.setSection('reports');
     } else {
       this.loadDrawerFiles();
     }
@@ -306,12 +376,27 @@ export class Projects implements OnInit {
   }
 
   viewReports(project: any) {
-    this.router.navigate(['/reports'], {
+    if (project) {
+      this.selectWorkspace(project.id);
+    }
+    this.setSection('reports');
+  }
+
+  goToAbout(project: any) {
+    if (!project) return;
+    this.selectedWorkspaceId = project.id;
+    this.drawerProject = project;
+    this.api.selectedProjectId.set(project.id);
+    this.activeSection = 'about';
+    this.loadDrawerFiles();
+    this.loadDrawerReports();
+    this.router.navigate(['/about'], {
       queryParams: {
         projectId: project.id,
-        projectName: project.name
-      }
+        projectName: project.name,
+      },
     });
+    this.cdr.detectChanges();
   }
 
   goToRunner(project: any) {
@@ -322,41 +407,82 @@ export class Projects implements OnInit {
   }
 
   toggleSidebar() {
-    this.sidebarCollapsed = !this.sidebarCollapsed;
-    this.cdr.detectChanges();
-  }
-
-  setSection(section: 'workspaces' | 'create-test' | 'test' | 'files' | 'reports' | 'queue') {
-    this.activeSection = section;
-    this.router.navigate([], {
-      queryParams: {
-        projectId: this.selectedWorkspaceId,
-        projectName: this.drawerProject?.name || null,
-        section: this.activeSection
-      },
-      queryParamsHandling: 'merge'
-    });
-    if (section === 'files') {
-      this.loadDrawerFiles();
+    const next = !this.api.sidebarCollapsed();
+    this.api.sidebarCollapsed.set(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar_collapsed', String(next));
     }
     this.cdr.detectChanges();
   }
 
+  setSection(
+    section:
+      | 'dashboard'
+      | 'workspaces'
+      | 'about'
+      | 'create-test'
+      | 'test'
+      | 'files'
+      | 'reports'
+      | 'queue',
+  ) {
+    this.activeSection = section;
+    const isGlobal = section === 'dashboard' || section === 'workspaces';
+    const targetPath = `/${section}`;
+
+    if (isGlobal) {
+      this.router.navigate([targetPath]);
+    } else {
+      this.router.navigate([targetPath], {
+        queryParams: {
+          projectId: this.selectedWorkspaceId,
+          projectName: this.drawerProject?.name || null,
+        },
+      });
+    }
+
+    if (section === 'files' || section === 'about') {
+      this.loadDrawerFiles();
+      this.loadDrawerReports();
+    }
+    this.cdr.detectChanges();
+  }
+
+  getJmxFiles(): any[] {
+    return this.drawerFiles.filter((f) => (f.name || '').toLowerCase().endsWith('.jmx'));
+  }
+
+  getDataFiles(): any[] {
+    return this.drawerFiles.filter((f) => !(f.name || '').toLowerCase().endsWith('.jmx'));
+  }
+
   selectWorkspace(projectId: number) {
     this.selectedWorkspaceId = projectId;
-    const project = this.projects.find(p => p.id === projectId);
+    const project = this.projects.find((p) => p.id === projectId);
     if (project) {
       this.drawerProject = project;
       this.api.selectedProjectId.set(projectId);
-      this.router.navigate([], {
-        queryParams: {
-          projectId: projectId,
-          projectName: project.name
-        },
-        queryParamsHandling: 'merge'
-      });
-      if (this.activeSection === 'files') {
+      if (this.activeSection === 'workspaces') {
+        this.activeSection = 'about';
+        this.router.navigate(['/about'], {
+          queryParams: {
+            projectId: projectId,
+            projectName: project.name,
+          },
+          queryParamsHandling: 'merge',
+        });
+      } else {
+        this.router.navigate([], {
+          queryParams: {
+            projectId: projectId,
+            projectName: project.name,
+          },
+          queryParamsHandling: 'merge',
+        });
+      }
+      if (this.activeSection === 'files' || this.activeSection === 'about') {
         this.loadDrawerFiles();
+        this.loadDrawerReports();
       }
     }
     this.closeWorkspaceDropdown();
@@ -383,7 +509,7 @@ export class Projects implements OnInit {
           this.drawerReportsLoading = false;
         }
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -414,14 +540,14 @@ export class Projects implements OnInit {
     this.api.deleteReport(report.test_name).subscribe({
       next: () => {
         if (this.drawerProject && this.drawerProject.id === projectId) {
-          this.drawerReports = this.drawerReports.filter(r => r.test_name !== report.test_name);
+          this.drawerReports = this.drawerReports.filter((r) => r.test_name !== report.test_name);
         }
         this.cdr.detectChanges();
       },
       error: () => {
         alert('Failed to delete report. Please try again.');
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -457,7 +583,10 @@ export class Projects implements OnInit {
         }
         const idx = this.projects.findIndex((p) => p.id === projectId);
         if (idx !== -1 && this.projects[idx].file_count > 0) {
-          this.projects[idx] = { ...this.projects[idx], file_count: this.projects[idx].file_count - 1 };
+          this.projects[idx] = {
+            ...this.projects[idx],
+            file_count: this.projects[idx].file_count - 1,
+          };
           this.projects = [...this.projects];
         }
         this.cdr.detectChanges();
@@ -507,7 +636,11 @@ export class Projects implements OnInit {
     entries.forEach((entry) => this.uploadFile(entry));
   }
 
-  uploadFile(entry: { file: File; status: 'pending' | 'uploading' | 'done' | 'error'; error?: string }) {
+  uploadFile(entry: {
+    file: File;
+    status: 'pending' | 'uploading' | 'done' | 'error';
+    error?: string;
+  }) {
     if (!this.drawerProject) return;
     const projectId = this.drawerProject.id;
     entry.status = 'uploading';
@@ -519,7 +652,10 @@ export class Projects implements OnInit {
         }
         const idx = this.projects.findIndex((p) => p.id === projectId);
         if (idx !== -1) {
-          this.projects[idx] = { ...this.projects[idx], file_count: (this.projects[idx].file_count || 0) + 1 };
+          this.projects[idx] = {
+            ...this.projects[idx],
+            file_count: (this.projects[idx].file_count || 0) + 1,
+          };
           this.projects = [...this.projects];
         }
         this.cdr.detectChanges();
@@ -560,23 +696,35 @@ export class Projects implements OnInit {
 
   getFileIcon(fileType: string): string {
     switch (fileType) {
-      case 'jmx': return 'bi-file-earmark-code';
-      case 'csv/jtl': return 'bi-file-earmark-spreadsheet';
-      case 'yaml': return 'bi-file-earmark-text';
-      case 'json': return 'bi-braces';
-      case 'xml': return 'bi-code-slash';
-      default: return 'bi-file-earmark';
+      case 'jmx':
+        return 'bi-file-earmark-code';
+      case 'csv/jtl':
+        return 'bi-file-earmark-spreadsheet';
+      case 'yaml':
+        return 'bi-file-earmark-text';
+      case 'json':
+        return 'bi-braces';
+      case 'xml':
+        return 'bi-code-slash';
+      default:
+        return 'bi-file-earmark';
     }
   }
 
   getFileIconColor(fileType: string): string {
     switch (fileType) {
-      case 'jmx': return 'icon-jmx';
-      case 'csv/jtl': return 'icon-csv';
-      case 'yaml': return 'icon-yaml';
-      case 'json': return 'icon-json';
-      case 'xml': return 'icon-xml';
-      default: return 'icon-other';
+      case 'jmx':
+        return 'icon-jmx';
+      case 'csv/jtl':
+        return 'icon-csv';
+      case 'yaml':
+        return 'icon-yaml';
+      case 'json':
+        return 'icon-json';
+      case 'xml':
+        return 'icon-xml';
+      default:
+        return 'icon-other';
     }
   }
 
@@ -631,5 +779,16 @@ export class Projects implements OnInit {
     const email = this.getUsername();
     if (email === 'Guest') return 'G';
     return email.slice(0, 2).toUpperCase();
+  }
+
+  onLogout() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('admin_auth_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('full_name');
+      localStorage.removeItem('role');
+      this.router.navigate(['/login']);
+    }
   }
 }

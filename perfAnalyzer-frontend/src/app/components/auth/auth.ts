@@ -7,7 +7,7 @@ import { ApiService } from '../../api.service';
   selector: 'app-auth',
   imports: [FormsModule],
   templateUrl: './auth.html',
-  styleUrl: './auth.css'
+  styleUrl: './auth.css',
 })
 export class Auth {
   isLoginMode = true;
@@ -27,7 +27,11 @@ export class Auth {
   errorMessage: string | null = null;
   successMessage: string | null = null;
 
-  constructor(private api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {
+  constructor(
+    private api: ApiService,
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+  ) {
     // Skip login if already authenticated
     if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
       this.router.navigate(['/dashboard']);
@@ -80,7 +84,7 @@ export class Auth {
         this.isLoading = false;
         this.errorMessage = err.error?.detail || err.message || 'Authentication failed.';
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -104,24 +108,30 @@ export class Auth {
     }
 
     this.isLoading = true;
-    this.api.registerUser(this.regUsername.trim().toLowerCase(), this.regPassword, this.regFullName.trim()).subscribe({
-      next: (res) => {
-        this.isLoading = false;
-        this.successMessage = 'Account created successfully! You can now Sign In.';
-        this.regUsername = '';
-        this.regPassword = '';
-        this.regConfirmPassword = '';
-        this.regFullName = '';
-        this.cdr.detectChanges();
-        setTimeout(() => {
-          this.toggleMode(true);
-        }, 2000);
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.detail || err.message || 'Registration failed.';
-        this.cdr.detectChanges();
-      }
-    });
+    this.api
+      .registerUser(
+        this.regUsername.trim().toLowerCase(),
+        this.regPassword,
+        this.regFullName.trim(),
+      )
+      .subscribe({
+        next: (res) => {
+          this.isLoading = false;
+          this.successMessage = 'Account created successfully! You can now Sign In.';
+          this.regUsername = '';
+          this.regPassword = '';
+          this.regConfirmPassword = '';
+          this.regFullName = '';
+          this.cdr.detectChanges();
+          setTimeout(() => {
+            this.toggleMode(true);
+          }, 2000);
+        },
+        error: (err) => {
+          this.isLoading = false;
+          this.errorMessage = err.error?.detail || err.message || 'Registration failed.';
+          this.cdr.detectChanges();
+        },
+      });
   }
 }

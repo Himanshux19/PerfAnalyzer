@@ -1,14 +1,13 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Navbar } from '../navbar/navbar';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-reports-history',
-  imports: [Navbar, FormsModule],
+  imports: [FormsModule],
   templateUrl: './reports-history.html',
-  styleUrl: './reports-history.css'
+  styleUrl: './reports-history.css',
 })
 export class ReportsHistory implements OnInit {
   reports: any[] = [];
@@ -27,7 +26,7 @@ export class ReportsHistory implements OnInit {
     protected api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
@@ -39,7 +38,7 @@ export class ReportsHistory implements OnInit {
         return;
       }
     }
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       if (params['projectId']) {
         this.projectId = +params['projectId'];
         this.projectName = params['projectName'] || null;
@@ -79,7 +78,7 @@ export class ReportsHistory implements OnInit {
         this.isLoading = false;
         this.isRefreshing = false;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -89,7 +88,7 @@ export class ReportsHistory implements OnInit {
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { projectId: null, projectName: null },
-      queryParamsHandling: 'merge'
+      queryParamsHandling: 'merge',
     });
   }
 
@@ -103,7 +102,7 @@ export class ReportsHistory implements OnInit {
       return this.reports;
     }
     const q = this.searchQuery.toLowerCase().trim();
-    return this.reports.filter(r => r.test_name.toLowerCase().includes(q));
+    return this.reports.filter((r) => r.test_name.toLowerCase().includes(q));
   }
 
   get paginatedReports(): any[] {
@@ -130,23 +129,23 @@ export class ReportsHistory implements OnInit {
     if (confirm(`Are you sure you want to delete the report for test: ${testName}?`)) {
       this.api.deleteReport(testName).subscribe({
         next: () => {
-          this.reports = this.reports.filter(r => r.test_name !== testName);
+          this.reports = this.reports.filter((r) => r.test_name !== testName);
           this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Failed to delete report:', err);
           alert('Failed to delete report. Please try again.');
           this.cdr.detectChanges();
-        }
+        },
       });
     }
   }
 
   getSuccessCount() {
-    return this.reports.filter(r => r.status === 'success').length;
+    return this.reports.filter((r) => r.status === 'success').length;
   }
 
   getFailedCount() {
-    return this.reports.filter(r => r.status === 'failed' || r.status === 'error').length;
+    return this.reports.filter((r) => r.status === 'failed' || r.status === 'error').length;
   }
 }

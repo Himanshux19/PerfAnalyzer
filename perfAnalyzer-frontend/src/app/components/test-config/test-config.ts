@@ -8,7 +8,7 @@ import { ApiService } from '../../api.service';
   selector: 'app-test-config',
   templateUrl: './test-config.html',
   styleUrls: ['./test-config.css'],
-  imports: [FormsModule, UpperCasePipe]
+  imports: [FormsModule, UpperCasePipe],
 })
 export class TestConfig implements OnInit {
   // Modes: 'workspace' or 'direct'
@@ -26,16 +26,29 @@ export class TestConfig implements OnInit {
     protected api: ApiService,
     private route: ActivatedRoute,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
+  isWorkspaceLocked(): boolean {
+    return !!(this.api.selectedProjectId() || this.route.snapshot.queryParams['projectId']);
+  }
+
   isEmbeddedInWorkspace(): boolean {
-    return this.router.url.includes('/projects');
+    return this.isWorkspaceLocked();
   }
 
   ngOnInit() {
     this.loadWorkspaces();
-    this.route.queryParams.subscribe(params => {
+    const activeId =
+      this.api.selectedProjectId() ||
+      (this.route.snapshot.queryParams['projectId']
+        ? Number(this.route.snapshot.queryParams['projectId'])
+        : null);
+    if (activeId) {
+      this.selectedWorkspaceId = activeId;
+      this.onWorkspaceChange();
+    }
+    this.route.queryParams.subscribe((params) => {
       if (params['projectId']) {
         const pid = Number(params['projectId']);
         if (this.selectedWorkspaceId !== pid) {
@@ -58,14 +71,14 @@ export class TestConfig implements OnInit {
         console.error('Failed to load workspaces:', err);
         this.isLoadingWorkspaces = false;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
   onWorkspaceChange() {
     this.selectedFileId = null;
     this.workspaceFiles = [];
-    
+
     // Reset API state
     this.api.selectedProjectId.set(this.selectedWorkspaceId);
     this.api.selectedProjectFileId.set(null);
@@ -88,7 +101,7 @@ export class TestConfig implements OnInit {
         console.error('Failed to load files:', err);
         this.isLoadingFiles = false;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -99,7 +112,7 @@ export class TestConfig implements OnInit {
       return;
     }
 
-    const file = this.workspaceFiles.find(f => f.id === Number(this.selectedFileId));
+    const file = this.workspaceFiles.find((f) => f.id === Number(this.selectedFileId));
     if (!file) return;
 
     this.api.selectedProjectFileId.set(file.id);
@@ -156,7 +169,7 @@ export class TestConfig implements OnInit {
     if (!file) return;
 
     const filename = file.name.toLowerCase();
-    
+
     if (filename.endsWith('.jmx') || filename.endsWith('.yaml') || filename.endsWith('.yml')) {
       const isYaml = filename.endsWith('.yaml') || filename.endsWith('.yml');
       const label = isYaml ? 'YAML' : 'JMX';
@@ -173,15 +186,17 @@ export class TestConfig implements OnInit {
         next: (res) => {
           this.api.jmxServerName.set(res.filename);
           this.api.jmxUploadStatus.set('success');
-          this.api.addLog(`${label} uploaded successfully. Saved as ${res.filename} on server.`, 'success');
+          this.api.addLog(
+            `${label} uploaded successfully. Saved as ${res.filename} on server.`,
+            'success',
+          );
         },
         error: (err) => {
           this.api.jmxUploadStatus.set('error');
           const errorMsg = err.error?.detail || err.message || 'Connection error';
           this.api.addLog(`${label} upload failed: ${errorMsg}`, 'error');
-        }
+        },
       });
-
     } else if (filename.endsWith('.csv')) {
       this.api.jmxFileName.set(null);
       this.api.jmxServerName.set(null);
@@ -196,13 +211,16 @@ export class TestConfig implements OnInit {
         next: (res) => {
           this.api.csvServerName.set(res.filename);
           this.api.csvUploadStatus.set('success');
-          this.api.addLog(`CSV uploaded successfully. Saved as ${res.filename} on server.`, 'success');
+          this.api.addLog(
+            `CSV uploaded successfully. Saved as ${res.filename} on server.`,
+            'success',
+          );
         },
         error: (err) => {
           this.api.csvUploadStatus.set('error');
           const errorMsg = err.error?.detail || err.message || 'Connection error';
           this.api.addLog(`CSV upload failed: ${errorMsg}`, 'error');
-        }
+        },
       });
     } else {
       this.api.addLog('Error: Only .jmx, .csv, .yaml, and .yml files are supported.', 'error');
@@ -220,4 +238,4 @@ export class TestConfig implements OnInit {
     }
     return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
   }
-}
+}

@@ -140,16 +140,25 @@ export interface DashboardSummary {
   timestamp: string;
 }
 
-
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ApiService {
   private baseUrl = 'http://127.0.0.1:8000';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('theme');
+      document.documentElement.removeAttribute('data-theme');
+      document.body.classList.remove('dark-theme');
+    }
+  }
 
   // Shared variables using Angular Signals
+  sidebarCollapsed = signal<boolean>(
+    typeof window !== 'undefined' ? localStorage.getItem('sidebar_collapsed') === 'true' : false,
+  );
+
   jmxFileName = signal<string | null>(null);
   jmxServerName = signal<string | null>(null);
   jmxFileSize = signal<string | null>(null);
@@ -209,14 +218,14 @@ export class ApiService {
     rampUp: number,
     duration: number,
     projectId?: number | null,
-    projectFileId?: number | null
+    projectFileId?: number | null,
   ): Observable<RunTestResponse> {
     const formData = new FormData();
     formData.append('jmx_filename', jmxFilename);
     formData.append('threads', threads.toString());
     formData.append('ramp_up', rampUp.toString());
     formData.append('duration', duration.toString());
-    
+
     const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || 'Guest';
     formData.append('username', username);
 
@@ -226,10 +235,9 @@ export class ApiService {
     if (projectFileId) {
       formData.append('project_file_id', projectFileId.toString());
     }
-    
+
     return this.http.post<RunTestResponse>(`${this.baseUrl}/run-test`, formData);
   }
-
 
   getTestStatus(testName: string): Observable<TestStatusResponse> {
     return this.http.get<TestStatusResponse>(`${this.baseUrl}/test-status/${testName}`);
@@ -257,7 +265,9 @@ export class ApiService {
 
   listProjects(): Observable<any[]> {
     const username = (typeof window !== 'undefined' && localStorage.getItem('username')) || '';
-    return this.http.get<any[]>(`${this.baseUrl}/projects?username=${encodeURIComponent(username)}`);
+    return this.http.get<any[]>(
+      `${this.baseUrl}/projects?username=${encodeURIComponent(username)}`,
+    );
   }
 
   createProject(name: string, description: string, tags: string): Observable<any> {
@@ -312,7 +322,6 @@ export class ApiService {
     return `${this.baseUrl}/generated_tests/${filename}`;
   }
 
-
   registerUser(username: string, password: string, fullName: string = ''): Observable<any> {
     const formData = new FormData();
     formData.append('username', username);
@@ -347,8 +356,8 @@ export class ApiService {
     const token = typeof window !== 'undefined' ? localStorage.getItem('admin_auth_token') : null;
     return {
       headers: {
-        'Authorization': `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     };
   }
 
@@ -357,19 +366,30 @@ export class ApiService {
   }
 
   superadminDeleteUser(userId: number): Observable<any> {
-    return this.http.delete<any>(`${this.baseUrl}/superadmin/users/${userId}`, this.getAdminHeaders());
+    return this.http.delete<any>(
+      `${this.baseUrl}/superadmin/users/${userId}`,
+      this.getAdminHeaders(),
+    );
   }
 
   superadminUpdateUserRole(userId: number, role: string): Observable<any> {
     const formData = new FormData();
     formData.append('role', role);
-    return this.http.put<any>(`${this.baseUrl}/superadmin/users/${userId}/role`, formData, this.getAdminHeaders());
+    return this.http.put<any>(
+      `${this.baseUrl}/superadmin/users/${userId}/role`,
+      formData,
+      this.getAdminHeaders(),
+    );
   }
 
   superadminUpdateUserStatus(userId: number, status: string): Observable<any> {
     const formData = new FormData();
     formData.append('status', status);
-    return this.http.put<any>(`${this.baseUrl}/superadmin/users/${userId}/status`, formData, this.getAdminHeaders());
+    return this.http.put<any>(
+      `${this.baseUrl}/superadmin/users/${userId}/status`,
+      formData,
+      this.getAdminHeaders(),
+    );
   }
 
   superadminGetAnalytics(): Observable<any> {
@@ -386,14 +406,21 @@ export class ApiService {
   }
 
   getJenkinsLogs(jobName: string, buildNumber: number): Observable<{ logs: string }> {
-    return this.http.get<{ logs: string }>(`${this.baseUrl}/api/jenkins/logs/${encodeURIComponent(jobName)}/${buildNumber}`);
+    return this.http.get<{ logs: string }>(
+      `${this.baseUrl}/api/jenkins/logs/${encodeURIComponent(jobName)}/${buildNumber}`,
+    );
   }
 
   getJenkinsConfig(): Observable<JenkinsConfig> {
     return this.http.get<JenkinsConfig>(`${this.baseUrl}/api/jenkins/config`);
   }
 
-  saveJenkinsConfig(url: string, username: string, apiToken: string, enabled: boolean = true): Observable<any> {
+  saveJenkinsConfig(
+    url: string,
+    username: string,
+    apiToken: string,
+    enabled: boolean = true,
+  ): Observable<any> {
     const fd = new FormData();
     fd.append('url', url);
     fd.append('username', username);
@@ -410,8 +437,14 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/api/jenkins/test-connection`, fd);
   }
 
-  getDashboardSummary(username?: string, range: string = 'Last 1 Hour', startDate?: string, endDate?: string): Observable<DashboardSummary> {
-    const user = username || (typeof window !== 'undefined' ? localStorage.getItem('username') || '' : '');
+  getDashboardSummary(
+    username?: string,
+    range: string = 'Last 1 Hour',
+    startDate?: string,
+    endDate?: string,
+  ): Observable<DashboardSummary> {
+    const user =
+      username || (typeof window !== 'undefined' ? localStorage.getItem('username') || '' : '');
     let url = `${this.baseUrl}/dashboard/summary?username=${encodeURIComponent(user)}&range=${encodeURIComponent(range)}`;
     if (startDate && endDate) {
       url += `&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
@@ -423,11 +456,10 @@ export class ApiService {
   addLog(text: string, type: 'system' | 'success' | 'error' = 'system') {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
-    this.terminalLogs.update(logs => [...logs, { time: timeStr, text, type }]);
+    this.terminalLogs.update((logs) => [...logs, { time: timeStr, text, type }]);
   }
 
   clearLogs() {
     this.terminalLogs.set([]);
   }
 }
-

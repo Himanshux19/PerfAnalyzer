@@ -1,14 +1,13 @@
 import { Component, ChangeDetectorRef, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Navbar } from '../navbar/navbar';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [Navbar, FormsModule],
+  imports: [FormsModule],
   templateUrl: './admin-dashboard.html',
-  styleUrl: './admin-dashboard.css'
+  styleUrl: './admin-dashboard.css',
 })
 export class AdminDashboard implements OnInit {
   users: any[] = [];
@@ -25,14 +24,18 @@ export class AdminDashboard implements OnInit {
     total_files: 0,
     files_this_week: 0,
     files_this_month: 0,
-    total_test_runs: 0
+    total_test_runs: 0,
   };
 
   // Pagination
   page = 1;
   perPage = 10;
 
-  constructor(private api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private api: ApiService,
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   ngOnInit() {
     if (typeof window !== 'undefined') {
@@ -54,7 +57,7 @@ export class AdminDashboard implements OnInit {
       },
       error: (err) => {
         console.error('Failed to load analytics:', err);
-      }
+      },
     });
   }
 
@@ -76,10 +79,12 @@ export class AdminDashboard implements OnInit {
       },
       error: (err) => {
         console.error('Failed to load users:', err);
-        this.errorMessage = err.error?.detail || 'Failed to load users list. Make sure you are authenticated as Super Admin.';
+        this.errorMessage =
+          err.error?.detail ||
+          'Failed to load users list. Make sure you are authenticated as Super Admin.';
         this.isLoading = false;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -93,9 +98,10 @@ export class AdminDashboard implements OnInit {
       return this.users;
     }
     const q = this.searchQuery.toLowerCase().trim();
-    return this.users.filter(u =>
-      u.username.toLowerCase().includes(q) ||
-      (u.full_name && u.full_name.toLowerCase().includes(q))
+    return this.users.filter(
+      (u) =>
+        u.username.toLowerCase().includes(q) ||
+        (u.full_name && u.full_name.toLowerCase().includes(q)),
     );
   }
 
@@ -128,16 +134,19 @@ export class AdminDashboard implements OnInit {
     if (confirm(`Are you sure you want to delete user "${user.full_name || user.username}"?`)) {
       this.api.superadminDeleteUser(user.id).subscribe({
         next: () => {
-          this.users = this.users.filter(u => u.id !== user.id);
+          this.users = this.users.filter((u) => u.id !== user.id);
           this.successMessage = 'User deleted successfully.';
           this.cdr.detectChanges();
-          setTimeout(() => { this.successMessage = null; this.cdr.detectChanges(); }, 3000);
+          setTimeout(() => {
+            this.successMessage = null;
+            this.cdr.detectChanges();
+          }, 3000);
         },
         error: (err) => {
           console.error('Failed to delete user:', err);
           alert(err.error?.detail || 'Failed to delete user.');
           this.cdr.detectChanges();
-        }
+        },
       });
     }
   }
@@ -155,14 +164,17 @@ export class AdminDashboard implements OnInit {
         this.isUpdating = null;
         this.successMessage = `User role updated to ${newRole}.`;
         this.cdr.detectChanges();
-        setTimeout(() => { this.successMessage = null; this.cdr.detectChanges(); }, 3000);
+        setTimeout(() => {
+          this.successMessage = null;
+          this.cdr.detectChanges();
+        }, 3000);
       },
       error: (err) => {
         console.error('Failed to update role:', err);
         alert(err.error?.detail || 'Failed to update user role.');
         this.isUpdating = null;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -180,14 +192,17 @@ export class AdminDashboard implements OnInit {
         this.isUpdating = null;
         this.successMessage = `User account is now ${newStatus}.`;
         this.cdr.detectChanges();
-        setTimeout(() => { this.successMessage = null; this.cdr.detectChanges(); }, 3000);
+        setTimeout(() => {
+          this.successMessage = null;
+          this.cdr.detectChanges();
+        }, 3000);
       },
       error: (err) => {
         console.error('Failed to toggle status:', err);
         alert(err.error?.detail || 'Failed to update user status.');
         this.isUpdating = null;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
@@ -197,8 +212,18 @@ export class AdminDashboard implements OnInit {
       return;
     }
 
-    const headers = ['ID', 'Full Name', 'Email/Username', 'Role', 'Status', 'Registration Date', 'Workspaces', 'Files', 'Runs'];
-    const rows = this.users.map(u => [
+    const headers = [
+      'ID',
+      'Full Name',
+      'Email/Username',
+      'Role',
+      'Status',
+      'Registration Date',
+      'Workspaces',
+      'Files',
+      'Runs',
+    ];
+    const rows = this.users.map((u) => [
       u.id,
       u.full_name || 'No name',
       u.username,
@@ -207,12 +232,12 @@ export class AdminDashboard implements OnInit {
       u.created_at || '',
       u.workspace_count || 0,
       u.file_count || 0,
-      u.run_count || 0
+      u.run_count || 0,
     ]);
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+      ...rows.map((r) => r.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(',')),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

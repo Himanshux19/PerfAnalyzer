@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   Layout & SaaS Netlify Sidebar
+   Layout & Enterprise Sidebar
    ════════════════════════════════════════════════════════ */
 .projects-layout {
   display: flex;
-  background-color: #f1f5f9;
+  background-color: #f8fafc;
   overflow: hidden;
 }
 
@@ -22,10 +22,43 @@
   width: 68px;
 }
 
-/* Sidebar Logo & Header */
+/* Sidebar Header & Branding */
 .sidebar-header {
   height: 60px;
   flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sidebar-logo {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-logo:hover .sidebar-logo-img,
+.sidebar-logo-collapsed-btn:hover .sidebar-logo-img {
+  transform: scale(1.08);
+}
+
+.sidebar-logo-collapsed-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.18s ease;
+}
+
+.sidebar-logo-collapsed-btn:hover {
+  background-color: #f1f5f9;
 }
 
 .logo-text {
@@ -44,7 +77,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  transition: background 0.15s;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-toggle-sidebar:hover {
@@ -54,11 +87,11 @@
 
 /* Workspace Selector */
 .sidebar-workspace-selector {
-  flex-shrink: 0;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .workspace-avatar {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  background: #eff6ff;
   color: #2563eb;
   font-size: 1.1rem;
   border: 1px solid #bfdbfe;
@@ -66,13 +99,13 @@
   transition: transform 0.15s ease;
 }
 
-.workspace-avatar:hover {
-  transform: scale(1.05);
+.workspace-trigger:hover .workspace-avatar {
+  transform: scale(1.04);
 }
 
-/* Sidebar Links Navigation */
+/* Navigation Links */
 .sidebar-nav {
-  overflow-y: auto;
+  padding: 0 8px;
 }
 
 .nav-link-btn {
@@ -81,6 +114,7 @@
   border-radius: 8px;
   color: #475569;
   font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
@@ -89,19 +123,85 @@
 }
 
 .nav-link-btn:hover {
-  background-color: #f8fafc;
+  background-color: #f1f5f9;
   color: #0f172a;
 }
 
 .nav-link-btn.active {
   background-color: #eff6ff;
   color: #2563eb;
+  font-weight: 600;
+}
+
+/* Sidebar Nav Item Colored Icons */
+.nav-icon-dashboard {
+  color: #2563eb;
+}
+
+.nav-icon-workspaces {
+  color: #8b5cf6;
+}
+
+.nav-icon-about {
+  color: #0284c7;
+}
+
+.nav-icon-create {
+  color: #10b981;
+}
+
+.nav-icon-test {
+  color: #ef4444;
+}
+
+.nav-icon-files {
+  color: #f59e0b;
+}
+
+.nav-icon-reports {
+  color: #6366f1;
+}
+
+.nav-icon-queue {
+  color: #0d9488;
 }
 
 .nav-link-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   background-color: transparent !important;
+}
+
+/* Collapsed Sidebar Adjustments */
+.sidebar-container.collapsed .sidebar-top-nav,
+.sidebar-container.collapsed .sidebar-nav {
+  padding: 8px 6px !important;
+}
+
+.sidebar-container.collapsed .nav-link-btn {
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 44px;
+  height: 42px;
+  margin: 0 auto;
+  border-radius: 8px;
+  gap: 0 !important;
+}
+
+.sidebar-container.collapsed .nav-link-btn i {
+  font-size: 1.25rem !important;
+  margin: 0 !important;
+}
+
+.sidebar-container.collapsed .sidebar-workspace-collapsed {
+  padding: 12px 0;
+}
+
+.sidebar-container.collapsed .workspace-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 1.1rem;
 }
 
 /* Right Content Area */
@@ -114,7 +214,8 @@
 
 .content-header {
   height: 60px;
-  background-color: #ffffff;
+  background-color: var(--bg-header);
+  border-bottom: 1px solid var(--border-main);
   z-index: 90;
 }
 
@@ -122,6 +223,7 @@
   flex-grow: 1;
   overflow-y: auto;
   padding: 0;
+  background-color: var(--bg-app);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -758,4 +860,265 @@
 
 .sidebar-logo {
   padding: 4px 0;
+}
+
+/* ── Sidebar Logout Button ── */
+.btn-logout-sidebar {
+  background-color: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #ffe4e6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  letter-spacing: 0.02em;
+}
+
+.btn-logout-sidebar:hover {
+  background-color: #ffe4e6;
+  color: #be123c;
+  border-color: #fecdd3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.1);
+}
+
+.btn-logout-sidebar:active {
+  transform: translateY(0);
+}
+
+/* ── About Workspace Section Styles ── */
+.hover-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.quick-launch-item {
+  transition: all 0.18s ease;
+  background: #ffffff;
+}
+
+.quick-launch-item:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1 !important;
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.workspace-avatar-lg {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+/* =========================================================
+   WORKSPACE HEADER
+========================================================= */
+
+.workspace-header-card {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.workspace-avatar-lg {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 14px;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.workspace-title {
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.workspace-description {
+  max-width: 800px;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   WORKSPACE META BADGES
+========================================================= */
+
+.workspace-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.files-badge {
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.id-badge {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.workspace-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* =========================================================
+   SECTION HEADER
+========================================================= */
+
+.section-title {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.section-subtitle {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.quick-launch-count {
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* =========================================================
+   QUICK LAUNCH GRID
+========================================================= */
+
+.quick-launch-item {
+  min-height: 125px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-launch-item:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.08);
+}
+
+.quick-launch-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.icon-bubble {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 1.15rem;
+}
+
+.quick-launch-title {
+  margin-bottom: 5px;
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.quick-launch-description {
+  max-width: 360px;
+  color: #64748b;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.quick-launch-arrow {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.quick-launch-item:hover .quick-launch-arrow {
+  color: #2563eb;
+  transform: translateX(3px);
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 767px) {
+
+  .workspace-header-card {
+    padding: 18px !important;
+  }
+
+  .workspace-avatar-lg {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+
+    font-size: 1.2rem;
+  }
+
+  .workspace-title {
+    font-size: 1.05rem;
+  }
+
+  .workspace-actions {
+    width: 100%;
+  }
+
+  .workspace-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quick-launch-item {
+    min-height: 105px;
+    padding: 14px;
+  }
+
+  .quick-launch-description {
+    font-size: 0.66rem;
+  }
+
 }

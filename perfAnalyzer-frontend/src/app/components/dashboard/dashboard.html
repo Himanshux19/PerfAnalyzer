@@ -1,7 +1,4 @@
-<div class="runner-layout bg-light-gray-slate min-vh-100 pb-5">
-  <!-- Topbar Header -->
-  <app-navbar></app-navbar>
-
+<div class="pb-5">
   <!-- Execution Queue Toast Notification -->
   @if (showJenkinsQueueToast) {
   <div class="queue-toast">
@@ -31,7 +28,7 @@
 
       <div class="queue-toast-actions">
 
-        <a class="btn-action-premium primary" [routerLink]="['/queue']">
+        <a class="btn-action-premium primary" [routerLink]="['/projects']" [queryParams]="{ section: 'queue' }">
 
           <i class="bi bi-list-task"></i>
           <span>View Queue</span>

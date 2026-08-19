@@ -6,25 +6,48 @@
   <aside class="sidebar-container d-flex flex-column" [class.collapsed]="sidebarCollapsed">
 
     <!-- Sidebar Header -->
-    <div class="sidebar-header d-flex align-items-center justify-content-between px-3 py-3 border-bottom">
-      <div class="sidebar-logo d-flex align-items-center gap-2" *ngIf="!sidebarCollapsed">
+    <div class="sidebar-header d-flex align-items-center border-bottom"
+      [ngClass]="sidebarCollapsed ? 'justify-content-center px-2' : 'justify-content-between px-3'">
+      <div class="sidebar-logo d-flex align-items-center gap-2 cursor-pointer" *ngIf="!sidebarCollapsed"
+        (click)="setSection('dashboard')">
         <img src="/logo.png" alt="PerfAnalyzer" class="sidebar-logo-img" />
         <span class="logo-text font-bold text-slate-800">
           PerfAnalyzer
         </span>
       </div>
-      <div class="sidebar-logo-collapsed text-center w-100" *ngIf="sidebarCollapsed">
-        <i class="bi bi-activity text-primary fs-4"></i>
-      </div>
-      <button type="button" class="btn-toggle-sidebar border-0 bg-transparent p-1" (click)="toggleSidebar()"
-        title="Toggle Sidebar">
-        <i class="bi fs-5 text-muted" [class.bi-layout-sidebar-inset]="!sidebarCollapsed"
-          [class.bi-layout-sidebar]="sidebarCollapsed"></i>
+      <button type="button"
+        class="sidebar-logo-collapsed-btn border-0 bg-transparent p-0 d-flex align-items-center justify-content-center cursor-pointer"
+        *ngIf="sidebarCollapsed" (click)="toggleSidebar()" title="Expand Sidebar">
+        <img src="/logo.png" alt="PerfAnalyzer" class="sidebar-logo-img" />
+      </button>
+      <button type="button" class="btn-toggle-sidebar border-0 bg-transparent p-1" *ngIf="!sidebarCollapsed"
+        (click)="toggleSidebar()" title="Collapse Sidebar">
+        <i class="bi bi-layout-sidebar-inset fs-5 text-muted"></i>
       </button>
     </div>
 
-    <!-- Workspace Selector Dropdown -->
-    <div class="sidebar-workspace-selector px-3 py-3 border-bottom" *ngIf="!sidebarCollapsed">
+    <!-- 1. Top Primary Navigation (Dashboard & Workspaces) -->
+    <div class="sidebar-top-nav px-2 pt-3 pb-2">
+      <ul class="list-unstyled d-flex flex-column gap-1 m-0">
+        <li>
+          <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
+            [class.active]="activeSection === 'dashboard'" (click)="setSection('dashboard')" title="Dashboard Overview">
+            <i class="bi bi-speedometer2 fs-5 nav-icon-dashboard"></i>
+            <span *ngIf="!sidebarCollapsed" class="font-semibold">Dashboard</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
+            [class.active]="activeSection === 'workspaces'" (click)="setSection('workspaces')" title="Workspaces List">
+            <i class="bi bi-grid-fill fs-5 nav-icon-workspaces"></i>
+            <span *ngIf="!sidebarCollapsed" class="font-semibold">Workspaces</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 2. Workspace Selector (Choice) Below Dashboard -->
+    <div class="sidebar-workspace-selector px-3 py-3 border-top border-bottom" *ngIf="!sidebarCollapsed">
       <label class="text-muted fs-9 font-semibold uppercase tracking-wider mb-1.5 d-block">Active Workspace</label>
       <div class="dropdown">
         <button
@@ -60,7 +83,7 @@
     </div>
 
     <!-- Collapsed Workspace Selector Icon -->
-    <div class="sidebar-workspace-collapsed text-center py-3 border-bottom" *ngIf="sidebarCollapsed"
+    <div class="sidebar-workspace-collapsed text-center py-3 border-top border-bottom" *ngIf="sidebarCollapsed"
       [title]="drawerProject?.name || 'No Workspace'">
       <div
         class="workspace-avatar mx-auto bg-primary-soft text-primary font-bold d-flex align-items-center justify-content-center dropdown-toggle"
@@ -93,21 +116,22 @@
       </ul>
     </div>
 
-    <!-- Navigation Menu Links -->
-    <nav class="sidebar-nav mt-3 flex-grow-1 px-2">
+    <!-- 3. Workspace Specific Actions Menu Links -->
+    <nav class="sidebar-nav flex-grow-1 px-2 pt-3">
       <ul class="list-unstyled d-flex flex-column gap-1">
         <li>
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
-            [class.active]="activeSection === 'workspaces'" (click)="setSection('workspaces')" title="Workspaces List">
-            <i class="bi bi-grid-fill fs-5"></i>
-            <span *ngIf="!sidebarCollapsed" class="font-semibold">Workspaces</span>
+            [class.active]="activeSection === 'about'" (click)="setSection('about')" [disabled]="!selectedWorkspaceId"
+            title="About Workspace">
+            <i class="bi bi-info-circle-fill fs-5 nav-icon-about"></i>
+            <span *ngIf="!sidebarCollapsed" class="font-semibold">About Workspace</span>
           </button>
         </li>
         <li>
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
             [class.active]="activeSection === 'create-test'" (click)="setSection('create-test')"
             [disabled]="!selectedWorkspaceId" title="Create Test">
-            <i class="bi bi-plus-circle-fill fs-5"></i>
+            <i class="bi bi-plus-circle-fill fs-5 nav-icon-create"></i>
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Create Test</span>
           </button>
         </li>
@@ -115,7 +139,7 @@
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
             [class.active]="activeSection === 'test'" (click)="setSection('test')" [disabled]="!selectedWorkspaceId"
             title="Run Test">
-            <i class="bi bi-play-circle-fill fs-5"></i>
+            <i class="bi bi-play-circle-fill fs-5 nav-icon-test"></i>
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Run Test</span>
           </button>
         </li>
@@ -123,7 +147,7 @@
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
             [class.active]="activeSection === 'files'" (click)="setSection('files')" [disabled]="!selectedWorkspaceId"
             title="Files Manager">
-            <i class="bi bi-folder-fill fs-5"></i>
+            <i class="bi bi-folder-fill fs-5 nav-icon-files"></i>
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Files</span>
           </button>
         </li>
@@ -131,14 +155,14 @@
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
             [class.active]="activeSection === 'reports'" (click)="setSection('reports')"
             [disabled]="!selectedWorkspaceId" title="Reports History">
-            <i class="bi bi-file-earmark-bar-graph-fill fs-5"></i>
+            <i class="bi bi-file-earmark-bar-graph-fill fs-5 nav-icon-reports"></i>
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Reports</span>
           </button>
         </li>
         <li>
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
             [class.active]="activeSection === 'queue'" (click)="setSection('queue')" title="Test Queue">
-            <i class="bi bi-list-task fs-5"></i>
+            <i class="bi bi-list-task fs-5 nav-icon-queue"></i>
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Test Queue</span>
           </button>
         </li>
@@ -147,9 +171,9 @@
 
     <!-- Sidebar Bottom Profile -->
     <div class="sidebar-footer p-3 border-top mt-auto" *ngIf="!sidebarCollapsed">
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2 mb-2">
         <div class="avatar bg-primary-soft text-primary font-bold d-flex align-items-center justify-content-center"
-          style="width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem;">
+          style="width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; flex-shrink: 0;">
           {{ getInitials() || 'GU' }}
         </div>
         <div class="user-info text-slate-800 text-truncate" style="max-width: 140px;">
@@ -157,15 +181,26 @@
             || getUsername() || 'Guest User' }}</div>
         </div>
       </div>
+
+      <button type="button" class="btn-logout-sidebar w-100 d-flex align-items-center justify-content-center gap-2"
+        (click)="onLogout()">
+        <i class="bi bi-box-arrow-right"></i>
+        <span>Log Out</span>
+      </button>
     </div>
 
     <div class="sidebar-footer-collapsed text-center py-3 border-top mt-auto" *ngIf="sidebarCollapsed">
       <div
-        class="avatar mx-auto bg-primary-soft text-primary font-bold d-flex align-items-center justify-content-center"
+        class="avatar mx-auto bg-primary-soft text-primary font-bold d-flex align-items-center justify-content-center mb-2"
         [title]="getFullName() || getUsername()"
         style="width: 30px; height: 30px; border-radius: 50%; font-size: 0.8rem; cursor: pointer;">
         {{ getInitials() || 'GU' }}
       </div>
+      <button type="button" class="btn-logout-icon mx-auto d-flex align-items-center justify-content-center"
+        (click)="onLogout()" title="Log Out"
+        style="width: 30px; height: 30px; border-radius: 8px; border: 1px solid #fecdd3; background: #fff1f2; color: #e11d48; cursor: pointer;">
+        <i class="bi bi-box-arrow-right" style="font-size: 0.85rem;"></i>
+      </button>
     </div>
   </aside>
 
@@ -178,26 +213,305 @@
     <header
       class="content-header bg-white border-bottom px-4 py-3.5 d-flex align-items-center justify-content-between flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <h4 class="h6 m-0 font-bold text-slate-800">{{ activeSection === 'workspaces' ? 'Manage Workspaces' :
+        <h4 class="h6 m-0 font-bold text-slate-800">{{
+          activeSection === 'dashboard' ? 'Dashboard Overview' :
+          activeSection === 'workspaces' ? 'Manage Workspaces' :
+          activeSection === 'about' ? ('About ' + (drawerProject?.name || 'Workspace')) :
           (drawerProject?.name || 'Workspace Section') }}</h4>
-        <span class="badge bg-primary-soft text-primary font-semibold uppercase tracking-wider"
-          style="font-size: 0.65rem; padding: 3px 8px; border-radius: 4px;">
-          {{ activeSection }}
-        </span>
-      </div>
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm font-semibold d-inline-flex align-items-center gap-1.5"
-          href="/dashboard" style="border-radius: 8px; font-size: 0.8rem;">
-          <i class="bi bi-house-door-fill"></i> Dashboard Overview
-        </a>
       </div>
     </header>
 
     <!-- Content Body -->
     <div class="view-panel-body flex-grow-1 overflow-y-auto bg-light-gray-slate">
 
+      <!-- ── SECTION 0: DASHBOARD (OVERVIEW) ── -->
+      @if (activeSection === 'dashboard') {
+      <div class="fade-in-section">
+        <app-overview-dashboard></app-overview-dashboard>
+      </div>
+      }
+
+      <!-- ── SECTION: ABOUT THE WORKSPACE ── -->
+      @else if (activeSection === 'about') {
+      <div class="container-fluid py-4 px-lg-5 fade-in-section">
+
+        <!-- =========================================================
+       WORKSPACE HEADER
+  ========================================================== -->
+        <div class="card-premium workspace-header-card p-4 mb-4">
+
+          <div class="d-flex flex-column flex-xl-row
+                justify-content-between align-items-xl-center gap-4">
+
+            <!-- Workspace Identity -->
+            <div class="d-flex align-items-start gap-3">
+
+              <!-- Avatar -->
+              <div class="workspace-avatar-lg
+                    bg-primary-soft text-primary
+                    d-flex align-items-center justify-content-center">
+                {{ (drawerProject?.name || 'W').charAt(0) | uppercase }}
+              </div>
+
+              <div class="workspace-info">
+
+                <!-- Workspace Name + Files + ID -->
+                <div class="d-flex align-items-center gap-2
+                      mb-2 flex-wrap">
+
+                  <h2 class="workspace-title m-0">
+                    {{ drawerProject?.name || 'Workspace' }}
+                  </h2>
+
+                  <!-- Files -->
+                  <span class="workspace-meta-badge files-badge">
+                    <i class="bi bi-files me-1"></i>
+                    {{ drawerFiles.length || drawerProject?.file_count || 0 }}
+                    Files
+                  </span>
+
+                  <!-- ID -->
+                  <span class="workspace-meta-badge id-badge font-mono">
+                    ID: #{{ drawerProject?.id }}
+                  </span>
+
+                </div>
+
+                <!-- Description -->
+                <p class="workspace-description text-muted mb-2">
+                  {{ drawerProject?.description ||
+                  'No description provided for this workspace.' }}
+                </p>
+
+                <!-- Tags -->
+                @if (drawerProject?.tags &&
+                getTagsArray(drawerProject.tags).length > 0) {
+
+                <div class="workspace-tags d-flex flex-wrap gap-2">
+
+                  @for (tag of getTagsArray(drawerProject.tags); track tag) {
+
+                  <span class="workspace-tag">
+                    <i class="bi bi-tag-fill text-primary me-1"></i>
+                    {{ tag }}
+                  </span>
+
+                  }
+
+                </div>
+
+                }
+
+              </div>
+
+            </div>
+
+
+            <!-- Edit Button -->
+            <div class="workspace-actions">
+
+              <button type="button" class="btn btn-outline-secondary btn-sm
+                 font-semibold d-flex align-items-center gap-2" (click)="openEditModal(drawerProject)">
+                <i class="bi bi-pencil-fill"></i>
+                <span>Edit Workspace</span>
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- =========================================================
+       QUICK LAUNCH - 2 x 2 GRID
+  ========================================================== -->
+        <div class="card-premium p-4">
+
+          <!-- Section Header -->
+          <div class="section-header
+                d-flex align-items-center justify-content-between
+                mb-4 pb-3 border-bottom">
+
+            <div>
+
+              <h5 class="section-title m-0">
+                <i class="bi bi-compass-fill text-primary me-2"></i>
+                Workspace Quick Launch
+              </h5>
+
+              <p class="section-subtitle text-muted mb-0 mt-1">
+                Quickly access your workspace tools
+              </p>
+
+            </div>
+
+            <span class="quick-launch-count">
+              4 Actions
+            </span>
+
+          </div>
+
+
+          <!-- 2 x 2 Grid -->
+          <div class="row g-3">
+
+            <!-- =====================================================
+           Execute Load Test
+      ====================================================== -->
+            <div class="col-md-6">
+
+              <div class="quick-launch-item h-100" (click)="setSection('test')">
+
+                <div class="quick-launch-left">
+
+                  <div class="icon-bubble bg-primary-soft text-primary">
+                    <i class="bi bi-play-circle-fill"></i>
+                  </div>
+
+                  <div>
+
+                    <div class="quick-launch-title">
+                      Execute Load Test
+                    </div>
+
+                    <div class="quick-launch-description">
+                      Run performance scripts with live log streaming
+                      and real-time metrics.
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div class="quick-launch-arrow">
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- =====================================================
+           Create / Configure Test
+      ====================================================== -->
+            <div class="col-md-6">
+
+              <div class="quick-launch-item h-100" (click)="setSection('create-test')">
+
+                <div class="quick-launch-left">
+
+                  <div class="icon-bubble bg-info-soft text-info">
+                    <i class="bi bi-plus-circle-fill"></i>
+                  </div>
+
+                  <div>
+
+                    <div class="quick-launch-title">
+                      Create / Configure Test
+                    </div>
+
+                    <div class="quick-launch-description">
+                      Design new test execution plans and configure
+                      user loads.
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div class="quick-launch-arrow">
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- =====================================================
+           Files & Test Assets
+      ====================================================== -->
+            <div class="col-md-6">
+
+              <div class="quick-launch-item h-100" (click)="setSection('files')">
+
+                <div class="quick-launch-left">
+
+                  <div class="icon-bubble bg-warning-soft text-warning">
+                    <i class="bi bi-folder-fill"></i>
+                  </div>
+
+                  <div>
+
+                    <div class="quick-launch-title">
+                      Files & Test Assets
+                    </div>
+
+                    <div class="quick-launch-description">
+                      Upload JMX test plans, CSV parameters,
+                      and custom libraries.
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div class="quick-launch-arrow">
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- =====================================================
+           Reports & Analytics
+      ====================================================== -->
+            <div class="col-md-6">
+
+              <div class="quick-launch-item h-100" (click)="setSection('reports')">
+
+                <div class="quick-launch-left">
+
+                  <div class="icon-bubble bg-success-soft text-success">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                  </div>
+
+                  <div>
+
+                    <div class="quick-launch-title">
+                      Reports & Test Analytics
+                    </div>
+
+                    <div class="quick-launch-description">
+                      Analyze response times, error rates,
+                      throughput, and test results.
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div class="quick-launch-arrow">
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+      }
+
       <!-- ── SECTION 1: WORKSPACES LIST (GRID) ── -->
-      @if (activeSection === 'workspaces') {
+      @else if (activeSection === 'workspaces') {
       <div class="container-fluid py-4 px-lg-5">
         <!-- Header -->
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -299,7 +613,7 @@
         <div class="projects-grid">
           @for (project of filteredProjects; track project.id) {
           <div class="project-card" [class.active-drawer]="selectedWorkspaceId === project.id"
-            (click)="goToRunner(project)">
+            (click)="goToAbout(project)">
             <!-- Card Top Accent Bar -->
             <div class="project-card-accent"></div>
 

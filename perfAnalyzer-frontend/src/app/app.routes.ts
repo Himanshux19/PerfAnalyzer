@@ -1,26 +1,22 @@
 import { Routes } from '@angular/router';
 import { Auth } from './components/auth/auth';
-import { CreateTest } from './components/create-test/create-test';
-import { Dashboard } from './components/dashboard/dashboard';
-import { OverviewDashboard } from './components/overview-dashboard/overview-dashboard';
-import { ReportsHistory } from './components/reports-history/reports-history';
 import { Projects } from './components/projects/projects';
 import { AdminAuth } from './components/admin-auth/admin-auth';
 import { AdminDashboard } from './components/admin-dashboard/admin-dashboard';
-import { TestQueue } from './components/test-queue/test-queue';
 
 export const routes: Routes = [
   { path: 'login', component: Auth },
-  { path: 'dashboard', component: OverviewDashboard },
-  { path: 'create-test', component: CreateTest },
-  { path: 'test', component: Dashboard },
-  { path: 'queue', component: TestQueue },
-  { path: 'reports', component: ReportsHistory },
-  { path: 'projects', component: Projects },
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: 'dashboard', component: Projects, data: { section: 'dashboard' } },
+  { path: 'workspaces', component: Projects, data: { section: 'workspaces' } },
+  { path: 'projects', component: Projects, data: { section: 'workspaces' } },
+  { path: 'about', component: Projects, data: { section: 'about' } },
+  { path: 'create-test', component: Projects, data: { section: 'create-test' } },
+  { path: 'test', component: Projects, data: { section: 'test' } },
+  { path: 'files', component: Projects, data: { section: 'files' } },
+  { path: 'reports', component: Projects, data: { section: 'reports' } },
+  { path: 'queue', component: Projects, data: { section: 'queue' } },
   { path: 'admin/login', component: AdminAuth },
   { path: 'admin/dashboard', component: AdminDashboard },
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-  { path: '**', redirectTo: 'dashboard' }
+  { path: '**', redirectTo: 'dashboard' },
 ];
-
-

@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Logs } from '../logs/logs';
-import { Navbar } from '../navbar/navbar';
 import { Reports } from '../reports/reports';
 import { TestConfig } from '../test-config/test-config';
 import { FormsModule } from '@angular/forms';
@@ -10,9 +9,9 @@ import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, RouterLink, Logs, Navbar, Reports, TestConfig, FormsModule],
+  imports: [CommonModule, RouterLink, Logs, Reports, TestConfig, FormsModule],
   templateUrl: './dashboard.html',
-  styleUrl: './dashboard.css'
+  styleUrl: './dashboard.css',
 })
 export class Dashboard implements OnInit, OnDestroy {
   private pollingInterval: any = null;
@@ -22,7 +21,11 @@ export class Dashboard implements OnInit, OnDestroy {
   jenkinsTestName: string | null = null;
   jenkinsQueueId: string | null = null;
 
-  constructor(protected api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(
+    protected api: ApiService,
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   ngOnInit() {
     // Session Guard check (Browser only)
@@ -52,7 +55,10 @@ export class Dashboard implements OnInit, OnDestroy {
 
     if (!isCsv) {
       if (threads <= 0 || duration < 0) {
-        this.api.addLog('Error: Thread count must be greater than 0, and duration must be 0 or greater.', 'error');
+        this.api.addLog(
+          'Error: Thread count must be greater than 0, and duration must be 0 or greater.',
+          'error',
+        );
         return;
       }
     }
@@ -73,11 +79,20 @@ export class Dashboard implements OnInit, OnDestroy {
     this.api.testStatus.set('running');
 
     if (isCsv) {
-      this.api.addLog(`Initializing HTML report generation from uploaded CSV: ${this.api.csvFileName()}`, 'system');
+      this.api.addLog(
+        `Initializing HTML report generation from uploaded CSV: ${this.api.csvFileName()}`,
+        'system',
+      );
       this.api.addLog(`Target file on server: ${targetFile}`, 'system');
     } else {
-      this.api.addLog(`Initializing test execution: ${this.api.jmxFileName()} (Server: ${jmxServer})`, 'system');
-      this.api.addLog(`Parameters: Threads: ${threads} | Ramp-up: ${rampUp}s | Duration: ${duration}s`, 'system');
+      this.api.addLog(
+        `Initializing test execution: ${this.api.jmxFileName()} (Server: ${jmxServer})`,
+        'system',
+      );
+      this.api.addLog(
+        `Parameters: Threads: ${threads} | Ramp-up: ${rampUp}s | Duration: ${duration}s`,
+        'system',
+      );
       this.api.addLog('Submitting test to execution queue...', 'system');
     }
 
@@ -108,7 +123,10 @@ export class Dashboard implements OnInit, OnDestroy {
           this.jenkinsTestName = res.test_name;
           this.jenkinsQueueId = queueId || null;
           // Auto-hide toast after 8 seconds
-          setTimeout(() => { this.showJenkinsQueueToast = false; this.cdr.detectChanges(); }, 8000);
+          setTimeout(() => {
+            this.showJenkinsQueueToast = false;
+            this.cdr.detectChanges();
+          }, 8000);
         } else {
           // Local execution
           if (isCsv) {
@@ -130,19 +148,20 @@ export class Dashboard implements OnInit, OnDestroy {
         const errorMsg = err.error?.detail || err.message || 'Connection error';
         this.api.addLog(`Execution initialization failed: ${errorMsg}`, 'error');
         this.cdr.detectChanges();
-      }
+      },
     });
   }
-
 
   pollStatus(testName: string) {
     this.api.getTestStatus(testName).subscribe({
       next: (res) => {
         // 1. Process JMeter logs
         if (res.jmeter_log) {
-          const lines = res.jmeter_log.split('\n').filter(l => l.trim() !== '');
-          const formattedLines = lines.map(line => {
-            const match = line.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([A-Z]+)\s+([a-zA-Z0-9\.\$\_]+:)?\s*(.*)$/);
+          const lines = res.jmeter_log.split('\n').filter((l) => l.trim() !== '');
+          const formattedLines = lines.map((line) => {
+            const match = line.match(
+              /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([A-Z]+)\s+([a-zA-Z0-9\.\$\_]+:)?\s*(.*)$/,
+            );
             if (match) {
               return {
                 date: match[1],
@@ -150,7 +169,7 @@ export class Dashboard implements OnInit, OnDestroy {
                 level: match[3],
                 category: match[4] || '',
                 message: match[5],
-                raw: null
+                raw: null,
               };
             } else {
               return {
@@ -159,14 +178,14 @@ export class Dashboard implements OnInit, OnDestroy {
                 level: null,
                 category: null,
                 message: null,
-                raw: line
+                raw: line,
               };
             }
           });
           this.api.terminalLogs.set(formattedLines);
         }
 
-        this.api.elapsedSeconds.update(s => s + 1);
+        this.api.elapsedSeconds.update((s) => s + 1);
 
         // 2. Parse JTL stats if available, else fall back to parsing bzt.log
         if (res.throughput !== undefined && res.throughput > 0) {
@@ -187,7 +206,7 @@ export class Dashboard implements OnInit, OnDestroy {
           // update peak (based on windowed live rate)
           const currentPeak = parseFloat(this.api.runnerPeakRps().split(' ')[1]) || 0;
           if (graphRps > currentPeak) {
-            this.api.runnerPeakRps.set("peak " + graphRps);
+            this.api.runnerPeakRps.set('peak ' + graphRps);
           }
 
           // update history (graph uses windowed_rps)
@@ -203,7 +222,7 @@ export class Dashboard implements OnInit, OnDestroy {
           clearInterval(this.pollingInterval);
           this.pollingInterval = null;
           this.api.testStatus.set(res.status);
-          
+
           if (res.status === 'success') {
             this.api.addLog('Success: Test execution completed successfully!', 'success');
           } else {
@@ -215,14 +234,14 @@ export class Dashboard implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error polling test status:', err);
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
   parseBztLog(bztLog: string) {
     if (!bztLog) return;
     const lines = bztLog.split('\n');
-    
+
     let parsedUsers: number | null = null;
     let parsedRps: number | null = null;
     let parsedRt: number | null = null;
@@ -231,15 +250,19 @@ export class Dashboard implements OnInit, OnDestroy {
     for (let i = lines.length - 1; i >= 0; i--) {
       const line = lines[i];
 
-      const matchTable = line.match(/\|\s*([^\|]+?)\s*\|\s*([^\|]+?)\s*\|\s*([\d\.]+)%\s*\|\s*([\d\.]+)\s*\|/);
+      const matchTable = line.match(
+        /\|\s*([^\|]+?)\s*\|\s*([^\|]+?)\s*\|\s*([\d\.]+)%\s*\|\s*([\d\.]+)\s*\|/,
+      );
       if (matchTable && matchTable[1].trim() !== 'label' && matchTable[1].trim() !== 'Total') {
         const succRate = parseFloat(matchTable[3]);
         parsedErrors = 100 - succRate;
         parsedRt = Math.round(parseFloat(matchTable[4]) * 1000);
         break;
       }
-      
-      const matchTaurus = line.match(/VU:\s*(\d+)\s+RPS:\s*([\d\.]+)\s+avg:\s*(\d+)ms\s+errors:\s*([\d\.]+)%/i);
+
+      const matchTaurus = line.match(
+        /VU:\s*(\d+)\s+RPS:\s*([\d\.]+)\s+avg:\s*(\d+)ms\s+errors:\s*([\d\.]+)%/i,
+      );
       if (matchTaurus) {
         parsedUsers = parseInt(matchTaurus[1], 10);
         parsedRps = parseFloat(matchTaurus[2]);
@@ -261,8 +284,13 @@ export class Dashboard implements OnInit, OnDestroy {
         parsedRt = unit.toLowerCase() === 's' ? Math.round(val * 1000) : Math.round(val);
       }
       if (matchErrors && parsedErrors === null) parsedErrors = parseFloat(matchErrors[1]);
-      
-      if (parsedUsers !== null && parsedRps !== null && parsedRt !== null && parsedErrors !== null) {
+
+      if (
+        parsedUsers !== null &&
+        parsedRps !== null &&
+        parsedRt !== null &&
+        parsedErrors !== null
+      ) {
         break;
       }
     }
@@ -286,35 +314,35 @@ export class Dashboard implements OnInit, OnDestroy {
     if (parsedUsers !== null) this.api.users.set(parsedUsers);
     if (parsedRps !== null) {
       this.api.runnerRps.set(`${parsedRps} RPS`);
-      
+
       const currentPeak = parseFloat(this.api.runnerPeakRps().split(' ')[1]) || 0;
       if (parsedRps > currentPeak) {
         this.api.runnerPeakRps.set(`peak ${parsedRps}`);
       }
 
       // update average RPS
-      this.api.totalRequests.update(r => r + parsedRps);
+      this.api.totalRequests.update((r) => r + parsedRps);
       const elapsed = this.api.elapsedSeconds();
-      const avgRpsVal = elapsed > 0 ? Math.round((this.api.totalRequests() / elapsed) * 10) / 10 : parsedRps;
+      const avgRpsVal =
+        elapsed > 0 ? Math.round((this.api.totalRequests() / elapsed) * 10) / 10 : parsedRps;
       this.api.runnerAvgRps.set(`${avgRpsVal} RPS`);
-      
+
       const history = [...this.api.rpsHistory(), parsedRps].slice(-20);
       this.api.rpsHistory.set(history);
     }
     if (parsedRt !== null) {
       this.api.runnerAvgRt.set(`${parsedRt} ms`);
-      
+
       const history = [...this.api.rtHistory(), parsedRt].slice(-20);
       this.api.rtHistory.set(history);
     }
     if (parsedErrors !== null) {
       this.api.runnerErrorRate.set(`${parsedErrors.toFixed(2)}%`);
-      
+
       const history = [...this.api.errorHistory(), parsedErrors].slice(-20);
       this.api.errorHistory.set(history);
     }
   }
-
 
   ngOnDestroy() {
     if (this.pollingInterval) {

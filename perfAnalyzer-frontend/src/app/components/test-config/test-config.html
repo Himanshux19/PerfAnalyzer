@@ -19,119 +19,141 @@
 
   <!-- 1. Select Workspace / Upload File -->
   <div class="setup-section mb-4">
-    
-    @if (configMode === 'workspace') {
-      <div class="workspace-selection-fields">
-        <div class="mb-3">
-          <label class="form-label-premium" for="workspace-select">1. Select Project Workspace</label>
-          <div class="d-flex gap-2">
-            <select id="workspace-select" class="form-select form-input-premium" [(ngModel)]="selectedWorkspaceId" (change)="onWorkspaceChange()" [disabled]="isEmbeddedInWorkspace()">
-              <option [value]="null">Select Workspace</option>
-              @for (ws of workspaces; track ws.id) {
-                <option [value]="ws.id">{{ ws.name }} ({{ ws.file_count }} file{{ ws.file_count !== 1 ? 's' : '' }})</option>
-              }
-            </select>
-            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadWorkspaces()" title="Refresh Workspaces" [disabled]="isEmbeddedInWorkspace()">
-              <i class="bi bi-arrow-clockwise"></i>
-            </button>
-          </div>
-        </div>
 
-        <div class="mb-3">
-          <label class="form-label-premium" for="file-select">2. Select Test File</label>
-          <select id="file-select" class="form-select form-input-premium" [(ngModel)]="selectedFileId" (change)="onFileChange()" [disabled]="!selectedWorkspaceId">
-            <option [value]="null">Select File</option>
-            @for (file of workspaceFiles; track file.id) {
-              <option [value]="file.id">{{ file.filename }} ({{ file.file_type | uppercase }})</option>
+    @if (configMode === 'workspace') {
+    <div class="workspace-selection-fields">
+      <div class="mb-3">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <label class="form-label-premium m-0" for="workspace-select">1. Select Project Workspace</label>
+          <!-- @if (isWorkspaceLocked()) { -->
+          <!-- <span class="badge bg-light text-muted border font-semibold fs-9 d-flex align-items-center gap-1">
+                <i class="bi bi-lock-fill text-secondary"></i> Locked
+              </span> -->
+          <!-- } -->
+        </div>
+        <div class="d-flex gap-2">
+          <select id="workspace-select" class="form-select form-input-premium" [(ngModel)]="selectedWorkspaceId"
+            (change)="onWorkspaceChange()" [disabled]="isWorkspaceLocked()">
+            <option [value]="null">Select Workspace</option>
+            @for (ws of workspaces; track ws.id) {
+            <option [value]="ws.id">{{ ws.name }} ({{ ws.file_count }} file{{ ws.file_count !== 1 ? 's' : '' }})
+            </option>
             }
           </select>
-          @if (selectedWorkspaceId && workspaceFiles.length === 0 && !isLoadingFiles) {
-            <div class="text-muted fs-8 mt-1">No files in this workspace. Upload files in the Project Workspace tab first.</div>
-          }
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadWorkspaces()"
+            title="Refresh Workspaces" [disabled]="isWorkspaceLocked()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
         </div>
       </div>
-    } @else {
-      <div class="setup-section-title">Upload Script or Dataset (.jmx / .csv / .yaml)</div>
-      <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
-        <span class="text-muted fs-7 mb-2">Drag and drop JMX/YAML script or CSV results here</span>
-        <label for="fileUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
-          <i class="bi bi-cloud-upload"></i> Upload File
-        </label>
-        <input type="file" id="fileUploadInput" accept=".jmx,.csv,.yaml,.yml" class="d-none" (change)="onFileSelected($event)" />
+
+      <div class="mb-3">
+        <label class="form-label-premium" for="file-select">2. Select Test File</label>
+        <select id="file-select" class="form-select form-input-premium" [(ngModel)]="selectedFileId"
+          (change)="onFileChange()" [disabled]="!selectedWorkspaceId">
+          <option [value]="null">Select File</option>
+          @for (file of workspaceFiles; track file.id) {
+          <option [value]="file.id">{{ file.filename }} ({{ file.file_type | uppercase }})</option>
+          }
+        </select>
+        @if (selectedWorkspaceId && workspaceFiles.length === 0 && !isLoadingFiles) {
+        <div class="text-muted fs-8 mt-1">No files in this workspace. Upload files in the Project Workspace tab first.
+        </div>
+        }
       </div>
+    </div>
+    } @else {
+    <div class="setup-section-title">Upload Script or Dataset (.jmx / .csv / .yaml)</div>
+    <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
+      <span class="text-muted fs-7 mb-2">Drag and drop JMX/YAML script or CSV results here</span>
+      <label for="fileUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
+        <i class="bi bi-cloud-upload"></i> Upload File
+      </label>
+      <input type="file" id="fileUploadInput" accept=".jmx,.csv,.yaml,.yml" class="d-none"
+        (change)="onFileSelected($event)" />
+    </div>
     }
 
     <!-- Active JMX Script Display -->
     @if (api.jmxFileName()) {
-      <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-file-earmark-code fs-4 text-secondary"></i>
-          <div>
-            <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160" [title]="api.jmxFileName()">{{ api.jmxFileName() }}</div>
-            <div class="uploaded-file-size text-muted fs-8">{{ api.jmxFileSize() }} (Active {{ api.jmxFileName() && (api.jmxFileName()!.toLowerCase().endsWith('.yaml') || api.jmxFileName()!.toLowerCase().endsWith('.yml')) ? 'YAML' : 'JMX' }} Script)</div>
-          </div>
+    <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-code fs-4 text-secondary"></i>
+        <div>
+          <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160"
+            [title]="api.jmxFileName()">{{ api.jmxFileName() }}</div>
+          <div class="uploaded-file-size text-muted fs-8">{{ api.jmxFileSize() }} (Active {{ api.jmxFileName() &&
+            (api.jmxFileName()!.toLowerCase().endsWith('.yaml') || api.jmxFileName()!.toLowerCase().endsWith('.yml')) ?
+            'YAML' : 'JMX' }} Script)</div>
         </div>
-        
-        @if (api.jmxUploadStatus() === 'uploading') {
-          <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
-            Uploading
-          </span>
-        } @else if (api.jmxUploadStatus() === 'success') {
-          <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
-        } @else if (api.jmxUploadStatus() === 'error') {
-          <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
-        }
       </div>
+
+      @if (api.jmxUploadStatus() === 'uploading') {
+      <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"
+          style="width: 10px; height: 10px;"></span>
+        Uploading
+      </span>
+      } @else if (api.jmxUploadStatus() === 'success') {
+      <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
+      } @else if (api.jmxUploadStatus() === 'error') {
+      <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
+      }
+    </div>
     }
 
     <!-- Active CSV Dataset Display -->
     @if (api.csvFileName()) {
-      <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-file-earmark-spreadsheet fs-4 text-secondary"></i>
-          <div>
-            <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160" [title]="api.csvFileName()">{{ api.csvFileName() }}</div>
-            <div class="uploaded-file-size text-muted fs-8">{{ api.csvFileSize() }} (Active CSV Dataset)</div>
-          </div>
+    <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-spreadsheet fs-4 text-secondary"></i>
+        <div>
+          <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160"
+            [title]="api.csvFileName()">{{ api.csvFileName() }}</div>
+          <div class="uploaded-file-size text-muted fs-8">{{ api.csvFileSize() }} (Active CSV Dataset)</div>
         </div>
-
-        @if (api.csvUploadStatus() === 'uploading') {
-          <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
-            Uploading
-          </span>
-        } @else if (api.csvUploadStatus() === 'success') {
-          <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
-        } @else if (api.csvUploadStatus() === 'error') {
-          <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
-        }
       </div>
+
+      @if (api.csvUploadStatus() === 'uploading') {
+      <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"
+          style="width: 10px; height: 10px;"></span>
+        Uploading
+      </span>
+      } @else if (api.csvUploadStatus() === 'success') {
+      <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
+      } @else if (api.csvUploadStatus() === 'error') {
+      <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
+      }
+    </div>
     }
   </div>
-<br>
+  <br>
   <!-- 2. JMeter Configuration -->
   <div class="setup-section">
     <div class="setup-section-title">Load Configuration</div>
-    
+
     <div class="row g-3">
       <div class="col-sm-6 col-12">
         <label class="form-label-premium">Thread Count (Users)</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.concurrency()" (ngModelChange)="api.concurrency.set($event)" [disabled]="!!api.csvFileName()" />
+        <input type="number" class="form-input-premium" [ngModel]="api.concurrency()"
+          (ngModelChange)="api.concurrency.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
       <div class="col-sm-6 col-12">
         <label class="form-label-premium">Ramp-up (Seconds)</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.rampUp()" (ngModelChange)="api.rampUp.set($event)" [disabled]="!!api.csvFileName()" />
+        <input type="number" class="form-input-premium" [ngModel]="api.rampUp()"
+          (ngModelChange)="api.rampUp.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
       <div class="col-sm-6 col-12">
         <label class="form-label-premium">Loop Count</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.loopCount()" (ngModelChange)="api.loopCount.set($event)" [disabled]="!!api.csvFileName()" />
+        <input type="number" class="form-input-premium" [ngModel]="api.loopCount()"
+          (ngModelChange)="api.loopCount.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
       <div class="col-sm-6 col-12">
         <label class="form-label-premium">Duration (Seconds)</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.duration()" (ngModelChange)="api.duration.set($event)" [disabled]="!!api.csvFileName()" />
+        <input type="number" class="form-input-premium" [ngModel]="api.duration()"
+          (ngModelChange)="api.duration.set($event)" [disabled]="!!api.csvFileName()" />
       </div>
     </div>
   </div>
 </div>
-

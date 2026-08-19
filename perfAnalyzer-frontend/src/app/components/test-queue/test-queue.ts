@@ -2,15 +2,14 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
-import { Navbar } from '../navbar/navbar';
 import { ApiService, TestQueueItem } from '../../api.service';
 
 @Component({
   selector: 'app-test-queue',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, Navbar],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './test-queue.html',
-  styleUrl: './test-queue.css'
+  styleUrl: './test-queue.css',
 })
 export class TestQueue implements OnInit, OnDestroy {
   queueItems: TestQueueItem[] = [];
@@ -44,21 +43,34 @@ export class TestQueue implements OnInit, OnDestroy {
   selectedDetailsItem: TestQueueItem | null = null;
 
   projectIdFilter: number | null = null;
+  filterByWorkspace = true;
+
+  get currentProjectId(): number | null {
+    return this.projectIdFilter || this.api.selectedProjectId() || null;
+  }
+
+  toggleWorkspaceFilter() {
+    this.filterByWorkspace = !this.filterByWorkspace;
+    this.cdr.detectChanges();
+  }
 
   constructor(
     protected api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
-      if (!token) { this.router.navigate(['/login']); return; }
+      if (!token) {
+        this.router.navigate(['/login']);
+        return;
+      }
     }
 
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       if (params['projectId']) {
         this.projectIdFilter = Number(params['projectId']);
       } else {
@@ -87,27 +99,32 @@ export class TestQueue implements OnInit, OnDestroy {
   }
 
   loadQueue(isBackground = false) {
-    if (!isBackground) { this.isLoading = true; }
-    else { this.isRefreshing = true; }
+    if (!isBackground) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
     this.errorMessage = null;
 
     const username = this.getCurrentUsername();
 
-    this.api.getTestQueue(username, this.statusFilter === 'all' ? undefined : this.statusFilter).subscribe({
-      next: (items) => {
-        this.queueItems = items;
-        this.lastRefreshed = new Date();
-        this.isLoading = false;
-        this.isRefreshing = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.errorMessage = 'Unable to fetch queue. Is the PerfAnalyzer backend running?';
-        this.isLoading = false;
-        this.isRefreshing = false;
-        this.cdr.detectChanges();
-      }
-    });
+    this.api
+      .getTestQueue(username, this.statusFilter === 'all' ? undefined : this.statusFilter)
+      .subscribe({
+        next: (items) => {
+          this.queueItems = items;
+          this.lastRefreshed = new Date();
+          this.isLoading = false;
+          this.isRefreshing = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.errorMessage = 'Unable to fetch queue. Is the PerfAnalyzer backend running?';
+          this.isLoading = false;
+          this.isRefreshing = false;
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   setStatusFilter(f: string) {
@@ -120,28 +137,39 @@ export class TestQueue implements OnInit, OnDestroy {
     const currentUser = this.getCurrentUsername();
     let items = this.queueItems;
     if (currentUser && currentUser.toLowerCase() !== 'admin') {
-      items = items.filter(i => (i.username || '').toLowerCase() === currentUser.toLowerCase());
+      items = items.filter((i) => (i.username || '').toLowerCase() === currentUser.toLowerCase());
     }
-    if (this.projectIdFilter) {
-      items = items.filter(i => i.project_id === this.projectIdFilter);
+    const pid = this.currentProjectId;
+    if (pid && this.filterByWorkspace) {
+      items = items.filter((i) => i.project_id === pid);
     }
     return items;
   }
 
   get filteredItems(): TestQueueItem[] {
-    return this.userItems.filter(item => {
+    return this.userItems.filter((item) => {
       const st = (item.status || '').toLowerCase();
       if (this.statusFilter !== 'all') {
         if (this.statusFilter === 'running' && st !== 'running' && st !== 'building') return false;
-        if (this.statusFilter === 'queued'  && st !== 'queued') return false;
+        if (this.statusFilter === 'queued' && st !== 'queued') return false;
         if (this.statusFilter === 'success' && st !== 'success' && st !== 'completed') return false;
-        if (this.statusFilter === 'error'   && st !== 'error' && st !== 'failed' && st !== 'failure' && st !== 'aborted') return false;
+        if (
+          this.statusFilter === 'error' &&
+          st !== 'error' &&
+          st !== 'failed' &&
+          st !== 'failure' &&
+          st !== 'aborted'
+        )
+          return false;
       }
       if (this.searchQuery.trim()) {
         const q = this.searchQuery.toLowerCase();
-        if (!item.test_name.toLowerCase().includes(q) &&
-            !item.username.toLowerCase().includes(q) &&
-            !(item.project_name || '').toLowerCase().includes(q)) return false;
+        if (
+          !item.test_name.toLowerCase().includes(q) &&
+          !item.username.toLowerCase().includes(q) &&
+          !(item.project_name || '').toLowerCase().includes(q)
+        )
+          return false;
       }
       return true;
     });
@@ -152,37 +180,61 @@ export class TestQueue implements OnInit, OnDestroy {
     return this.filteredItems.slice(s, s + this.perPage);
   }
 
-  get totalPages() { return Math.ceil(this.filteredItems.length / this.perPage) || 1; }
-  get pageNumbers() { return Array.from({ length: this.totalPages }, (_, i) => i + 1); }
+  get totalPages() {
+    return Math.ceil(this.filteredItems.length / this.perPage) || 1;
+  }
+  get pageNumbers() {
+    return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+  }
 
   setPage(p: number) {
-    if (p >= 1 && p <= this.totalPages) { this.page = p; this.cdr.detectChanges(); }
+    if (p >= 1 && p <= this.totalPages) {
+      this.page = p;
+      this.cdr.detectChanges();
+    }
   }
 
   // KPI counts
-  get totalCount()   { return this.userItems.length; }
-  get runningCount() { return this.userItems.filter(i => i.status === 'running' || i.status === 'building').length; }
-  get queuedCount()  { return this.userItems.filter(i => i.status === 'queued').length; }
-  get successCount() { return this.userItems.filter(i => i.status === 'success' || i.status === 'completed').length; }
-  get failedCount()  { return this.userItems.filter(i => i.status === 'error' || i.status === 'failed' || i.status === 'failure' || i.status === 'aborted').length; }
-
+  get totalCount() {
+    return this.userItems.length;
+  }
+  get runningCount() {
+    return this.userItems.filter((i) => i.status === 'running' || i.status === 'building').length;
+  }
+  get queuedCount() {
+    return this.userItems.filter((i) => i.status === 'queued').length;
+  }
+  get successCount() {
+    return this.userItems.filter((i) => i.status === 'success' || i.status === 'completed').length;
+  }
+  get failedCount() {
+    return this.userItems.filter(
+      (i) =>
+        i.status === 'error' ||
+        i.status === 'failed' ||
+        i.status === 'failure' ||
+        i.status === 'aborted',
+    ).length;
+  }
 
   // ── Status helpers ──────────────────────────────────────────
   getStatusClass(status: string): string {
     const s = (status || '').toLowerCase();
     if (s === 'running' || s === 'building') return 'badge-running';
-    if (s === 'queued')                      return 'badge-queued';
+    if (s === 'queued') return 'badge-queued';
     if (s === 'success' || s === 'completed') return 'badge-success';
-    if (s === 'error' || s === 'failed' || s === 'failure' || s === 'aborted') return 'badge-failed';
+    if (s === 'error' || s === 'failed' || s === 'failure' || s === 'aborted')
+      return 'badge-failed';
     return 'badge-secondary';
   }
 
   getStatusIcon(status: string): string {
     const s = (status || '').toLowerCase();
     if (s === 'running' || s === 'building') return 'bi bi-play-circle-fill';
-    if (s === 'queued')                      return 'bi bi-clock-history';
+    if (s === 'queued') return 'bi bi-clock-history';
     if (s === 'success' || s === 'completed') return 'bi bi-check-circle-fill';
-    if (s === 'error' || s === 'failed' || s === 'failure' || s === 'aborted') return 'bi bi-x-circle-fill';
+    if (s === 'error' || s === 'failed' || s === 'failure' || s === 'aborted')
+      return 'bi bi-x-circle-fill';
     return 'bi bi-dash-circle';
   }
 
@@ -216,16 +268,19 @@ export class TestQueue implements OnInit, OnDestroy {
           this.logContent = `[Failed to fetch console log]\n${err.message || err.statusText || 'Connection error'}`;
           this.isLoadingLogs = false;
           this.cdr.detectChanges();
-        }
+        },
       });
     } else if (item.status === 'queued') {
-      this.logContent = '[Test is waiting in execution queue — no build logs yet]\nRefresh once the build starts.';
+      this.logContent =
+        '[Test is waiting in execution queue — no build logs yet]\nRefresh once the build starts.';
       this.isLoadingLogs = false;
       this.cdr.detectChanges();
     } else {
       this.api.getTestStatus(item.test_name).subscribe({
         next: (res) => {
-          this.logContent = res.jmeter_log || res.bzt_log ||
+          this.logContent =
+            res.jmeter_log ||
+            res.bzt_log ||
             (res.error ? `[ERROR]\n${res.error}` : '[No local log data available for this run]');
           this.isLoadingLogs = false;
           this.cdr.detectChanges();
@@ -235,12 +290,15 @@ export class TestQueue implements OnInit, OnDestroy {
           this.logContent = '[Error fetching local test logs]';
           this.isLoadingLogs = false;
           this.cdr.detectChanges();
-        }
+        },
       });
     }
   }
 
-  closeLogModal() { this.showLogModal = false; this.selectedLogItem = null; }
+  closeLogModal() {
+    this.showLogModal = false;
+    this.selectedLogItem = null;
+  }
 
   refreshLogs() {
     if (this.selectedLogItem) this.openLogModal(this.selectedLogItem);
@@ -257,18 +315,20 @@ export class TestQueue implements OnInit, OnDestroy {
     const lines = (this.logContent || '').split('\n');
     if (!this.logSearchQuery.trim()) return lines;
     const q = this.logSearchQuery.toLowerCase();
-    return lines.filter(l => l.toLowerCase().includes(q));
+    return lines.filter((l) => l.toLowerCase().includes(q));
   }
 
   get formattedTerminalLogs(): any[] {
     if (!this.logContent) return [];
     const lines = this.logContent.split('\n');
     const filtered = this.logSearchQuery.trim()
-      ? lines.filter(l => l.toLowerCase().includes(this.logSearchQuery.toLowerCase()))
+      ? lines.filter((l) => l.toLowerCase().includes(this.logSearchQuery.toLowerCase()))
       : lines;
 
-    return filtered.map(line => {
-      const match = line.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([A-Z]+)\s+([a-zA-Z0-9\.\$\_]+:)?\s*(.*)$/);
+    return filtered.map((line) => {
+      const match = line.match(
+        /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([A-Z]+)\s+([a-zA-Z0-9\.\$\_]+:)?\s*(.*)$/,
+      );
       if (match) {
         return {
           date: match[1],
@@ -276,7 +336,7 @@ export class TestQueue implements OnInit, OnDestroy {
           level: match[3],
           category: match[4] || '',
           message: match[5],
-          raw: null
+          raw: null,
         };
       } else {
         return {
@@ -285,12 +345,11 @@ export class TestQueue implements OnInit, OnDestroy {
           level: null,
           category: null,
           message: null,
-          raw: line
+          raw: line,
         };
       }
     });
   }
-
 
   copyLogs() {
     if (navigator.clipboard) navigator.clipboard.writeText(this.logContent);
@@ -301,7 +360,9 @@ export class TestQueue implements OnInit, OnDestroy {
     const blob = new Blob([this.logContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `${this.selectedLogItem.test_name}.log`; a.click();
+    a.href = url;
+    a.download = `${this.selectedLogItem.test_name}.log`;
+    a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -316,7 +377,7 @@ export class TestQueue implements OnInit, OnDestroy {
     const ramp = Math.max(1, Math.min(5, Math.floor((this.selectedDetailsItem.ramp_up || 10) / 2)));
     const points = [0];
     for (let i = 1; i <= ramp; i++) {
-      points.push(Math.round((targetRps * i / ramp) * 10) / 10);
+      points.push(Math.round(((targetRps * i) / ramp) * 10) / 10);
     }
     for (let i = 0; i < 8; i++) {
       const variation = (Math.sin(i * 1.2) * 0.08 + 1) * targetRps;
@@ -336,7 +397,8 @@ export class TestQueue implements OnInit, OnDestroy {
     const points: number[] = [];
     const baseRps = this.getDetailsRpsHistory();
     for (let i = 0; i < baseRps.length; i++) {
-      const loadFactor = baseRps[i] > 0 ? (baseRps[i] / (this.selectedDetailsItem.throughput || 1)) : 0.2;
+      const loadFactor =
+        baseRps[i] > 0 ? baseRps[i] / (this.selectedDetailsItem.throughput || 1) : 0.2;
       const val = Math.round(targetRt * (0.7 + 0.3 * loadFactor + Math.sin(i * 0.9) * 0.05));
       points.push(val);
     }
@@ -376,22 +438,26 @@ export class TestQueue implements OnInit, OnDestroy {
     const history = this.getDetailsRpsHistory();
     if (history.length < 2) return 'M 35,90 L 245,90';
     const maxVal = this.getDetailsRpsMax();
-    return history.map((val, i) => {
-      const x = 35 + i * (210 / (history.length - 1));
-      const y = 90 - (val / maxVal) * 80;
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    return history
+      .map((val, i) => {
+        const x = 35 + i * (210 / (history.length - 1));
+        const y = 90 - (val / maxVal) * 80;
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
   }
 
   getDetailsRpsAreaPath(): string {
     const history = this.getDetailsRpsHistory();
     if (history.length < 2) return 'M 35,90 L 245,90 L 245,90 L 35,90 Z';
     const maxVal = this.getDetailsRpsMax();
-    const linePath = history.map((val, i) => {
-      const x = 35 + i * (210 / (history.length - 1));
-      const y = 90 - (val / maxVal) * 80;
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    const linePath = history
+      .map((val, i) => {
+        const x = 35 + i * (210 / (history.length - 1));
+        const y = 90 - (val / maxVal) * 80;
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
     return `${linePath} L 245,90 L 35,90 Z`;
   }
 
@@ -399,22 +465,26 @@ export class TestQueue implements OnInit, OnDestroy {
     const history = this.getDetailsRtHistory();
     if (history.length < 2) return 'M 35,90 L 245,90';
     const maxVal = this.getDetailsRtMax();
-    return history.map((val, i) => {
-      const x = 35 + i * (210 / (history.length - 1));
-      const y = 90 - (val / maxVal) * 80;
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    return history
+      .map((val, i) => {
+        const x = 35 + i * (210 / (history.length - 1));
+        const y = 90 - (val / maxVal) * 80;
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
   }
 
   getDetailsRtAreaPath(): string {
     const history = this.getDetailsRtHistory();
     if (history.length < 2) return 'M 35,90 L 245,90 L 245,90 L 35,90 Z';
     const maxVal = this.getDetailsRtMax();
-    const linePath = history.map((val, i) => {
-      const x = 35 + i * (210 / (history.length - 1));
-      const y = 90 - (val / maxVal) * 80;
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    const linePath = history
+      .map((val, i) => {
+        const x = 35 + i * (210 / (history.length - 1));
+        const y = 90 - (val / maxVal) * 80;
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
     return `${linePath} L 245,90 L 35,90 Z`;
   }
 
@@ -422,43 +492,51 @@ export class TestQueue implements OnInit, OnDestroy {
     const history = this.getDetailsErrorHistory();
     if (history.length < 2) return 'M 35,90 L 245,90';
     const maxVal = Math.max(...history, 1);
-    return history.map((val, i) => {
-      const x = 35 + i * (210 / (history.length - 1));
-      const y = 90 - (val / maxVal) * 80;
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    return history
+      .map((val, i) => {
+        const x = 35 + i * (210 / (history.length - 1));
+        const y = 90 - (val / maxVal) * 80;
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
   }
 
   getDetailsTimeLabels(): string[] {
-    const totalSec = (this.selectedDetailsItem?.duration || 60) + (this.selectedDetailsItem?.ramp_up || 10);
+    const totalSec =
+      (this.selectedDetailsItem?.duration || 60) + (this.selectedDetailsItem?.ramp_up || 10);
     const fmt = (s: number) => {
       const m = Math.floor(s / 60);
       const sec = Math.round(s % 60);
       return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
     };
-    return [
-      fmt(0),
-      fmt(totalSec * 0.33),
-      fmt(totalSec * 0.66),
-      fmt(totalSec)
-    ];
+    return [fmt(0), fmt(totalSec * 0.33), fmt(totalSec * 0.66), fmt(totalSec)];
   }
 
   // ── Wide Graph Path Generators (viewBox 0 0 450 140, x: 45->435, y: 15->105) ──
-  getWideRpsMax(): number { return this.getDetailsRpsMax(); }
-  getWideRpsMiddle(): number { return this.getDetailsRpsMiddle(); }
-  getWideRtMax(): number { return this.getDetailsRtMax(); }
-  getWideRtMiddle(): number { return this.getDetailsRtMiddle(); }
+  getWideRpsMax(): number {
+    return this.getDetailsRpsMax();
+  }
+  getWideRpsMiddle(): number {
+    return this.getDetailsRpsMiddle();
+  }
+  getWideRtMax(): number {
+    return this.getDetailsRtMax();
+  }
+  getWideRtMiddle(): number {
+    return this.getDetailsRtMiddle();
+  }
 
   getWideRpsPath(): string {
     const history = this.getDetailsRpsHistory();
     if (history.length < 2) return 'M 45,105 L 435,105';
     const maxVal = this.getWideRpsMax();
-    return history.map((val, i) => {
-      const x = 45 + i * (390 / (history.length - 1));
-      const y = 105 - (val / maxVal) * 90;
-      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
+    return history
+      .map((val, i) => {
+        const x = 45 + i * (390 / (history.length - 1));
+        const y = 105 - (val / maxVal) * 90;
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
   }
 
   getWideRpsAreaPath(): string {
@@ -472,11 +550,13 @@ export class TestQueue implements OnInit, OnDestroy {
     const history = this.getDetailsRtHistory();
     if (history.length < 2) return 'M 45,105 L 435,105';
     const maxVal = this.getWideRtMax();
-    return history.map((val, i) => {
-      const x = 45 + i * (390 / (history.length - 1));
-      const y = 105 - (val / maxVal) * 90;
-      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
+    return history
+      .map((val, i) => {
+        const x = 45 + i * (390 / (history.length - 1));
+        const y = 105 - (val / maxVal) * 90;
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
   }
 
   getWideRtAreaPath(): string {
@@ -490,29 +570,34 @@ export class TestQueue implements OnInit, OnDestroy {
     const history = this.getDetailsErrorHistory();
     if (history.length < 2) return 'M 45,105 L 435,105';
     const maxVal = Math.max(...history, 1);
-    return history.map((val, i) => {
-      const x = 45 + i * (390 / (history.length - 1));
-      const y = 105 - (val / maxVal) * 90;
-      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
+    return history
+      .map((val, i) => {
+        const x = 45 + i * (390 / (history.length - 1));
+        const y = 105 - (val / maxVal) * 90;
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
   }
 
   getLogLineClass(line: string): string {
     const l = line.toLowerCase();
     if (l.includes('error') || l.includes('fail') || l.includes('exception')) return 'log-error';
     if (l.includes('warn')) return 'log-warn';
-    if (l.includes('success') || l.includes('passed') || l.includes('completed')) return 'log-success';
+    if (l.includes('success') || l.includes('passed') || l.includes('completed'))
+      return 'log-success';
     if (l.includes('info') || l.includes('stage') || l.includes('step')) return 'log-info';
     return '';
   }
-
 
   // ── Details Modal ───────────────────────────────────────────
   openDetailsModal(item: TestQueueItem) {
     this.selectedDetailsItem = item;
     this.showDetailsModal = true;
   }
-  closeDetailsModal() { this.showDetailsModal = false; this.selectedDetailsItem = null; }
+  closeDetailsModal() {
+    this.showDetailsModal = false;
+    this.selectedDetailsItem = null;
+  }
 
   // ── Open HTML Report ────────────────────────────────────────
   openReport(item: TestQueueItem) {

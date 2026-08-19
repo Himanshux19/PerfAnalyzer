@@ -1,5 +1,3 @@
-<app-navbar></app-navbar>
-
 <div class="dashboard-page-container" (click)="closeActionMenus()">
   <!-- ── Dashboard Header ──────────────────────────────────── -->
   <div class="dash-header">
@@ -189,7 +187,7 @@
     <div class="panel panel-fixed">
       <div class="panel-header">
         <h5 class="panel-title">Recent Test Runs</h5>
-        <a routerLink="/reports" class="view-all-link">View All</a>
+        <a [routerLink]="['/projects']" [queryParams]="{ section: 'reports' }" class="view-all-link">View All</a>
       </div>
       <div class="panel-body p-0">
         <div class="table-scroll">
@@ -207,7 +205,8 @@
             <tbody>
               @for (run of summaryData.recent_runs; track run.id) {
               <tr>
-                <td class="td-name" routerLink="/reports">{{ run.test_name }}</td>
+                <td class="td-name" [routerLink]="['/projects']" [queryParams]="{ section: 'reports' }">{{ run.test_name
+                  }}</td>
                 <td>
                   <span class="status-badge" [ngClass]="getStatusBadgeClass(run.status)">{{ run.status }}</span>
                 </td>
@@ -246,7 +245,7 @@
     <div class="panel">
       <div class="panel-header">
         <h5 class="panel-title">Active Tests</h5>
-        <a routerLink="/queue" class="view-all-link">View All</a>
+        <a [routerLink]="['/projects']" [queryParams]="{ section: 'queue' }" class="view-all-link">View All</a>
       </div>
       <div class="panel-body p-0">
         <div class="table-scroll">
@@ -282,7 +281,8 @@
               <tr>
                 <td colspan="6" class="td-empty">
                   <i class="bi bi-info-circle me-1"></i> No active tests running currently.
-                  <a routerLink="/create-test" class="btn-start-test ms-2">Start Test</a>
+                  <a [routerLink]="['/projects']" [queryParams]="{ section: 'create-test' }"
+                    class="btn-start-test ms-2">Start Test</a>
                 </td>
               </tr>
               }
@@ -296,7 +296,7 @@
     <div class="panel">
       <div class="panel-header">
         <h5 class="panel-title">Test Queue</h5>
-        <a routerLink="/queue" class="view-all-link">View Queue</a>
+        <a [routerLink]="['/projects']" [queryParams]="{ section: 'queue' }" class="view-all-link">View Queue</a>
       </div>
       <div class="panel-body p-0">
         <div class="table-scroll">

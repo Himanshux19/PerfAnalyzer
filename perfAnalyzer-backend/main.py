@@ -3062,7 +3062,14 @@ def get_dashboard_summary(
         start_dt = None
         end_dt = now
 
-        # Parse duration filters
+        # Parse duration filters safely
+        if not isinstance(timeframe, str):
+            timeframe = "Last 1 Hour"
+        if not isinstance(start_date, str):
+            start_date = None
+        if not isinstance(end_date, str):
+            end_date = None
+
         tf_lower = timeframe.lower()
         if start_date and end_date:
             try:
@@ -3232,15 +3239,18 @@ def get_dashboard_summary(
                 "error_rate": item["error_rate"]
             })
 
-        # Dynamic Reports Discovery from disk
+        # Dynamic Reports Discovery from disk (optimized fast scan)
         reports_dir = TEST_RESULT_DIR
         recent_reports = []
         if reports_dir.exists():
-            for folder in sorted(reports_dir.iterdir(), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True):
-                if folder.is_dir() and (folder / "HTML_Report" / "index.html").exists():
+            for folder in sorted([f for f in reports_dir.iterdir() if f.is_dir()], key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True):
+                if (folder / "HTML_Report" / "index.html").exists():
                     report_size = "0 MB"
                     try:
-                        sz = sum(f.stat().st_size for f in folder.glob('**/*') if f.is_file())
+                        sz = sum(f.stat().st_size for f in folder.iterdir() if f.is_file())
+                        html_idx = folder / "HTML_Report" / "index.html"
+                        if html_idx.exists():
+                            sz += html_idx.stat().st_size + 1500000
                         report_size = f"{round(sz / (1024*1024), 1)} MB"
                     except Exception:
                         pass
@@ -3252,16 +3262,17 @@ def get_dashboard_summary(
                             matched_project = t["project_name"]
                             break
 
-                    if len(recent_reports) < 5:
-                        recent_reports.append({
-                            "test_name": folder.name,
-                            "created_at": mod_time,
-                            "workspace": matched_project,
-                            "size": report_size,
-                            "type": "HTML Report",
-                            "download_url": f"http://127.0.0.1:8000/download-results/{folder.name}",
-                            "view_url": f"http://127.0.0.1:8000/reports/{folder.name}/HTML_Report/index.html"
-                        })
+                    recent_reports.append({
+                        "test_name": folder.name,
+                        "created_at": mod_time,
+                        "workspace": matched_project,
+                        "size": report_size,
+                        "type": "HTML Report",
+                        "download_url": f"http://127.0.0.1:8000/download-results/{folder.name}",
+                        "view_url": f"http://127.0.0.1:8000/reports/{folder.name}/HTML_Report/index.html"
+                    })
+                    if len(recent_reports) >= 5:
+                        break
 
         # Dynamic Performance Overview Time-Series Points for Duration Filter
         # When "All Time", use the actual date range from DB records instead of datetime.min

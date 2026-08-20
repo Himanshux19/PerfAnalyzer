@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectorRef, NgZone } from '@angular/core';
 import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
@@ -96,6 +96,7 @@ export class Projects implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private cdr: ChangeDetectorRef,
+    private zone: NgZone,
   ) {}
 
   ngOnInit() {
@@ -112,31 +113,38 @@ export class Projects implements OnInit {
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e: NavigationEnd) => {
-        this.resolveSectionFromUrl(e.urlAfterRedirects || e.url);
+        this.zone.run(() => {
+          this.resolveSectionFromUrl(e.urlAfterRedirects || e.url);
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
       });
 
     this.route.queryParams.subscribe((params) => {
-      if (params['section']) {
-        this.activeSection = params['section'];
-      }
-      if (params['projectId']) {
-        this.selectedWorkspaceId = Number(params['projectId']);
-        this.api.selectedProjectId.set(this.selectedWorkspaceId);
-      }
-      if (this.projects.length > 0) {
-        const found = this.projects.find((p) => p.id === this.selectedWorkspaceId);
-        if (found) {
-          this.drawerProject = found;
+      this.zone.run(() => {
+        if (params['section']) {
+          this.activeSection = params['section'];
         }
-      }
-      if (
-        this.selectedWorkspaceId &&
-        (this.activeSection === 'files' || this.activeSection === 'about')
-      ) {
-        this.loadDrawerFiles();
-        this.loadDrawerReports();
-      }
-      this.cdr.detectChanges();
+        if (params['projectId']) {
+          this.selectedWorkspaceId = Number(params['projectId']);
+          this.api.selectedProjectId.set(this.selectedWorkspaceId);
+        }
+        if (this.projects.length > 0) {
+          const found = this.projects.find((p) => p.id === this.selectedWorkspaceId);
+          if (found) {
+            this.drawerProject = found;
+          }
+        }
+        if (
+          this.selectedWorkspaceId &&
+          (this.activeSection === 'files' || this.activeSection === 'about')
+        ) {
+          this.loadDrawerFiles();
+          this.loadDrawerReports();
+        }
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
+      });
     });
 
     this.loadProjects();
@@ -168,6 +176,7 @@ export class Projects implements OnInit {
       this.loadDrawerFiles();
       this.loadDrawerReports();
     }
+    this.cdr.markForCheck();
     this.cdr.detectChanges();
   }
 
@@ -182,34 +191,40 @@ export class Projects implements OnInit {
     this.errorMessage = null;
     this.api.listProjects().subscribe({
       next: (data) => {
-        this.projects = data;
-        this.isLoading = false;
-        this.isRefreshing = false;
+        this.zone.run(() => {
+          this.projects = data;
+          this.isLoading = false;
+          this.isRefreshing = false;
 
-        if (this.selectedWorkspaceId) {
-          const project = this.projects.find((p) => p.id === this.selectedWorkspaceId);
-          if (project) {
-            this.drawerProject = project;
+          if (this.selectedWorkspaceId) {
+            const project = this.projects.find((p) => p.id === this.selectedWorkspaceId);
+            if (project) {
+              this.drawerProject = project;
+              if (this.activeSection === 'files') {
+                this.loadDrawerFiles();
+              }
+            }
+          } else if (this.projects.length > 0) {
+            this.selectedWorkspaceId = this.projects[0].id;
+            this.drawerProject = this.projects[0];
+            this.api.selectedProjectId.set(this.selectedWorkspaceId);
             if (this.activeSection === 'files') {
               this.loadDrawerFiles();
             }
           }
-        } else if (this.projects.length > 0) {
-          this.selectedWorkspaceId = this.projects[0].id;
-          this.drawerProject = this.projects[0];
-          this.api.selectedProjectId.set(this.selectedWorkspaceId);
-          if (this.activeSection === 'files') {
-            this.loadDrawerFiles();
-          }
-        }
 
-        this.cdr.detectChanges();
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
       },
       error: () => {
-        this.errorMessage = 'Failed to load workspaces. Make sure the backend is running.';
-        this.isLoading = false;
-        this.isRefreshing = false;
-        this.cdr.detectChanges();
+        this.zone.run(() => {
+          this.errorMessage = 'Failed to load workspaces. Make sure the backend is running.';
+          this.isLoading = false;
+          this.isRefreshing = false;
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
       },
     });
   }

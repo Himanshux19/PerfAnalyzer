@@ -83,7 +83,7 @@ export class TestQueue implements OnInit, OnDestroy {
       if (this.autoRefresh && !this.showLogModal && !this.showDetailsModal) {
         this.loadQueue(true);
       }
-    }, 1000);
+    }, 3000);
   }
 
   ngOnDestroy() {

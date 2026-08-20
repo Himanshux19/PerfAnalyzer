@@ -205,8 +205,14 @@
             <tbody>
               @for (run of summaryData.recent_runs; track run.id) {
               <tr>
-                <td class="td-name" [routerLink]="['/projects']" [queryParams]="{ section: 'reports' }">{{ run.test_name
-                  }}</td>
+                <td class="td-name" [routerLink]="['/projects']" [queryParams]="{ section: 'reports' }">
+                  <div class="test-name-cell">
+                    <span class="test-name-title">{{ run.test_name }}</span>
+                    @if (run.workspace) {
+                    <small class="test-workspace-subtitle"><i class="bi bi-folder2 me-1"></i>{{ run.workspace }}</small>
+                    }
+                  </div>
+                </td>
                 <td>
                   <span class="status-badge" [ngClass]="getStatusBadgeClass(run.status)">{{ run.status }}</span>
                 </td>

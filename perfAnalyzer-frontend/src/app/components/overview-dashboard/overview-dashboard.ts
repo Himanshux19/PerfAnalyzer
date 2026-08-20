@@ -3,6 +3,7 @@ import {
   OnInit,
   OnDestroy,
   ChangeDetectorRef,
+  NgZone,
   Inject,
   PLATFORM_ID,
 } from '@angular/core';
@@ -98,6 +99,7 @@ export class OverviewDashboard implements OnInit, OnDestroy {
     protected api: ApiService,
     private router: Router,
     private cdr: ChangeDetectorRef,
+    private zone: NgZone,
     @Inject(PLATFORM_ID) private platformId: Object,
   ) {}
 
@@ -125,19 +127,25 @@ export class OverviewDashboard implements OnInit, OnDestroy {
 
     this.api.getDashboardSummary(undefined, this.selectedTimeframe, startIso, endIso).subscribe({
       next: (res) => {
-        if (res) {
-          this.summaryData = res;
-          this.computeChartPaths();
-          this.computeDonutDashArrays();
-        }
-        this.loading = false;
-        this.cdr.detectChanges();
+        this.zone.run(() => {
+          if (res) {
+            this.summaryData = res;
+            this.computeChartPaths();
+            this.computeDonutDashArrays();
+          }
+          this.loading = false;
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        console.error('Dashboard fetch error:', err);
-        this.apiError = true;
-        this.loading = false;
-        this.cdr.detectChanges();
+        this.zone.run(() => {
+          console.error('Dashboard fetch error:', err);
+          this.apiError = true;
+          this.loading = false;
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
       },
     });
   }

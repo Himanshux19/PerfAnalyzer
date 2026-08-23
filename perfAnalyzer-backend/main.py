@@ -26,8 +26,12 @@ from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
 import os
+from tracing import setup_tracing
+
 
 app = FastAPI()
+
+setup_tracing(app)
 
 app.add_middleware(
     CORSMiddleware,

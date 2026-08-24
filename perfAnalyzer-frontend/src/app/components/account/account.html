@@ -1,0 +1,790 @@
+<div class="account-page-wrapper">
+
+  <!-- Header Bar -->
+  <div class="account-top-header mb-4">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <span class="header-icon-badge">
+        <i class="bi bi-person-gear"></i>
+      </span>
+      <h1 class="account-main-title m-0">Account Settings</h1>
+    </div>
+    <p class="account-main-subtitle m-0">
+      Manage your profile details, security credentials, and subscription usage.
+    </p>
+  </div>
+
+  <!-- Segmented Navigation Tabs -->
+  <div class="account-tabs-container mb-4">
+    <div class="account-nav-pills d-inline-flex">
+      <button type="button" class="account-pill-btn" [class.active]="activeTab === 'profile'"
+        (click)="setTab('profile')">
+        <i class="bi bi-person-badge me-2"></i> Profile & Security
+      </button>
+      <button type="button" class="account-pill-btn" [class.active]="activeTab === 'subscription'"
+        (click)="setTab('subscription')">
+        <i class="bi bi-gem me-2"></i> Subscription & Quota
+        @if (hasActivePlan()) {
+        <span class="active-dot-badge ms-2">Active</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Feedback Alerts -->
+  @if (profileSuccessMsg) {
+  <div class="alert alert-success-modern d-flex align-items-center justify-content-between p-3 mb-4">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill fs-5"></i>
+      <span class="fs-8 fw-semibold">{{ profileSuccessMsg }}</span>
+    </div>
+    <button type="button" class="btn-close-alert" (click)="profileSuccessMsg = ''">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+  }
+
+  @if (profileErrorMsg) {
+  <div class="alert alert-danger-modern d-flex align-items-center justify-content-between p-3 mb-4">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+      <span class="fs-8 fw-semibold">{{ profileErrorMsg }}</span>
+    </div>
+    <button type="button" class="btn-close-alert" (click)="profileErrorMsg = ''">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+  }
+
+  <!-- ============================================================
+       TAB 1: PROFILE & SECURITY
+       ============================================================ -->
+  @if (activeTab === 'profile') {
+  <div class="tab-fade-in">
+
+    <!-- Loading State -->
+    @if (isLoadingProfile) {
+    <div class="account-card p-5 text-center">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted fs-8 m-0">Loading your profile information...</p>
+    </div>
+    }
+
+    @if (!isLoadingProfile && profile) {
+    <div class="row g-4">
+
+      <!-- Left Column: Avatar & Account Identity Card + Recent Activity -->
+      <div class="col-12 col-lg-4 d-flex flex-column gap-4">
+
+        <!-- 1. Avatar & Identity Card -->
+        <div class="account-card p-4 text-center">
+
+          <!-- Avatar Frame -->
+          <div class="avatar-container mx-auto position-relative mb-3">
+            <input type="file" id="avatarFileInput" class="d-none" accept="image/jpeg,image/png,image/webp"
+              (change)="onAvatarFileSelected($event)">
+
+            @if (profile.hasAvatar) {
+            <img [src]="getAvatarUrl()" alt="Avatar" class="avatar-image-frame shadow-sm" />
+            } @else {
+            <div class="avatar-initials-frame shadow-sm" [style.background-color]="getAvatarBgColor()">
+              {{ getInitials() }}
+            </div>
+            }
+
+            <!-- Quick Camera Button Badge -->
+            <button type="button" class="avatar-badge-btn shadow" (click)="triggerAvatarUpload()" title="Upload photo">
+              <i class="bi bi-camera-fill"></i>
+            </button>
+          </div>
+
+          <!-- Name & Email -->
+          <h3 class="account-user-name mb-1">{{ profile.fullName || profile.username }}</h3>
+          <div class="account-user-email text-muted mb-3 d-flex align-items-center justify-content-center gap-1">
+            <span>{{ profile.email }}</span>
+            <i class="bi bi-patch-check-fill text-primary fs-8" title="Verified Account"></i>
+          </div>
+
+          <!-- Badges -->
+          <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+            <!-- <span class="role-chip">
+                  <i class="bi bi-shield-check me-1"></i> {{ profile.role | uppercase }}
+                </span> -->
+            <span class="status-chip" [class.status-active]="profile.status === 'active'">
+              <i class="bi bi-circle-fill me-1"></i> {{ profile.status | uppercase }}
+            </span>
+            <!-- <span class="plan-active-chip" [ngClass]="getPlanColorClass()">
+                  <i class="bi bi-gem me-1"></i> {{ (subscription?.plan || 'Free') | uppercase }} PLAN
+                </span> -->
+          </div>
+
+          <!-- Avatar Quick Buttons -->
+          <div class="d-flex justify-content-center gap-2 mb-4">
+            <button type="button" class="btn-avatar-action" [disabled]="isUploadingAvatar"
+              (click)="triggerAvatarUpload()">
+              <i class="bi bi-upload me-1"></i> {{ isUploadingAvatar ? 'Uploading...' : 'Upload Photo' }}
+            </button>
+            @if (profile.hasAvatar) {
+            <button type="button" class="btn-avatar-remove" [disabled]="isRemovingAvatar" (click)="removeAvatar()">
+              <i class="bi bi-trash3 me-1"></i> {{ isRemovingAvatar ? 'Deleting...' : 'Remove' }}
+            </button>
+            }
+          </div>
+
+          @if (avatarError) {
+          <div class="alert-inline-error mb-3">{{ avatarError }}</div>
+          }
+          @if (avatarSuccess) {
+          <div class="alert-inline-success mb-3">{{ avatarSuccess }}</div>
+          }
+
+          <!-- Member Timeline Stats -->
+          <div class="account-meta-stats pt-3 border-top">
+            <div class="meta-stat-row d-flex justify-content-between align-items-center py-2">
+              <span class="meta-stat-label"><i class="bi bi-calendar3 me-1.5"></i> Member Since</span>
+              <span class="meta-stat-value">{{ profile.createdAt ? (profile.createdAt | date:'mediumDate') : '—'
+                }}</span>
+            </div>
+            <div class="meta-stat-row d-flex justify-content-between align-items-center py-2 border-top">
+              <span class="meta-stat-label"><i class="bi bi-clock-history me-1.5"></i> Last Sign In</span>
+              <span class="meta-stat-value">{{ profile.lastLoginAt ? (profile.lastLoginAt | date:'short') : 'Active now'
+                }}</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 2. Recent Activities Card (Utilizes space below photo) -->
+        <div class="account-card p-4">
+          <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <span class="card-title-icon text-primary"><i class="bi bi-clock-history"></i></span>
+              <h5 class="card-section-title m-0 fs-7 font-bold text-slate-800">Recent Activities</h5>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-light text-muted border-0 p-1"
+              (click)="loadActivities()" title="Refresh activities">
+              <i class="bi bi-arrow-clockwise" [class.spin]="isLoadingActivities"></i>
+            </button>
+          </div>
+
+          @if (isLoadingActivities) {
+          <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+          } @else if (activities.length === 0) {
+          <div class="text-center py-3 text-muted fs-8">
+            <i class="bi bi-inbox d-block fs-4 text-slate-400 mb-1"></i>
+            No recent activities recorded yet.
+          </div>
+          } @else {
+          <div class="activities-timeline d-flex flex-column gap-3">
+            @for (act of activities; track act.id) {
+            <div class="activity-item d-flex align-items-start gap-2.5">
+              <div class="activity-icon-badge" [ngClass]="act.status || 'info'">
+                <i class="bi" [ngClass]="act.icon || 'bi-dot'"></i>
+              </div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="activity-title text-slate-800 font-semibold fs-8 text-truncate">{{ act.title }}</div>
+                <div class="activity-desc text-muted fs-9 text-truncate">{{ act.description }}</div>
+                <div class="activity-time text-slate-400 fs-9 mt-0.5">{{ act.timestamp }}</div>
+              </div>
+            </div>
+            }
+          </div>
+          }
+        </div>
+
+      </div>
+
+      <!-- Right Column: Personal Info, Security & Danger Zone -->
+      <div class="col-12 col-lg-8 d-flex flex-column gap-4">
+
+        <!-- 1. Personal Information Card -->
+        <div class="account-card p-4">
+          <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <span class="card-title-icon text-primary"><i class="bi bi-person-lines-fill"></i></span>
+              <h4 class="card-section-title m-0">Personal & Address Information</h4>
+            </div>
+            @if (!isEditingProfile) {
+            <button type="button" class="btn-secondary-modern" (click)="toggleEditProfile()">
+              <i class="bi bi-pencil-square me-1.5"></i> Edit Profile
+            </button>
+            }
+          </div>
+
+          <!-- VIEW MODE: Modern Info Grid -->
+          @if (!isEditingProfile) {
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-person me-1"></i> First Name</span>
+                <div class="info-tile-value">{{ profile.firstName || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-person me-1"></i> Last Name</span>
+                <div class="info-tile-value">{{ profile.lastName || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-envelope me-1"></i> Email Address</span>
+                <div class="info-tile-value text-truncate">{{ profile.email }}</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-telephone me-1"></i> Phone Number</span>
+                <div class="info-tile-value">{{ profile.phone || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-geo-alt me-1"></i> Street Address</span>
+                <div class="info-tile-value">{{ profile.address.street || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-building me-1"></i> City</span>
+                <div class="info-tile-value">{{ profile.address.city || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-map me-1"></i> State / Province</span>
+                <div class="info-tile-value">{{ profile.address.state || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-mailbox me-1"></i> Postal Code</span>
+                <div class="info-tile-value">{{ profile.address.postalCode || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-field-tile">
+                <span class="info-tile-label"><i class="bi bi-globe me-1"></i> Country</span>
+                <div class="info-tile-value">{{ profile.address.country || '—' }}</div>
+              </div>
+            </div>
+          </div>
+          }
+
+          <!-- EDIT MODE: Interactive Form -->
+          @if (isEditingProfile) {
+          <form (ngSubmit)="saveProfile()" class="edit-profile-form">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="modern-form-label">First Name *</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-person"></i>
+                  <input type="text" class="modern-input" [(ngModel)]="formFirstName" name="firstName"
+                    placeholder="e.g. Jane" required />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="modern-form-label">Last Name</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-person"></i>
+                  <input type="text" class="modern-input" [(ngModel)]="formLastName" name="lastName"
+                    placeholder="e.g. Doe" />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="modern-form-label">Email Address (Read-only)</label>
+                <div class="modern-input-group modern-input-disabled">
+                  <i class="bi bi-envelope"></i>
+                  <input type="email" class="modern-input" [value]="profile.email" disabled readonly />
+                </div>
+              </div>
+
+              <!-- Phone: Dial-code + Number split -->
+              <div class="col-md-6">
+                <label class="modern-form-label">Phone Number</label>
+                <div class="phone-split-group">
+                  <select class="phone-code-select" [(ngModel)]="formPhoneCode" name="phoneCode">
+                    @for (c of countries; track c.code) {
+                    @if (c.dialCode) {
+                    <option [value]="c.dialCode">{{ c.flag }} {{ c.dialCode }}</option>
+                    }
+                    }
+                  </select>
+                  <input type="tel" class="phone-number-input" [(ngModel)]="formPhone" name="phone"
+                    placeholder="9876543210" inputmode="numeric" />
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="modern-form-label">Street Address</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-geo-alt"></i>
+                  <input type="text" class="modern-input" [(ngModel)]="formStreet" name="street"
+                    placeholder="123 Tech Blvd, Suite 400" />
+                </div>
+              </div>
+
+              <!-- Country Dropdown (full list) -->
+              <div class="col-md-6">
+                <label class="modern-form-label">Country</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-globe"></i>
+                  <select class="modern-input modern-select" [(ngModel)]="formCountry" name="country"
+                    (ngModelChange)="onCountryChange()">
+                    @for (c of countries; track c.code) {
+                    <option [value]="c.name">{{ c.flag }} {{ c.name }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <!-- State: dynamic dropdown or free-text -->
+              <div class="col-md-6">
+                <label class="modern-form-label">State / Province</label>
+                @if (hasStateLookup) {
+                <div class="modern-input-group">
+                  <i class="bi bi-map"></i>
+                  <select class="modern-input modern-select" [(ngModel)]="formState" name="state">
+                    <option value="">— Select State —</option>
+                    @for (s of statesForCountry; track s) {
+                    <option [value]="s">{{ s }}</option>
+                    }
+                  </select>
+                </div>
+                } @else {
+                <div class="modern-input-group">
+                  <i class="bi bi-map"></i>
+                  <input type="text" class="modern-input" [(ngModel)]="formState" name="state"
+                    placeholder="State / Province / Region" />
+                </div>
+                }
+              </div>
+
+              <div class="col-md-6">
+                <label class="modern-form-label">City</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-building"></i>
+                  <input type="text" class="modern-input" [(ngModel)]="formCity" name="city" placeholder="Your city" />
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="modern-form-label">Postal / Zip Code</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-mailbox"></i>
+                  <input type="text" class="modern-input" [(ngModel)]="formPostalCode" name="postalCode"
+                    placeholder="e.g. 110001" />
+                </div>
+              </div>
+
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <button type="button" class="btn-cancel-modern" (click)="cancelEditProfile()"
+                [disabled]="isSavingProfile">Cancel</button>
+              <button type="submit" class="btn-primary-modern" [disabled]="isSavingProfile">
+                @if (isSavingProfile) {
+                <span class="spinner-border spinner-border-sm me-1.5"></span>
+                Saving...
+                } @else {
+                <i class="bi bi-check2 me-1"></i> Save Changes
+                }
+              </button>
+            </div>
+          </form>
+          }
+        </div>
+
+        <!-- 2. Security & Password Card -->
+        <div class="account-card p-4">
+          <div class="d-flex align-items-center gap-2 pb-3 mb-3 border-bottom">
+            <span class="card-title-icon text-primary"><i class="bi bi-shield-lock-fill"></i></span>
+            <div>
+              <h4 class="card-section-title m-0">Security & Password</h4>
+              <p class="text-muted fs-9 m-0">Update your account password to protect your test environments.</p>
+            </div>
+          </div>
+
+          @if (passwordSuccessMsg) {
+          <div class="alert alert-success-modern p-2.5 mb-3">{{ passwordSuccessMsg }}</div>
+          }
+          @if (passwordErrorMsg) {
+          <div class="alert alert-danger-modern p-2.5 mb-3">{{ passwordErrorMsg }}</div>
+          }
+
+          <form (ngSubmit)="changePassword()">
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="modern-form-label">Current Password</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-key"></i>
+                  <input type="password" class="modern-input" [(ngModel)]="currentPassword" name="currentPw"
+                    placeholder="Current password" required />
+                </div>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="modern-form-label">New Password</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-lock"></i>
+                  <input type="password" class="modern-input" [(ngModel)]="newPassword" name="newPw"
+                    (input)="checkPasswordStrength()" placeholder="New password" required minlength="6" />
+                </div>
+                <!-- Password Strength Bar -->
+                @if (passwordStrength !== 'none') {
+                <div class="d-flex align-items-center gap-2 mt-2">
+                  <div class="strength-track flex-grow-1">
+                    <div class="strength-bar-fill" [class]="'strength-' + passwordStrength"></div>
+                  </div>
+                  <span class="strength-text" [class]="'text-' + passwordStrength">{{ passwordStrength | uppercase
+                    }}</span>
+                </div>
+                }
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="modern-form-label">Confirm Password</label>
+                <div class="modern-input-group">
+                  <i class="bi bi-shield-check"></i>
+                  <input type="password" class="modern-input" [(ngModel)]="confirmPassword" name="confirmPw"
+                    placeholder="Repeat new password" required />
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4">
+              <button type="submit" class="btn-primary-modern" [disabled]="isChangingPassword">
+                @if (isChangingPassword) {
+                <span class="spinner-border spinner-border-sm me-1.5"></span>
+                Updating...
+                } @else {
+                <i class="bi bi-arrow-repeat me-1"></i> Update Password
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 3. Danger Zone Card -->
+        <div class="account-card card-danger-zone p-4">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="card-title-icon text-danger"><i class="bi bi-exclamation-octagon-fill"></i></span>
+            <h4 class="card-section-title text-danger m-0">Danger Zone</h4>
+          </div>
+          <p class="text-muted fs-8 mb-3">
+            Request account deletion. Your request will be forwarded to the Super Administrator for moderation and
+            permanent removal.
+          </p>
+
+          <div class="danger-zone-box d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 rounded-3">
+            <div>
+              <div class="fw-bold text-danger fs-8 mb-0.5">Delete Account & Data</div>
+              <div class="text-muted fs-9">Once deleted, all test results, project files, and workspaces will be
+                permanently erased.</div>
+            </div>
+
+            @if (!hasPendingDeletion) {
+            <button type="button" class="btn-danger-modern" (click)="openDeleteModal()">
+              <i class="bi bi-trash3 me-1"></i> Request Account Deletion
+            </button>
+            }
+
+            @if (hasPendingDeletion) {
+            <div class="pending-deletion-chip">
+              <i class="bi bi-hourglass-split me-1.5"></i> Deletion Request Pending Review
+            </div>
+            }
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+    }
+
+  </div>
+  }
+
+  <!-- ============================================================
+       TAB 2: SUBSCRIPTION & USAGE
+       ============================================================ -->
+  @if (activeTab === 'subscription') {
+  <div class="tab-fade-in">
+
+    @if (isLoadingSubscription) {
+    <div class="account-card p-5 text-center">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted fs-8 m-0">Fetching your subscription tier and resource metrics...</p>
+    </div>
+    }
+
+    @if (!isLoadingSubscription) {
+
+    <!-- Case A: Free / No Subscription -->
+    @if (isFreeTier()) {
+    <div class="account-card p-5 text-center">
+
+      <div class="subscription-gem-badge mx-auto mb-3">
+        <i class="bi bi-gem"></i>
+      </div>
+
+      <h3 class="account-tier-title mb-2">Standard Free Tier</h3>
+      <p class="text-muted fs-8 mx-auto mb-4" style="max-width: 540px;">
+        You are currently on the Free plan. Contact your administrator or upgrade to unlock
+        high-concurrency cloud runs, unlimited workspaces, scheduled regression pipelines, and PDF report exports.
+      </p>
+
+      <button type="button" class="btn-upgrade-gradient px-4 py-2.5 mx-auto mb-5 shadow-sm"
+        (click)="navigateToSubscribe()">
+        <i class="bi bi-stars me-1.5"></i> Upgrade to Pro
+      </button>
+
+      <!-- Resource Usage Grid (Free Tier) -->
+      @if (subscription?.usage) {
+      <div class="row g-3 justify-content-center text-start">
+        <div class="col-md-4">
+          <div class="quota-meter-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="quota-meter-title"><i class="bi bi-play-circle me-1"></i> Test Runs</span>
+              <span class="quota-meter-count">{{ subscription?.usage?.testRunsUsed }} / {{
+                subscription?.usage?.testRunsLimit }}</span>
+            </div>
+            <div class="progress quota-progress">
+              <div class="progress-bar bg-primary"
+                [style.width.%]="getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 10)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="quota-meter-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="quota-meter-title"><i class="bi bi-folder2 me-1"></i> Workspaces</span>
+              <span class="quota-meter-count">{{ subscription?.usage?.projectsUsed }} / {{
+                subscription?.usage?.projectsLimit }}</span>
+            </div>
+            <div class="progress quota-progress">
+              <div class="progress-bar bg-info"
+                [style.width.%]="getUsagePercent(subscription?.usage?.projectsUsed || 0, subscription?.usage?.projectsLimit || 3)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="quota-meter-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="quota-meter-title"><i class="bi bi-hdd-network me-1"></i> Storage</span>
+              <span class="quota-meter-count">{{ subscription?.usage?.storedResultsGb }} GB / {{
+                subscription?.usage?.storedResultsLimitGb }} GB</span>
+            </div>
+            <div class="progress quota-progress">
+              <div class="progress-bar bg-warning"
+                [style.width.%]="getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 1)">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      }
+
+    </div>
+    }
+
+    <!-- Case B: Active Paid Subscription (Starter / Pro / Enterprise) -->
+    @if (hasActivePlan()) {
+    <div class="row g-4">
+
+      <!-- Plan Overview Card -->
+      <div class="col-12 col-lg-5">
+        <div class="account-card p-4 h-100 d-flex flex-column">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="plan-active-chip" [ngClass]="getPlanColorClass()">
+              <i class="bi bi-gem me-1"></i> {{ subscription?.plan | uppercase }} PLAN
+            </span>
+            <span class="status-chip status-active">
+              <i class="bi bi-check-circle-fill me-1"></i> ACTIVE
+            </span>
+          </div>
+
+          <h3 class="account-tier-title mb-1">{{ getPlanLabel() }}</h3>
+          <p class="text-muted fs-8 mb-4">{{ getPlanDescription() }}</p>
+
+          <div class="account-meta-stats py-3 mb-4 border-top border-bottom">
+            <div class="meta-stat-row d-flex justify-content-between py-1.5">
+              <span class="meta-stat-label"><i class="bi bi-calendar-check me-1.5"></i> Started On</span>
+              <span class="meta-stat-value">{{ subscription?.startedAt ? (subscription?.startedAt | date:'mediumDate') :
+                'Active' }}</span>
+            </div>
+            @if (subscription?.renewsAt) {
+            <div class="meta-stat-row d-flex justify-content-between py-1.5 border-top">
+              <span class="meta-stat-label"><i class="bi bi-arrow-repeat me-1.5"></i> Renewal Date</span>
+              <span class="meta-stat-value">{{ subscription?.renewsAt | date:'mediumDate' }}</span>
+            </div>
+            }
+            <div class="meta-stat-row d-flex justify-content-between py-1.5 border-top">
+              <span class="meta-stat-label"><i class="bi bi-people-fill me-1.5"></i> Max Virtual Users</span>
+              <span class="meta-stat-value fw-bold text-primary">{{ subscription?.usage?.maxVus?.toLocaleString() || '—'
+                }} VUs</span>
+            </div>
+          </div>
+
+          @if (isStarter()) {
+          <button type="button"
+            class="btn-upgrade-gradient w-100 py-2.5 mt-auto text-center justify-content-center shadow-sm"
+            (click)="navigateToSubscribe()">
+            <i class="bi bi-stars me-1.5"></i> Upgrade to Pro Plan
+          </button>
+          } @else {
+          <button type="button" class="btn-secondary-modern w-100 py-2.5 mt-auto text-center justify-content-center"
+            (click)="navigateToSubscribe()">
+            <i class="bi bi-sliders me-1.5"></i> Manage / Change Plan
+          </button>
+          }
+        </div>
+      </div>
+
+      <!-- Resource Usage Quota Card -->
+      @if (subscription?.usage) {
+      <div class="col-12 col-lg-7">
+        <div class="account-card p-4">
+          <div class="d-flex align-items-center gap-2 pb-3 mb-3 border-bottom">
+            <span class="card-title-icon text-primary"><i class="bi bi-bar-chart-line-fill"></i></span>
+            <h4 class="card-section-title m-0">Resource Usage &amp; Tier Quota</h4>
+          </div>
+
+          <div class="d-flex flex-column gap-3">
+
+            <!-- Monthly Test Runs -->
+            <div class="quota-meter-card p-3">
+              <div class="d-flex justify-content-between fs-8 mb-1.5">
+                <span class="fw-semibold text-slate-700"><i class="bi bi-play-circle me-1 text-primary"></i> Monthly
+                  Test Runs</span>
+                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.testRunsUsed }} / {{
+                  subscription?.usage?.testRunsLimit }} runs</span>
+              </div>
+              <div class="progress quota-progress">
+                <div class="progress-bar"
+                  [style.width.%]="getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 100)"
+                  [style.background-color]="getProgressBarColor(getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 100))">
+                </div>
+              </div>
+            </div>
+
+            <!-- Workspaces -->
+            <div class="quota-meter-card p-3">
+              <div class="d-flex justify-content-between fs-8 mb-1.5">
+                <span class="fw-semibold text-slate-700"><i class="bi bi-folder2-open me-1 text-success"></i>
+                  Workspaces</span>
+                @if (subscription?.usage?.projectsLimit) {
+                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.projectsUsed }} / {{
+                  subscription?.usage?.projectsLimit }}</span>
+                } @else {
+                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.projectsUsed }} / Unlimited</span>
+                }
+              </div>
+              <div class="progress quota-progress">
+                <div class="progress-bar bg-success"
+                  [style.width.%]="subscription?.usage?.projectsLimit ? getUsagePercent(subscription?.usage?.projectsUsed || 0, subscription?.usage?.projectsLimit || 10) : 20">
+                </div>
+              </div>
+            </div>
+
+            <!-- Storage Consumption -->
+            <div class="quota-meter-card p-3">
+              <div class="d-flex justify-content-between fs-8 mb-1.5">
+                <span class="fw-semibold text-slate-700"><i class="bi bi-hdd-network me-1 text-info"></i> Storage
+                  Consumption</span>
+                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.storedResultsGb }} GB / {{
+                  subscription?.usage?.storedResultsLimitGb }} GB</span>
+              </div>
+              <div class="progress quota-progress">
+                <div class="progress-bar"
+                  [style.width.%]="getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 20)"
+                  [style.background-color]="getProgressBarColor(getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 20))">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+      }
+
+    </div>
+    }
+
+    }
+
+
+
+  </div>
+  }
+
+</div>
+
+<!-- ============================================================
+     MODAL: ACCOUNT DELETION REQUEST
+     ============================================================ -->
+@if (showDeleteModal) {
+<div class="modal-backdrop fade show" (click)="closeDeleteModal()"></div>
+<div class="modal fade show d-block" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document" (click)="$event.stopPropagation()">
+    <div class="modal-content modal-content-modern shadow-lg">
+
+      <div class="modal-header border-bottom px-4 py-3 bg-danger-soft">
+        <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2 m-0">
+          <i class="bi bi-exclamation-triangle-fill"></i> Request Account Deletion
+        </h5>
+        <button type="button" class="btn-close" (click)="closeDeleteModal()"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <p class="text-slate-700 fs-8 mb-3">
+          Your deletion request will be sent to the Super Administrator for review. Once approved, all account data,
+          workspaces, test records, and reports will be permanently purged.
+        </p>
+
+        @if (deleteErrorMsg) {
+        <div class="alert alert-danger-modern p-2.5 fs-8 mb-3">{{ deleteErrorMsg }}</div>
+        }
+
+        <div class="mb-3">
+          <label class="modern-form-label">Reason for Leaving</label>
+          <div class="modern-input-group">
+            <select class="modern-input modern-select" [(ngModel)]="deleteReason">
+              <option value="no_longer_needed">No longer needed</option>
+              <option value="missing_features">Missing required features</option>
+              <option value="switched_tool">Switched to another testing tool</option>
+              <option value="privacy_concerns">Privacy or data concerns</option>
+              <option value="other">Other reason</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="modern-form-label">Additional Comments (Optional)</label>
+          <textarea class="modern-input modern-textarea" rows="3" [(ngModel)]="deleteNotes"
+            placeholder="Tell us what could have been better..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer border-top px-4 py-3 bg-light">
+        <button type="button" class="btn-cancel-modern" (click)="closeDeleteModal()"
+          [disabled]="isSubmittingDelete">Cancel</button>
+        <button type="button" class="btn-danger-modern" (click)="submitDeletionRequest()"
+          [disabled]="isSubmittingDelete">
+          @if (isSubmittingDelete) {
+          <span class="spinner-border spinner-border-sm me-1.5"></span>
+          Submitting...
+          } @else {
+          <i class="bi bi-check2 me-1"></i> Submit Request
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+}

@@ -10,6 +10,8 @@ import { Dashboard } from '../dashboard/dashboard';
 import { ReportsHistory } from '../reports-history/reports-history';
 import { TestQueue } from '../test-queue/test-queue';
 import { OverviewDashboard } from '../overview-dashboard/overview-dashboard';
+import { Account } from '../account/account';
+import { Subscribe } from '../subscribe/subscribe';
 
 @Component({
   selector: 'app-projects',
@@ -22,6 +24,8 @@ import { OverviewDashboard } from '../overview-dashboard/overview-dashboard';
     ReportsHistory,
     TestQueue,
     OverviewDashboard,
+    Account,
+    Subscribe,
   ],
   templateUrl: './projects.html',
   styleUrl: './projects.css',
@@ -30,13 +34,15 @@ export class Projects implements OnInit {
   // ── Navigation & Sidebar State ───────────────────────────────
   activeSection:
     | 'dashboard'
+    | 'subscribe'
     | 'workspaces'
     | 'about'
     | 'create-test'
     | 'test'
     | 'files'
     | 'reports'
-    | 'queue' = 'dashboard';
+    | 'queue'
+    | 'account' = 'dashboard';
   get sidebarCollapsed(): boolean {
     return this.api.sidebarCollapsed();
   }
@@ -106,10 +112,35 @@ export class Projects implements OnInit {
         this.router.navigate(['/login']);
         return;
       }
+      this.api.initSessionWatcher();
+      this.loadUserProfile();
+      this.loadUserSubscription();
+
+      this.api.subscriptionUpdated$.subscribe((sub: any) => {
+        this.zone.run(() => {
+          if (sub && sub.status === 'active' && sub.plan) {
+            const p = sub.plan.toLowerCase();
+            this.userSubscriptionPlan = p;
+            this.hasActiveSubscription = p === 'starter' || p === 'pro' || p === 'enterprise';
+            this.hasProSubscription = p === 'pro' || p === 'enterprise';
+          } else {
+            this.userSubscriptionPlan = 'free';
+            this.hasActiveSubscription = false;
+            this.hasProSubscription = false;
+          }
+          this.loadUserSubscription();
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
+      });
     }
 
-    this.resolveSectionFromUrl(this.router.url);
+    // Resolve initial URL section
+    const initialUrl =
+      this.router.url || (typeof window !== 'undefined' ? window.location.pathname : '');
+    this.resolveSectionFromUrl(initialUrl);
 
+    // Single source of truth: NavigationEnd router events
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e: NavigationEnd) => {
@@ -120,11 +151,9 @@ export class Projects implements OnInit {
         });
       });
 
+    // Query parameters only sync workspace and project IDs
     this.route.queryParams.subscribe((params) => {
       this.zone.run(() => {
-        if (params['section']) {
-          this.activeSection = params['section'];
-        }
         if (params['projectId']) {
           this.selectedWorkspaceId = Number(params['projectId']);
           this.api.selectedProjectId.set(this.selectedWorkspaceId);
@@ -151,24 +180,50 @@ export class Projects implements OnInit {
   }
 
   resolveSectionFromUrl(url: string) {
-    const cleanUrl = url.split('?')[0].replace(/^\//, '');
-    if (cleanUrl === 'dashboard' || cleanUrl === '') {
-      this.activeSection = 'dashboard';
-    } else if (cleanUrl === 'workspaces' || cleanUrl === 'projects') {
-      this.activeSection = 'workspaces';
-    } else if (cleanUrl === 'about') {
-      this.activeSection = 'about';
-    } else if (cleanUrl === 'create-test') {
-      this.activeSection = 'create-test';
-    } else if (cleanUrl === 'test') {
-      this.activeSection = 'test';
-    } else if (cleanUrl === 'files') {
-      this.activeSection = 'files';
-    } else if (cleanUrl === 'reports') {
-      this.activeSection = 'reports';
-    } else if (cleanUrl === 'queue') {
-      this.activeSection = 'queue';
+    if (!url) return;
+    let cleanUrl = url;
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      try {
+        cleanUrl = new URL(url).pathname;
+      } catch (_) {}
     }
+    cleanUrl = cleanUrl.split('?')[0].split('#')[0].replace(/^\//, '').trim().toLowerCase();
+
+    if (cleanUrl.includes('subscribe')) {
+      this.activeSection = 'subscribe';
+    } else if (cleanUrl.includes('account')) {
+      this.activeSection = 'account';
+    } else if (cleanUrl.includes('workspaces')) {
+      this.activeSection = 'workspaces';
+    } else if (cleanUrl.includes('about')) {
+      this.activeSection = 'about';
+    } else if (cleanUrl.includes('create-test')) {
+      this.activeSection = 'create-test';
+    } else if (cleanUrl.includes('test')) {
+      this.activeSection = 'test';
+    } else if (cleanUrl.includes('files')) {
+      this.activeSection = 'files';
+    } else if (cleanUrl.includes('reports')) {
+      this.activeSection = 'reports';
+    } else if (cleanUrl.includes('queue')) {
+      this.activeSection = 'queue';
+    } else if (cleanUrl.includes('dashboard') || cleanUrl === '') {
+      this.activeSection = 'dashboard';
+    } else if (cleanUrl.includes('projects')) {
+      const qIndex = url.indexOf('?');
+      if (qIndex !== -1) {
+        const qp = new URLSearchParams(url.substring(qIndex));
+        const sec = qp.get('section');
+        if (sec) {
+          this.activeSection = sec as any;
+        } else {
+          this.activeSection = 'workspaces';
+        }
+      } else {
+        this.activeSection = 'workspaces';
+      }
+    }
+
     if (
       this.selectedWorkspaceId &&
       (this.activeSection === 'files' || this.activeSection === 'about')
@@ -430,37 +485,34 @@ export class Projects implements OnInit {
     this.cdr.detectChanges();
   }
 
-  setSection(
-    section:
-      | 'dashboard'
-      | 'workspaces'
-      | 'about'
-      | 'create-test'
-      | 'test'
-      | 'files'
-      | 'reports'
-      | 'queue',
-  ) {
-    this.activeSection = section;
-    const isGlobal = section === 'dashboard' || section === 'workspaces';
-    const targetPath = `/${section}`;
+  setSection(section: string) {
+    this.zone.run(() => {
+      this.activeSection = section as any;
+      const isGlobal =
+        section === 'dashboard' ||
+        section === 'workspaces' ||
+        section === 'subscribe' ||
+        section === 'account';
+      const targetPath = `/${section}`;
 
-    if (isGlobal) {
-      this.router.navigate([targetPath]);
-    } else {
-      this.router.navigate([targetPath], {
-        queryParams: {
-          projectId: this.selectedWorkspaceId,
-          projectName: this.drawerProject?.name || null,
-        },
-      });
-    }
+      if (isGlobal) {
+        this.router.navigateByUrl(targetPath);
+      } else {
+        this.router.navigate([targetPath], {
+          queryParams: {
+            projectId: this.selectedWorkspaceId,
+            projectName: this.drawerProject?.name || null,
+          },
+        });
+      }
 
-    if (section === 'files' || section === 'about') {
-      this.loadDrawerFiles();
-      this.loadDrawerReports();
-    }
-    this.cdr.detectChanges();
+      if (section === 'files' || section === 'about') {
+        this.loadDrawerFiles();
+        this.loadDrawerReports();
+      }
+      this.cdr.markForCheck();
+      this.cdr.detectChanges();
+    });
   }
 
   getJmxFiles(): any[] {
@@ -780,6 +832,62 @@ export class Projects implements OnInit {
       return localStorage.getItem('full_name') || '';
     }
     return '';
+  }
+
+  hasAvatar = false;
+  avatarCacheBuster = Date.now();
+
+  loadUserProfile() {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    this.api.getUserProfile().subscribe({
+      next: (profile) => {
+        if (profile) {
+          this.hasAvatar = !!profile.hasAvatar;
+          if (profile.fullName) {
+            localStorage.setItem('full_name', profile.fullName);
+          }
+          this.cdr.detectChanges();
+        }
+      },
+      error: () => {},
+    });
+  }
+
+  hasActiveSubscription = false;
+  hasProSubscription = false;
+  userSubscriptionPlan: string = 'free';
+
+  loadUserSubscription() {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    this.api.getSubscription().subscribe({
+      next: (sub) => {
+        if (sub && sub.status === 'active' && sub.plan) {
+          const p = sub.plan.toLowerCase();
+          this.userSubscriptionPlan = p;
+          this.hasActiveSubscription = p === 'starter' || p === 'pro' || p === 'enterprise';
+          this.hasProSubscription = p === 'pro' || p === 'enterprise';
+        } else {
+          this.userSubscriptionPlan = 'free';
+          this.hasActiveSubscription = false;
+          this.hasProSubscription = false;
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.userSubscriptionPlan = 'free';
+        this.hasActiveSubscription = false;
+        this.hasProSubscription = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  getAvatarUrl(): string {
+    return `http://127.0.0.1:8000/api/users/me/avatar?t=${this.avatarCacheBuster}`;
   }
 
   getInitials(): string {

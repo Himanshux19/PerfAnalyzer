@@ -3,11 +3,7 @@
   <div class="auth-card p-5">
     <div class="auth-header text-center mb-4">
       <div class="tech-brand-logo mb-2 d-flex align-items-center justify-content-center gap-2">
-        <span class="runner-brand-logo-glow">
-          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-        </span>
+        <img src="/logo.png" alt="PerfAnalyzer Logo" style="width: 44px; height: 44px; object-fit: contain;" />
       </div>
       <h1 class="tech-title">PerfAnalyzer</h1>
       <p class="text-primary fs-7 m-0 font-semibold letter-spacing-wide">SUPER ADMIN GATEWAY</p>
@@ -15,16 +11,16 @@
 
     <!-- Alert Banners -->
     @if (errorMessage) {
-      <div class="alert alert-danger-premium mb-4 d-flex align-items-center gap-2">
-        <i class="bi bi-exclamation-triangle-fill"></i>
-        <span>{{ errorMessage }}</span>
-      </div>
+    <div class="alert alert-danger-premium mb-4 d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>{{ errorMessage }}</span>
+    </div>
     }
     @if (successMessage) {
-      <div class="alert alert-success-premium mb-4 d-flex align-items-center gap-2">
-        <i class="bi bi-check-circle-fill"></i>
-        <span>{{ successMessage }}</span>
-      </div>
+    <div class="alert alert-success-premium mb-4 d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill"></i>
+      <span>{{ successMessage }}</span>
+    </div>
     }
 
     <!-- Login Form View -->
@@ -33,7 +29,8 @@
         <label for="login-username" class="form-label-premium">ADMIN USERNAME</label>
         <div class="input-wrapper-premium">
           <i class="bi bi-person-badge"></i>
-          <input type="text" id="login-username" name="username" [(ngModel)]="loginUsername" placeholder="Enter username" required autocomplete="off" />
+          <input type="text" id="login-username" name="username" [(ngModel)]="loginUsername"
+            placeholder="Enter username" required autocomplete="off" />
         </div>
       </div>
 
@@ -41,16 +38,17 @@
         <label for="login-password" class="form-label-premium">PASSWORD</label>
         <div class="input-wrapper-premium">
           <i class="bi bi-lock"></i>
-          <input type="password" id="login-password" name="password" [(ngModel)]="loginPassword" placeholder="Enter password" required />
+          <input type="password" id="login-password" name="password" [(ngModel)]="loginPassword"
+            placeholder="Enter password" required />
         </div>
       </div>
 
       <button type="submit" class="btn-auth-action py-3 w-100" [disabled]="isLoading">
         @if (isLoading) {
-          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          AUTHENTICATING...
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        AUTHENTICATING...
         } @else {
-          SIGN IN <i class="bi bi-shield-lock ms-2"></i>
+        SIGN IN <i class="bi bi-shield-lock ms-2"></i>
         }
       </button>
     </form>

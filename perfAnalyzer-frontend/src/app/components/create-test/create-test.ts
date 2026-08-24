@@ -2,12 +2,11 @@ import { Component, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../api.service';
-import { Navbar } from '../navbar/navbar';
 
 @Component({
   selector: 'app-create-test',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, Navbar],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './create-test.html',
   styleUrl: './create-test.css',
 })
@@ -29,7 +28,13 @@ export class CreateTest {
   ) {
     this.createTestForm = this.fb.group({
       testName: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_\-]+$/)]],
-      url: ['', [Validators.required, Validators.pattern(/^(https?:\/\/)?([a-zA-Z0-9\.\-_]+)(:\d+)?(\/.*)?$/)]],
+      url: [
+        '',
+        [
+          Validators.required,
+          Validators.pattern(/^(https?:\/\/)?([a-zA-Z0-9\.\-_]+)(:\d+)?(\/.*)?$/),
+        ],
+      ],
       threads: [10, [Validators.required, Validators.min(1)]],
       rampUp: [5, [Validators.required, Validators.min(0)]],
       duration: [60, [Validators.required, Validators.min(1)]],
@@ -44,7 +49,7 @@ export class CreateTest {
     }
 
     const formVal = this.createTestForm.value;
-    
+
     // Ensure URL has a scheme (default to https:// if missing)
     let targetUrl = formVal.url.trim();
     if (!/^https?:\/\//i.test(targetUrl)) {
@@ -84,9 +89,10 @@ export class CreateTest {
             this.isGenerating = false;
             let errMsg = 'Failed to generate JMX file.';
             if (err?.error?.detail) {
-              errMsg = typeof err.error.detail === 'string' 
-                ? err.error.detail 
-                : JSON.stringify(err.error.detail);
+              errMsg =
+                typeof err.error.detail === 'string'
+                  ? err.error.detail
+                  : JSON.stringify(err.error.detail);
             } else if (err?.message) {
               errMsg = err.message;
             }

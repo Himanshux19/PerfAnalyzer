@@ -78,7 +78,7 @@ export class Auth {
         this.cdr.detectChanges();
         setTimeout(() => {
           this.router.navigate(['/dashboard']);
-        }, 1000);
+        }, 800);
       },
       error: (err) => {
         this.isLoading = false;
@@ -92,13 +92,28 @@ export class Auth {
     event.preventDefault();
     this.clearMessages();
 
-    if (!this.regUsername || !this.regPassword || !this.regConfirmPassword || !this.regFullName) {
-      this.errorMessage = 'All registration fields are required.';
+    if (!this.regFullName.trim()) {
+      this.errorMessage = 'Please enter your Full Name.';
+      return;
+    }
+
+    if (!this.regUsername.trim()) {
+      this.errorMessage = 'Please enter your Gmail address.';
       return;
     }
 
     if (!this.isValidGmail(this.regUsername)) {
       this.errorMessage = 'Only valid Gmail addresses (@gmail.com) are allowed.';
+      return;
+    }
+
+    if (!this.regPassword) {
+      this.errorMessage = 'Please create a password.';
+      return;
+    }
+
+    if (this.regPassword.length < 6) {
+      this.errorMessage = 'Password must be at least 6 characters long.';
       return;
     }
 
@@ -117,15 +132,18 @@ export class Auth {
       .subscribe({
         next: (res) => {
           this.isLoading = false;
-          this.successMessage = 'Account created successfully! You can now Sign In.';
-          this.regUsername = '';
-          this.regPassword = '';
-          this.regConfirmPassword = '';
-          this.regFullName = '';
+          // Store session credentials automatically
+          if (res.token) {
+            localStorage.setItem('auth_token', res.token);
+            localStorage.setItem('username', res.username || this.regUsername.trim().toLowerCase());
+            localStorage.setItem('full_name', res.full_name || this.regFullName.trim());
+            localStorage.setItem('role', res.role || 'user');
+          }
+          this.successMessage = 'Account created! Redirecting to complete your profile...';
           this.cdr.detectChanges();
           setTimeout(() => {
-            this.toggleMode(true);
-          }, 2000);
+            this.router.navigate(['/setup-profile']);
+          }, 800);
         },
         error: (err) => {
           this.isLoading = false;

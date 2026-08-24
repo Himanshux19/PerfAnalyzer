@@ -1,6 +1,7 @@
 /* Auth Wrapper Background with Light Slate Theme */
 .auth-wrapper {
-  background-color: #f8fafc; /* Matches dashboard.css layout bg */
+  background-color: #f8fafc;
+  /* Matches dashboard.css layout bg */
   position: relative;
   overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -9,11 +10,14 @@
 /* Auth Card matching test dashboard premium styling */
 .auth-card {
   width: 100%;
-  max-width: 440px;
-  background: #ffffff; /* White card */
-  border: 1px solid #e2e8f0; /* Subtle border */
+  max-width: 480px;
+  background: #ffffff;
+  /* White card */
+  border: 1px solid #e2e8f0;
+  /* Subtle border */
   border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); /* Clean drop shadows */
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  /* Clean drop shadows */
   z-index: 2;
   position: relative;
 }
@@ -26,7 +30,8 @@
 .tech-title {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #0f172a; /* Dark slate text */
+  color: #0f172a;
+  /* Dark slate text */
   letter-spacing: -0.02em;
   margin-bottom: 2px;
 }
@@ -42,7 +47,8 @@
 .auth-tabs {
   position: relative;
   display: flex;
-  background: #f1f5f9; /* Light grey track */
+  background: #f1f5f9;
+  /* Light grey track */
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 4px;
@@ -63,7 +69,8 @@
 }
 
 .auth-tab-btn.active {
-  color: #2563eb; /* Blue active text */
+  color: #2563eb;
+  /* Blue active text */
 }
 
 .tab-slider {
@@ -71,7 +78,8 @@
   top: 4px;
   bottom: 4px;
   width: calc(50% - 4px);
-  background: #ffffff; /* White tab indicator */
+  background: #ffffff;
+  /* White tab indicator */
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   z-index: 1;
@@ -110,10 +118,12 @@
 .input-wrapper-premium input {
   width: 100%;
   background: #ffffff;
-  border: 1px solid #cbd5e1; /* Grey border */
+  border: 1px solid #cbd5e1;
+  /* Grey border */
   border-radius: 8px;
   padding: 10px 14px 10px 42px;
-  color: #334155; /* Slate text */
+  color: #334155;
+  /* Slate text */
   font-size: 0.85rem;
   font-family: inherit;
   outline: none;
@@ -121,11 +131,12 @@
 }
 
 .input-wrapper-premium input:focus {
-  border-color: #2563eb; /* Blue focus border */
+  border-color: #2563eb;
+  /* Blue focus border */
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.input-wrapper-premium input:focus + i,
+.input-wrapper-premium input:focus+i,
 .input-wrapper-premium input:focus-within i {
   color: #2563eb;
 }
@@ -151,7 +162,8 @@
 
 /* Action Button */
 .btn-auth-action {
-  background: #2563eb; /* Primary dashboard blue */
+  background: #2563eb;
+  /* Primary dashboard blue */
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -174,7 +186,8 @@
 }
 
 .btn-auth-signup {
-  background: #2563eb; /* Keep it uniform blue like test page */
+  background: #2563eb;
+  /* Keep it uniform blue like test page */
 }
 
 .btn-auth-signup:hover {

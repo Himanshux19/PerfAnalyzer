@@ -26,7 +26,7 @@
       </button>
     </div>
 
-    <!-- 1. Top Primary Navigation (Dashboard & Workspaces) -->
+    <!-- 1. Top Primary Navigation (Dashboard, Subscribe & Workspaces) -->
     <div class="sidebar-top-nav px-2 pt-3 pb-2">
       <ul class="list-unstyled d-flex flex-column gap-1 m-0">
         <li>
@@ -34,6 +34,14 @@
             [class.active]="activeSection === 'dashboard'" (click)="setSection('dashboard')" title="Dashboard Overview">
             <i class="bi bi-speedometer2 fs-5 nav-icon-dashboard"></i>
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Dashboard</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
+            [class.active]="activeSection === 'subscribe'" (click)="setSection('subscribe')"
+            title="Pricing & Subscription">
+            <i class="bi bi-gem fs-5 nav-icon-subscribe text-warning"></i>
+            <span *ngIf="!sidebarCollapsed" class="font-semibold">Subscribe</span>
           </button>
         </li>
         <li>
@@ -129,14 +137,6 @@
         </li>
         <li>
           <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
-            [class.active]="activeSection === 'create-test'" (click)="setSection('create-test')"
-            [disabled]="!selectedWorkspaceId" title="Create Test">
-            <i class="bi bi-plus-circle-fill fs-5 nav-icon-create"></i>
-            <span *ngIf="!sidebarCollapsed" class="font-semibold">Create Test</span>
-          </button>
-        </li>
-        <li>
-          <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
             [class.active]="activeSection === 'test'" (click)="setSection('test')" [disabled]="!selectedWorkspaceId"
             title="Run Test">
             <i class="bi bi-play-circle-fill fs-5 nav-icon-test"></i>
@@ -166,20 +166,40 @@
             <span *ngIf="!sidebarCollapsed" class="font-semibold">Test Queue</span>
           </button>
         </li>
+        <li>
+          <button type="button" class="nav-link-btn w-100 text-start d-flex align-items-center gap-3 py-2.5 px-3"
+            [class.active]="activeSection === 'create-test'" (click)="setSection('create-test')"
+            [disabled]="!selectedWorkspaceId" title="Create Test Plan">
+            <i class="bi bi-plus-circle-fill fs-5 nav-icon-create"></i>
+            <span *ngIf="!sidebarCollapsed" class="font-semibold">Create Test Plan</span>
+          </button>
+        </li>
       </ul>
     </nav>
 
-    <!-- Sidebar Bottom Profile -->
+    <!-- Sidebar Bottom Profile & Account Settings -->
     <div class="sidebar-footer p-3 border-top mt-auto" *ngIf="!sidebarCollapsed">
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <div class="avatar bg-primary-soft text-primary font-bold d-flex align-items-center justify-content-center"
-          style="width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; flex-shrink: 0;">
-          {{ getInitials() || 'GU' }}
+      <div class="d-flex align-items-center justify-content-between p-2 rounded-3 mb-2 cursor-pointer"
+        [class.bg-primary-soft]="activeSection === 'account'" (click)="setSection('account')" title="Account Settings"
+        style="transition: background 0.15s ease;">
+        <div class="d-flex align-items-center gap-2">
+          <div class="avatar-sidebar-wrap position-relative flex-shrink-0" style="width: 32px; height: 32px;">
+            <img *ngIf="hasAvatar" [src]="getAvatarUrl()" alt="Avatar"
+              class="w-100 h-100 rounded-circle object-fit-cover shadow-sm" />
+            <div *ngIf="!hasAvatar"
+              class="avatar bg-primary text-white font-bold d-flex align-items-center justify-content-center w-100 h-100 rounded-circle"
+              style="font-size: 0.85rem;">
+              {{ getInitials() || 'GU' }}
+            </div>
+          </div>
+          <div class="user-info text-slate-800 text-truncate" style="max-width: 110px;">
+            <div class="user-name font-bold fs-8 text-slate-800 text-truncate" [title]="getFullName() || getUsername()">
+              {{ getFullName() || getUsername() || 'Guest User' }}
+            </div>
+            <div class="fs-9 text-muted">Account Settings</div>
+          </div>
         </div>
-        <div class="user-info text-slate-800 text-truncate" style="max-width: 140px;">
-          <div class="user-name font-bold fs-8 text-slate-800" [title]="getFullName() || getUsername()">{{ getFullName()
-            || getUsername() || 'Guest User' }}</div>
-        </div>
+        <i class="bi bi-chevron-right fs-9 text-muted"></i>
       </div>
 
       <button type="button" class="btn-logout-sidebar w-100 d-flex align-items-center justify-content-center gap-2"
@@ -190,11 +210,15 @@
     </div>
 
     <div class="sidebar-footer-collapsed text-center py-3 border-top mt-auto" *ngIf="sidebarCollapsed">
-      <div
-        class="avatar mx-auto bg-primary-soft text-primary font-bold d-flex align-items-center justify-content-center mb-2"
-        [title]="getFullName() || getUsername()"
-        style="width: 30px; height: 30px; border-radius: 50%; font-size: 0.8rem; cursor: pointer;">
-        {{ getInitials() || 'GU' }}
+      <div class="avatar-collapsed-wrap mx-auto mb-2 cursor-pointer position-relative" (click)="setSection('account')"
+        [title]="'Account Settings (' + (getFullName() || getUsername()) + ')'" style="width: 30px; height: 30px;">
+        <img *ngIf="hasAvatar" [src]="getAvatarUrl()" alt="Avatar"
+          class="w-100 h-100 rounded-circle object-fit-cover shadow-sm" />
+        <div *ngIf="!hasAvatar"
+          class="avatar bg-primary text-white font-bold d-flex align-items-center justify-content-center w-100 h-100 rounded-circle"
+          style="font-size: 0.8rem;">
+          {{ getInitials() || 'GU' }}
+        </div>
       </div>
       <button type="button" class="btn-logout-icon mx-auto d-flex align-items-center justify-content-center"
         (click)="onLogout()" title="Log Out"
@@ -211,14 +235,40 @@
 
     <!-- Content Header -->
     <header
-      class="content-header bg-white border-bottom px-4 py-3.5 d-flex align-items-center justify-content-between flex-shrink-0">
+      class="content-header bg-white border-bottom px-4 py-3 d-flex align-items-center justify-content-between flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
         <h4 class="h6 m-0 font-bold text-slate-800">{{
           activeSection === 'dashboard' ? 'Dashboard Overview' :
+          activeSection === 'subscribe' ? 'Subscription Plans' :
+          activeSection === 'account' ? 'Account Settings' :
           activeSection === 'workspaces' ? 'Manage Workspaces' :
           activeSection === 'about' ? ('About ' + (drawerProject?.name || 'Workspace')) :
           (drawerProject?.name || 'Workspace Section') }}</h4>
       </div>
+
+      <!-- Top Right Subscribe CTA / Active Plan Indicator -->
+      @if (activeSection !== 'subscribe') {
+      <div class="d-flex align-items-center gap-2">
+        @if (!hasProSubscription) {
+        @if (userSubscriptionPlan === 'starter') {
+        <span class="badge-starter-plan" (click)="setSection('account')" role="button" title="Current: Starter Tier">
+          <i class="bi bi-lightning-charge-fill me-1"></i> STARTER
+        </span>
+        }
+        <button type="button" class="btn-upgrade-top-header d-flex align-items-center gap-2"
+          (click)="setSection('subscribe')" title="Upgrade to Pro Subscription">
+          <i class="bi bi-stars"></i>
+          <span>Upgrade to Pro</span>
+        </button>
+        } @else {
+        <span class="badge-active-plan" [class.badge-enterprise]="userSubscriptionPlan === 'enterprise'"
+          [class.badge-pro]="userSubscriptionPlan === 'pro'" (click)="setSection('account')" role="button"
+          title="View Active Subscription in Account Settings">
+          <i class="bi bi-gem-fill me-1.5"></i> {{ (userSubscriptionPlan || 'Pro') | uppercase }} PLAN
+        </span>
+        }
+      </div>
+      }
     </header>
 
     <!-- Content Body -->
@@ -845,6 +895,20 @@
       @else if (activeSection === 'queue') {
       <div class="fade-in-section">
         <app-test-queue></app-test-queue>
+      </div>
+      }
+
+      <!-- ── SECTION 7: SUBSCRIBE / PRICING ── -->
+      @else if (activeSection === 'subscribe') {
+      <div class="fade-in-section">
+        <app-subscribe></app-subscribe>
+      </div>
+      }
+
+      <!-- ── SECTION 8: ACCOUNT SETTINGS ── -->
+      @else if (activeSection === 'account') {
+      <div class="fade-in-section">
+        <app-account (navigateSection)="setSection($event)"></app-account>
       </div>
       }
     </div>

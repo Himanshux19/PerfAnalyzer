@@ -1,0 +1,163 @@
+<div class="setup-wrapper d-flex align-items-center justify-content-center min-vh-100 py-5">
+  <!-- Setup Profile Card -->
+  <div class="setup-card p-4 p-md-5">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+      <div class="setup-brand-logo mb-2 d-flex align-items-center justify-content-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" fill="none" viewBox="0 0 24 24" stroke="#2563eb"
+          stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <h1 class="setup-title">Complete Your Profile</h1>
+      <p class="setup-subtitle">
+        Help us personalize your experience by providing your contact and address details.
+      </p>
+    </div>
+
+    <!-- Alert Messages -->
+    @if (errorMessage) {
+    <div class="alert alert-danger-premium mb-4 d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+      <span>{{ errorMessage }}</span>
+    </div>
+    }
+    @if (successMessage) {
+    <div class="alert alert-success-premium mb-4 d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill flex-shrink-0"></i>
+      <span>{{ successMessage }}</span>
+    </div>
+    }
+
+    <!-- Main Profile Setup Form -->
+    <form (submit)="onSubmitProfile($event)" class="setup-form">
+
+      <!-- Name Row (First & Last Name) -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-firstname" class="form-label-premium">FIRST NAME *</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-person"></i>
+              <input type="text" id="setup-firstname" name="firstName" [(ngModel)]="firstName" placeholder="e.g. Rajesh"
+                required autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-lastname" class="form-label-premium">LAST NAME</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-person"></i>
+              <input type="text" id="setup-lastname" name="lastName" [(ngModel)]="lastName" placeholder="e.g. Kumar"
+                autocomplete="off" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Email (Read-only reference) & Phone Row -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label class="form-label-premium">GMAIL ADDRESS</label>
+            <div class="input-wrapper-premium input-disabled">
+              <i class="bi bi-envelope"></i>
+              <input type="text" [value]="userEmail" disabled readonly />
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-phone" class="form-label-premium">PHONE NUMBER *</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-telephone"></i>
+              <input type="tel" id="setup-phone" name="phone" [(ngModel)]="phone" placeholder="+91 XXXXXXXXXX" required
+                autocomplete="off" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Street Address -->
+      <div class="form-group-premium mb-3">
+        <label for="setup-street" class="form-label-premium">STREET ADDRESS</label>
+        <div class="input-wrapper-premium">
+          <i class="bi bi-geo-alt"></i>
+          <input type="text" id="setup-street" name="streetAddress" [(ngModel)]="streetAddress"
+            placeholder="e.g. Flat 4B, Sunrise Apartments, 5th Main Road" autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- City & State / Province Row -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-city" class="form-label-premium">CITY</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-building"></i>
+              <input type="text" id="setup-city" name="city" [(ngModel)]="city" placeholder="e.g. Bangalore"
+                autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-state" class="form-label-premium">STATE / PROVINCE</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-map"></i>
+              <input type="text" id="setup-state" name="stateProvince" [(ngModel)]="stateProvince"
+                placeholder="e.g. Karnataka" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Postal Code & Country Row -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-postal" class="form-label-premium">POSTAL / ZIP CODE</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-mailbox"></i>
+              <input type="text" id="setup-postal" name="postalCode" [(ngModel)]="postalCode" placeholder="e.g. 560041"
+                autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group-premium">
+            <label for="setup-country" class="form-label-premium">COUNTRY</label>
+            <div class="input-wrapper-premium">
+              <i class="bi bi-globe"></i>
+              <select id="setup-country" name="country" [(ngModel)]="country" class="form-select-premium">
+                @for (c of countries; track c) {
+                <option [value]="c">{{ c }}</option>
+                }
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submission Actions -->
+      <div class="d-flex flex-column gap-2 mt-4">
+        <button type="submit" class="btn-setup-action py-3 w-100" [disabled]="isSaving">
+          @if (isSaving) {
+          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+          SAVING PROFILE...
+          } @else {
+          COMPLETE & PROCEED TO DASHBOARD <i class="bi bi-arrow-right ms-2"></i>
+          }
+        </button>
+
+        <button type="button" class="btn-setup-skip py-2.5 text-center text-muted" (click)="onSkip()"
+          [disabled]="isSaving">
+          Skip for now and continue to Dashboard
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>

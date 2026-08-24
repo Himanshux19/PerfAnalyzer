@@ -72,3 +72,24 @@ class CreateTestResponse(BaseModel):
     discoveryMode: Optional[str] = None
     endpointsCount: Optional[int] = None
     endpoints: Optional[List[ApiRequest]] = None
+
+
+class UserProfileUpdate(BaseModel):
+    first_name: Optional[str] = Field(default="", max_length=50)
+    last_name: Optional[str] = Field(default="", max_length=50)
+    phone: Optional[str] = Field(default="", max_length=50)
+    street_address: Optional[str] = Field(default="", max_length=255)
+    city: Optional[str] = Field(default="", max_length=100)
+    state_province: Optional[str] = Field(default="", max_length=100)
+    postal_code: Optional[str] = Field(default="", max_length=50)
+    country: Optional[str] = Field(default="", max_length=100)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)
+
+
+class DeletionRequestCreate(BaseModel):
+    reason: Optional[str] = Field(default="no_longer_needed", max_length=100)
+    notes: Optional[str] = Field(default="", max_length=1000)

@@ -1,0 +1,190 @@
+.subscribe-container {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+/* ==============================
+   Header
+   ============================== */
+
+.max-w-700 {
+  max-width: 700px;
+}
+
+/* ==============================
+   Pricing Cards
+   ============================== */
+
+.plan-card {
+  position: relative;
+  overflow: visible;
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.plan-card:hover {
+  transform: translateY(-6px);
+  border-color: #d1d5db !important;
+  box-shadow:
+    0 20px 35px -12px rgba(15, 23, 42, 0.15),
+    0 8px 15px -8px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* ==============================
+   Featured / Professional Plan
+   ============================== */
+
+.featured-plan {
+  border: 2px solid #3b82f6 !important;
+  box-shadow:
+    0 12px 30px -10px rgba(59, 130, 246, 0.25) !important;
+}
+
+.featured-plan:hover {
+  border-color: #2563eb !important;
+  box-shadow:
+    0 22px 40px -12px rgba(59, 130, 246, 0.30) !important;
+}
+
+/* ==============================
+   Current Plan
+   ============================== */
+
+.current-plan-card {
+  border: 2px solid #10b981 !important;
+  box-shadow:
+    0 10px 25px -10px rgba(16, 185, 129, 0.18) !important;
+}
+
+.current-plan-card:hover {
+  border-color: #059669 !important;
+}
+
+/*
+   If Professional is also the current plan,
+   keep the green "current plan" indicator
+   while retaining the blue featured styling.
+*/
+.featured-plan.current-plan-card {
+  border-color: #10b981 !important;
+  box-shadow:
+    0 12px 30px -10px rgba(16, 185, 129, 0.20) !important;
+}
+
+/* ==============================
+   Popular Badge
+   ============================== */
+
+.popular-badge {
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  box-shadow:
+    0 4px 10px rgba(59, 130, 246, 0.25) !important;
+}
+
+/* ==============================
+   Soft Primary Badge
+   ============================== */
+
+.bg-primary-soft {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+/* ==============================
+   Typography
+   ============================== */
+
+.fs-7 {
+  font-size: 0.95rem;
+}
+
+.fs-8 {
+  font-size: 0.85rem;
+}
+
+.fs-9 {
+  font-size: 0.75rem;
+}
+
+/* ==============================
+   Plan Price
+   ============================== */
+
+.plan-price {
+  line-height: 1;
+}
+
+.plan-price .display-5 {
+  letter-spacing: -0.03em;
+}
+
+/* ==============================
+   Features
+   ============================== */
+
+.plan-features {
+  margin-top: 0.25rem;
+}
+
+.plan-features li {
+  line-height: 1.45;
+}
+
+.plan-features i {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+/* ==============================
+   Buttons
+   ============================== */
+
+.plan-card .btn {
+  border-radius: 0.65rem;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.plan-card .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.plan-card .btn-primary:hover:not(:disabled) {
+  box-shadow:
+    0 6px 14px rgba(59, 130, 246, 0.25);
+}
+
+.plan-card .btn-dark:hover:not(:disabled) {
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.20);
+}
+
+/* ==============================
+   Responsive
+   ============================== */
+
+@media (max-width: 767.98px) {
+  .subscribe-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .plan-card {
+    padding: 1.5rem !important;
+  }
+
+  .featured-plan {
+    margin-top: 0.75rem;
+  }
+
+  .popular-badge {
+    font-size: 0.7rem;
+  }
+}

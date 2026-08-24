@@ -1,245 +1,450 @@
 <div class="admin-layout bg-light-gray-slate min-vh-100 pb-5">
 
-  <div class="container-fluid py-4 px-lg-5">
-    <!-- Header Summary Section -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <!-- ==========================================
+       SUPER ADMIN TOP NAVBAR
+       ========================================== -->
+  <nav
+    class="admin-topbar bg-white px-4 py-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <img src="/logo.png" alt="PerfAnalyzer Logo" class="admin-logo-img" />
       <div>
-        <h1 class="h3 font-bold text-slate-800 m-0">User Management</h1>
-        <p class="text-muted m-0 fs-7">
-          Overview of registered accounts, role administration, and deletion privileges
-        </p>
+        <div class="d-flex align-items-center gap-2">
+          <span class="h5 m-0 font-bold text-slate-800 tracking-tight">PerfAnalyzer</span>
+          <span class="badge-superadmin-pill">SUPER ADMIN</span>
+        </div>
+        <div class="fs-9 text-muted font-medium">Administration, Subscription & Account Management Gateway</div>
       </div>
-      <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="loadUsers()"
-        [disabled]="isLoading">
-        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Refresh Users
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2"
+        (click)="loadUsers(); loadAnalytics(); loadDeletionRequests()" [disabled]="isLoading">
+        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i>
+        <span>Refresh</span>
+      </button>
+
+      <div class="admin-user-badge d-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-slate-50 border">
+        <div class="avatar-admin-sm">{{ getInitials('Super Admin', currentAdminUsername) }}</div>
+        <div class="text-start d-none d-sm-block">
+          <div class="fs-8 font-bold text-slate-800 lh-1">{{ currentAdminUsername }}</div>
+          <!-- <div class="fs-9 text-emerald-600 font-semibold lh-1 mt-0.5">Root Admin</div> -->
+        </div>
+      </div>
+
+      <button type="button" class="btn-admin-logout" (click)="onLogout()" title="Log out">
+        <i class="bi bi-box-arrow-right"></i>
+        <!-- <span class="d-none d-sm-inline ms-1">Exit</span> -->
       </button>
     </div>
+  </nav>
+
+  <div class="container-fluid py-4 px-lg-5">
 
     <!-- Alert Messages -->
     @if (errorMessage) {
-    <div class="alert alert-danger mb-4 text-center">
-      <div>{{ errorMessage }}</div>
+    <div class="alert alert-danger mb-4 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-octagon-fill fs-5 text-danger"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+      <button type="button" class="btn-close" (click)="errorMessage = null"></button>
     </div>
     }
     @if (successMessage) {
-    <div class="alert alert-success mb-4 text-center">
-      <div>{{ successMessage }}</div>
+    <div class="alert alert-success mb-4 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+        <span>{{ successMessage }}</span>
+      </div>
+      <button type="button" class="btn-close" (click)="successMessage = null"></button>
     </div>
     }
-
-    <!-- Quick Stats Cards -->
-    <div class="row g-4 mb-4">
-      <!-- Users Card -->
-      <div class="col-md-6 col-lg-3">
-        <div class="card-premium p-4 d-flex align-items-center gap-3 h-100">
-          <div class="stat-icon bg-primary-soft text-primary">
-            <i class="bi bi-people fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted fs-7 font-medium">TOTAL USERS</div>
-            <div class="fs-4 font-bold">{{ analytics.total_users }}</div>
-          </div>
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <div class="text-uppercase text-primary fw-bold" style="font-size:10px; letter-spacing:1px;">
+          Control Center
         </div>
-      </div>
 
-      <!-- Workspaces Card -->
-      <div class="col-md-6 col-lg-3">
-        <div class="card-premium p-4 d-flex flex-column gap-3 h-100">
-          <div class="d-flex align-items-center gap-3">
-            <div class="stat-icon bg-success-soft text-success">
-              <i class="bi bi-folder2-open fs-4"></i>
-            </div>
-            <div>
-              <div class="text-muted fs-7 font-medium">WORKSPACES</div>
-              <div class="fs-4 font-bold">{{ analytics.total_workspaces }}</div>
-            </div>
-          </div>
-          <div class="d-flex justify-content-between border-top pt-2 mt-auto text-muted fs-7"
-            style="font-size: 0.725rem">
-            <span>Week: <strong>{{ analytics.workspaces_this_week }}</strong></span>
-            <span>Month: <strong>{{ analytics.workspaces_this_month }}</strong></span>
-          </div>
-        </div>
-      </div>
+        <h2 class="fw-bold mb-1 text-slate-800" style="letter-spacing:-0.7px;">
+          Administration Dashboard
+        </h2>
 
-      <!-- Files Uploaded Card -->
-      <div class="col-md-6 col-lg-3">
-        <div class="card-premium p-4 d-flex flex-column gap-3 h-100">
-          <div class="d-flex align-items-center gap-3">
-            <div class="stat-icon text-warning" style="
-                background-color: rgba(245, 158, 11, 0.1);
-                color: #f59e0b;
-                width: 48px;
-                height: 48px;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-              ">
-              <i class="bi bi-file-earmark-arrow-up fs-4"></i>
-            </div>
-            <div>
-              <div class="text-muted fs-7 font-medium">UPLOADED FILES</div>
-              <div class="fs-4 font-bold">{{ analytics.total_files }}</div>
-            </div>
-          </div>
-          <div class="d-flex justify-content-between border-top pt-2 mt-auto text-muted fs-7"
-            style="font-size: 0.725rem">
-            <span>Week: <strong>{{ analytics.files_this_week }}</strong></span>
-            <span>Month: <strong>{{ analytics.files_this_month }}</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Test Runs Card -->
-      <div class="col-md-6 col-lg-3">
-        <div class="card-premium p-4 d-flex align-items-center gap-3 h-100">
-          <div class="stat-icon bg-danger-soft text-danger">
-            <i class="bi bi-play-circle fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted fs-7 font-medium">HISTORICAL RUNS</div>
-            <div class="fs-4 font-bold">{{ analytics.total_test_runs }}</div>
-          </div>
-        </div>
+        <p class="text-muted mb-0" style="font-size:13px;">
+          Monitor accounts, subscriptions and platform activity.
+        </p>
       </div>
     </div>
 
-    <!-- Main List/Filter Panel -->
-    <div class="card-premium p-4 mb-4">
-      <div class="d-flex align-items-center gap-3">
-        <div class="search-input-wrapper flex-grow-1">
-          <i class="bi bi-search search-icon"></i>
+    <!-- ==========================================
+         KPI STATS CARDS (CLEAN LIGHT SLATE)
+         ========================================== -->
+    <div class="row g-3 mb-4">
 
-          <input type="text" class="form-control" placeholder="Search by name or email..." [(ngModel)]="searchQuery"
-            (ngModelChange)="onSearchQueryChange()" />
+      <!-- Card 1: Users & Status -->
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 h-100 d-flex flex-column justify-content-between">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <span class="kpi-subtitle">TOTAL ACCOUNTS</span>
+              <h3 class="kpi-value text-slate-800">{{ analytics.total_users }}</h3>
+            </div>
+            <div class="stat-icon-circle bg-primary-soft text-primary">
+              <i class="bi bi-people-fill"></i>
+            </div>
+          </div>
+          <div class="d-flex gap-2 align-items-center pt-2 border-top">
+            <span class="badge-status-pill active-pill">
+              <i class="bi bi-check-circle-fill me-1 text-success"></i> {{ analytics.active_users }} Active
+            </span>
+            <span class="badge-status-pill suspended-pill" *ngIf="analytics.suspended_users > 0">
+              <i class="bi bi-slash-circle me-1 text-danger"></i> {{ analytics.suspended_users }} Suspended
+            </span>
+          </div>
         </div>
+      </div>
 
-        <button class="btn btn-outline-primary d-flex align-items-center gap-2 flex-shrink-0" (click)="exportToCSV()"
-          [disabled]="users.length === 0">
-          <i class="bi bi-file-earmark-spreadsheet"></i>
-          Export CSV
+      <!-- Card 2: Subscriptions Breakdown -->
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 h-100 d-flex flex-column justify-content-between">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <span class="kpi-subtitle">PAID SUBSCRIBERS</span>
+              <div class="d-flex align-items-baseline gap-2">
+                <h3 class="kpi-value text-slate-800">{{ (analytics.pro_users + analytics.enterprise_users +
+                  analytics.starter_users) }}</h3>
+                <span class="fs-8 text-muted">Active Plans</span>
+              </div>
+            </div>
+            <div class="stat-icon-circle bg-purple-soft text-purple">
+              <i class="bi bi-gem-fill"></i>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-1.5 align-items-center pt-2 border-top">
+            <span class="tier-chip tier-enterprise" title="Enterprise Tier">{{ analytics.enterprise_users }} ENT</span>
+            <span class="tier-chip tier-pro" title="Pro Tier">{{ analytics.pro_users }} PRO</span>
+            <span class="tier-chip tier-starter" title="Starter Tier">{{ analytics.starter_users }} ST</span>
+            <span class="tier-chip tier-free" title="Free Tier">{{ analytics.free_users }} Free</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Workspaces Metrics -->
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 h-100 d-flex flex-column justify-content-between">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <span class="kpi-subtitle">WORKSPACES</span>
+              <h3 class="kpi-value text-slate-800">{{ analytics.total_workspaces }}</h3>
+            </div>
+            <div class="stat-icon-circle bg-success-soft text-success">
+              <i class="bi bi-folder2-open"></i>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between text-muted fs-8 pt-2 border-top">
+            <span>This Week: <strong class="text-slate-700">+{{ analytics.workspaces_this_week }}</strong></span>
+            <span>This Month: <strong class="text-slate-700">+{{ analytics.workspaces_this_month }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Test Executions & Load -->
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-premium p-4 h-100 d-flex flex-column justify-content-between">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <span class="kpi-subtitle">HISTORICAL RUNS</span>
+              <h3 class="kpi-value text-slate-800">{{ analytics.total_test_runs }}</h3>
+            </div>
+            <div class="stat-icon-circle bg-amber-soft text-warning">
+              <i class="bi bi-speedometer2"></i>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between text-muted fs-8 pt-2 border-top">
+            <span>Files Hosted: <strong class="text-slate-700">{{ analytics.total_files }}</strong></span>
+            <span>Recent Files: <strong class="text-slate-700">+{{ analytics.files_this_week }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==========================================
+         MAIN TAB CONTROLS (USERS / DELETED / DELETIONS)
+         ========================================== -->
+    <div class="d-flex gap-2 border-bottom pb-3 mb-4 flex-wrap align-items-center justify-content-between">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn px-4 py-2 fw-semibold rounded-pill"
+          [class.btn-primary]="activeAdminTab === 'users'" [class.btn-light]="activeAdminTab !== 'users'"
+          (click)="activeAdminTab = 'users'">
+          <i class="bi bi-people-fill me-1.5"></i> Registered Users ({{ users.length }})
+        </button>
+        <button type="button" class="btn px-4 py-2 fw-semibold rounded-pill"
+          [class.btn-secondary]="activeAdminTab === 'deleted-users'"
+          [class.btn-light]="activeAdminTab !== 'deleted-users'" (click)="activeAdminTab = 'deleted-users'">
+          <i class="bi bi-trash3-fill me-1.5"></i> Deleted Accounts ({{ deletedUsers.length }})
+        </button>
+        <button type="button" class="btn px-4 py-2 fw-semibold rounded-pill position-relative"
+          [class.btn-danger]="activeAdminTab === 'deletion-requests'"
+          [class.btn-light]="activeAdminTab !== 'deletion-requests'" (click)="activeAdminTab = 'deletion-requests'">
+          <i class="bi bi-person-x-fill me-1.5"></i> Deletion Requests
+          <span *ngIf="deletionRequests.length > 0" class="badge bg-danger text-white ms-1.5">
+            {{ deletionRequests.length }}
+          </span>
         </button>
       </div>
 
-      <br />
-      <!-- Loading State -->
+      <div class="text-muted fs-8 font-medium d-none d-md-block">
+        Showing <strong class="text-primary">{{ activeAdminTab === 'users' ? filteredUsers().length : (activeAdminTab
+          === 'deleted-users' ? deletedUsers.length : deletionRequests.length) }}</strong> items
+      </div>
+    </div>
+
+    <!-- ==========================================
+         TAB 1: USERS DIRECTORY & MANAGEMENT
+         ========================================== -->
+    @if (activeAdminTab === 'users') {
+    <div class="card-premium p-4 mb-4">
+
+      <!-- Filter Controls Bar -->
+      <div class="row g-3 align-items-center mb-4">
+
+        <!-- Search input -->
+        <div class="col-12 col-md-5 col-lg-4">
+          <div class="search-input-wrapper">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" placeholder="Search by name, email, or phone..."
+              [(ngModel)]="searchQuery" (ngModelChange)="onFilterChange()" />
+            <button *ngIf="searchQuery" type="button" class="btn-clear-search"
+              (click)="searchQuery = ''; onFilterChange()"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+
+        <!-- Subscription Plan Filter -->
+        <div class="col-6 col-md-3 col-lg-3">
+          <div class="filter-select-wrapper">
+            <i class="bi bi-gem filter-icon"></i>
+            <select class="form-select filter-select" [(ngModel)]="tierFilter" (ngModelChange)="onFilterChange()">
+              <option value="all">All Subscriptions</option>
+              <option value="enterprise">Enterprise Tier</option>
+              <option value="pro">Pro Tier</option>
+              <option value="starter">Starter Tier</option>
+              <option value="free">Free Tier</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Account Status Filter -->
+        <div class="col-6 col-md-2 col-lg-2">
+          <div class="filter-select-wrapper">
+            <i class="bi bi-shield-check filter-icon"></i>
+            <select class="form-select filter-select" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="suspended">Suspended Only</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Export CSV -->
+        <div class="col-12 col-md-2 col-lg-3 text-md-end">
+          <button type="button"
+            class="btn btn-outline-primary d-flex align-items-center gap-2 w-100 w-md-auto ms-md-auto"
+            (click)="exportToCSV()" [disabled]="users.length === 0">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+            <span>Export CSV</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Table Loading State -->
       @if (isLoading) {
       <div class="d-flex flex-column align-items-center justify-content-center py-5">
         <div class="spinner-border text-primary mb-3" role="status"></div>
-        <span class="text-muted">Loading registered users...</span>
+        <span class="text-muted fs-7">Loading registered users...</span>
       </div>
       } @else if (filteredUsers().length === 0) {
-      <div class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
-        <i class="bi bi-people-fill fs-1 text-muted mb-3"></i>
-        <h5 class="text-slate-800 m-0">No users found</h5>
-        <p class="text-muted fs-7 max-w-320 mt-1">
-          No accounts match your search query or there are no registered accounts in the system.
+      <div class="empty-state-box py-5 text-center">
+        <div class="empty-icon-circle mx-auto mb-3">
+          <i class="bi bi-person-slash fs-2 text-muted"></i>
+        </div>
+        <h5 class="font-bold text-slate-800 m-0">No users match your filters</h5>
+        <p class="text-muted fs-8 max-w-360 mx-auto mt-1 mb-3">
+          Try adjusting your search query, subscription plan, or status filters.
         </p>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+          (click)="searchQuery = ''; tierFilter = 'all'; statusFilter = 'all'; onFilterChange()">
+          Reset Filters
+        </button>
       </div>
       } @else {
-      <!-- Users Table -->
+      <!-- Rich Users Table -->
       <div class="table-responsive">
         <table class="table table-hover align-middle m-0">
           <thead class="table-light-premium">
             <tr>
-              <th scope="col" class="ps-4">FULL NAME</th>
-              <th scope="col">EMAIL ADDRESS</th>
-              <th scope="col">ROLE</th>
-              <th scope="col" class="text-center">WORKSPACES</th>
-              <th scope="col" class="text-center">FILES UPLOADED</th>
-              <th scope="col" class="text-center">TEST RUNS</th>
-              <th scope="col">REGISTRATION DATE</th>
+              <th scope="col" class="ps-4">USER / IDENTITY</th>
+              <th scope="col">SUBSCRIPTION TIER</th>
+              <th scope="col" class="text-center">METRICS</th>
+              <th scope="col">REGISTRATION</th>
               <th scope="col" class="text-center">STATUS</th>
               <th scope="col" class="text-end pe-4">ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             @for (user of paginatedUsers; track user.id) {
-            <tr>
-              <td class="ps-4">
-                <span class="font-semibold text-slate-800 d-block text-truncate max-w-250">
-                  {{ user.full_name || 'No name' }}
-                </span>
-              </td>
-              <td>
-                <span class="text-muted fs-7">{{ user.username }}</span>
-              </td>
-              <td>
-                @if (user.role === 'superadmin') {
-                <span class="badge-status-admin superadmin">
-                  <i class="bi bi-shield-fill-check me-1"></i> Super Admin
-                </span>
-                } @else {
-                <span class="badge-status-admin user-role">
-                  <i class="bi bi-person-fill me-1"></i> User
-                </span>
-                }
-              </td>
-              <td class="text-center font-semibold text-slate-700 fs-7">
-                {{ user.workspace_count }}
-              </td>
-              <td class="text-center font-semibold text-slate-700 fs-7">
-                {{ user.file_count }}
-              </td>
-              <td class="text-center font-semibold text-slate-700 fs-7">
-                {{ user.run_count }}
-              </td>
-              <td>
-                <span class="text-muted fs-7">{{ user.created_at || 'Unknown' }}</span>
-              </td>
-              <td class="text-center">
-                <label class="switch-premium">
-                  <input type="checkbox" [checked]="user.status === 'active'" (change)="onToggleStatus(user)"
-                    [disabled]="isUpdating === user.id || isCurrentUser(user.username)" />
-                  <span class="slider-premium" [class.suspended-bg]="user.status !== 'active'"></span>
-                </label>
-              </td>
-              <td class="text-end pe-4">
-                <div class="d-inline-flex gap-2 align-items-center">
-                  <!-- Role toggle select -->
-                  <!-- <select
-                        class="form-select form-select-sm select-role-premium py-1"
-                        [ngModel]="user.role"
-                        (ngModelChange)="onChangeRole(user, $event)"
-                        [disabled]="isUpdating === user.id || isCurrentUser(user.username)"
-                      >
-                        <option value="user">User</option>
-                        <option value="superadmin">Super Admin</option>
-                      </select> -->
+            <tr [class.opacity-50]="user.status !== 'active'">
 
-                  <button type="button" class="btn-delete-user" (click)="onDeleteUser(user)"
-                    [disabled]="isCurrentUser(user.username)" title="Delete User Account">
-                    <i class="bi bi-trash-fill"></i>
-                  </button>
+              <!-- 1. User Identity -->
+              <td class="ps-4">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="user-avatar-badge" [class.superadmin-avatar]="user.role === 'superadmin'">
+                    {{ getInitials(user.full_name, user.username) }}
+                  </div>
+                  <div>
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="font-bold text-slate-800 cursor-pointer user-name-hover"
+                        (click)="openUserDetails(user)">
+                        {{ user.full_name || 'No name' }}
+                      </span>
+                      @if (user.role === 'superadmin') {
+                      <span class="badge-status-admin superadmin"><i class="bi bi-shield-lock-fill me-1"></i> Super
+                        Admin</span>
+                      }
+                    </div>
+                    <div class="fs-8 text-muted d-flex align-items-center gap-2 mt-0.5">
+                      <span><i class="bi bi-envelope me-1"></i>{{ user.username }}</span>
+                      <span *ngIf="user.phone">•</span>
+                      <span *ngIf="user.phone"><i class="bi bi-telephone me-1"></i>{{ user.phone }}</span>
+                    </div>
+                  </div>
                 </div>
               </td>
+
+              <!-- 2. Subscription Status & Tier -->
+              <td>
+                <div class="d-flex flex-column gap-1">
+                  <div class="d-flex align-items-center gap-2">
+                    @if (user.subscription?.plan === 'enterprise') {
+                    <span class="badge-tier enterprise">
+                      <i class="bi bi-stars"></i> ENTERPRISE
+                    </span>
+                    } @else if (user.subscription?.plan === 'pro') {
+                    <span class="badge-tier pro">
+                      <i class="bi bi-gem"></i> PRO
+                    </span>
+                    } @else if (user.subscription?.plan === 'starter') {
+                    <span class="badge-tier starter">
+                      <i class="bi bi-lightning-charge"></i> STARTER
+                    </span>
+                    } @else {
+                    <span class="badge-tier free">
+                      <i class="bi bi-circle"></i> FREE
+                    </span>
+                    }
+
+                    <span class="status-dot" [class.active]="user.subscription?.status === 'active'"
+                      [title]="'Status: ' + (user.subscription?.status || 'none')"></span>
+                  </div>
+
+                  <div class="fs-9 text-muted" *ngIf="user.subscription?.renews_at">
+                    Renews {{ user.subscription.renews_at }}
+                  </div>
+                </div>
+              </td>
+
+              <!-- 3. Workspace Metrics -->
+              <td class="text-center">
+                <div
+                  class="d-inline-flex align-items-center gap-2 py-1 px-2.5 rounded bg-light border font-semibold fs-8 text-slate-700">
+                  <span title="Workspaces"><i class="bi bi-folder me-1 text-primary"></i>{{ user.workspace_count
+                    }}</span>
+                  <span class="text-muted">|</span>
+                  <span title="Uploaded Files"><i class="bi bi-file-earmark me-1 text-warning"></i>{{ user.file_count
+                    }}</span>
+                  <span class="text-muted">|</span>
+                  <span title="Test Runs"><i class="bi bi-play-circle me-1 text-success"></i>{{ user.run_count }}</span>
+                </div>
+              </td>
+
+              <!-- 4. Registration & Last Login -->
+              <td>
+                <div class="fs-8 text-slate-800 font-medium">{{ user.created_at || 'Unknown' }}</div>
+                <div class="fs-9 text-muted" *ngIf="user.last_login_at">Last active: {{ user.last_login_at }}</div>
+              </td>
+
+              <!-- 5. Status Toggle -->
+              <td class="text-center">
+                <div class="d-inline-flex flex-column align-items-center">
+                  <label class="switch-premium"
+                    [title]="user.status === 'active' ? 'Click to suspend account' : 'Click to activate account'">
+                    <input type="checkbox" [checked]="user.status === 'active'" (change)="onToggleStatus(user)"
+                      [disabled]="isUpdating === user.id || isCurrentUser(user.username)" />
+                    <span class="slider-premium"></span>
+                  </label>
+                  <span class="fs-9 font-semibold mt-1" [class.text-success]="user.status === 'active'"
+                    [class.text-danger]="user.status !== 'active'">
+                    {{ user.status === 'active' ? 'ACTIVE' : 'SUSPENDED' }}
+                  </span>
+                </div>
+              </td>
+
+              <!-- 6. Actions -->
+              <td class="text-end pe-4">
+                <div class="d-inline-flex align-items-center gap-2">
+
+                  <!-- Inspect Profile Button -->
+                  <button type="button" class="btn-action-icon" (click)="openUserDetails(user)"
+                    title="Inspect Profile Details">
+                    <i class="bi bi-eye"></i>
+                  </button>
+
+                  <!-- Change Tier Dropdown -->
+                  <div class="tier-select-wrapper">
+                    <select class="form-select form-select-sm tier-quick-select"
+                      [ngModel]="user.subscription?.plan || 'free'"
+                      (ngModelChange)="onChangeSubscriptionPlan(user, $event)" [disabled]="isChangingPlan === user.id"
+                      title="Change Subscription Tier">
+                      <option value="free">Free</option>
+                      <option value="starter">Starter</option>
+                      <option value="pro">Pro</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  </div>
+
+                  <!-- Delete User Button -->
+                  <button type="button" class="btn-action-icon danger" (click)="onDeleteUser(user)"
+                    [disabled]="isCurrentUser(user.username)" title="Delete Account">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+
+                </div>
+              </td>
+
             </tr>
             }
           </tbody>
         </table>
       </div>
 
-      <!-- Pagination Controls -->
+      <!-- Pagination Bar -->
       @if (totalPages > 1) {
-      <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-        <div class="text-muted fs-7">
-          Showing page <strong>{{ page }}</strong> of <strong>{{ totalPages }}</strong>
+      <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top flex-wrap gap-3">
+        <div class="text-muted fs-8">
+          Page <strong>{{ page }}</strong> of <strong>{{ totalPages }}</strong>
         </div>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-sm btn-outline-primary px-3 py-1.5" [disabled]="page === 1"
+        <div class="d-flex gap-1">
+          <button type="button" class="btn btn-sm btn-outline-primary px-3 py-1" [disabled]="page === 1"
             (click)="setPage(page - 1)">
-            <i class="bi bi-chevron-left me-1"></i> Previous
+            <i class="bi bi-chevron-left me-1"></i> Prev
           </button>
-          <div class="d-flex gap-1">
-            @for (p of pageNumbers; track p) {
-            <button type="button" class="btn btn-sm py-1.5 px-3" [class.btn-primary]="page === p"
-              [class.btn-light]="page !== p" (click)="setPage(p)">
-              {{ p }}
-            </button>
-            }
-          </div>
-          <button type="button" class="btn btn-sm btn-outline-primary px-3 py-1.5" [disabled]="page === totalPages"
+          @for (p of pageNumbers; track p) {
+          <button type="button" class="btn btn-sm py-1 px-3" [class.btn-primary]="page === p"
+            [class.btn-light]="page !== p" (click)="setPage(p)">
+            {{ p }}
+          </button>
+          }
+          <button type="button" class="btn btn-sm btn-outline-primary px-3 py-1" [disabled]="page === totalPages"
             (click)="setPage(page + 1)">
             Next <i class="bi bi-chevron-right ms-1"></i>
           </button>
@@ -247,6 +452,338 @@
       </div>
       }
       }
+
+    </div>
+    }
+
+    <!-- ==========================================
+         TAB 2: DELETED ACCOUNTS ARCHIVE
+         ========================================== -->
+    @else if (activeAdminTab === 'deleted-users') {
+    <div class="card-premium p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+          <h4 class="h5 font-bold text-slate-800 m-0">Deleted Accounts Audit Archive</h4>
+          <p class="text-muted fs-8 m-0 mt-0.5">Historical log of all removed or terminated user accounts and reasons.
+          </p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="loadDeletedUsers()"
+          [disabled]="isLoadingDeletedUsers">
+          <i class="bi bi-arrow-clockwise" [class.spin]="isLoadingDeletedUsers"></i> Refresh
+        </button>
+      </div>
+
+      @if (isLoadingDeletedUsers) {
+      <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <div class="spinner-border text-secondary mb-3" role="status"></div>
+        <span class="text-muted fs-8">Fetching deleted accounts archive...</span>
+      </div>
+      } @else if (deletedUsers.length === 0) {
+      <div class="empty-state-box py-5 text-center">
+        <div class="empty-icon-circle mx-auto mb-3 bg-secondary-subtle text-secondary">
+          <i class="bi bi-trash3 fs-2"></i>
+        </div>
+        <h5 class="font-bold text-slate-800 m-0">No deleted accounts on record</h5>
+        <p class="text-muted fs-8 max-w-360 mx-auto mt-1">
+          There are currently no historical deleted accounts in the system archive.
+        </p>
+      </div>
+      } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle m-0">
+          <thead class="table-light-premium">
+            <tr>
+              <th scope="col" class="ps-4">USER / EMAIL</th>
+              <th scope="col">FULL NAME</th>
+              <th scope="col">ROLE</th>
+              <th scope="col">REMOVAL REASON</th>
+              <th scope="col">ACTION BY</th>
+              <th scope="col" class="text-end pe-4">DELETED DATE</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (dUser of deletedUsers; track dUser.id) {
+            <tr>
+              <td class="ps-4">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="avatar-admin-sm bg-secondary text-white">
+                    <i class="bi bi-person-x"></i>
+                  </div>
+                  <span class="font-bold text-slate-800">{{ dUser.username }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-slate-700 font-medium">{{ dUser.full_name || '—' }}</span>
+              </td>
+              <td>
+                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 font-semibold fs-9">
+                  {{ dUser.role | uppercase }}
+                </span>
+              </td>
+              <td>
+                <span class="text-danger font-medium fs-8">{{ dUser.deleted_reason || 'Unspecified' }}</span>
+              </td>
+              <td>
+                <span class="badge bg-slate-100 text-slate-700 border font-monospace fs-9">
+                  {{ dUser.deleted_by || 'superadmin' }}
+                </span>
+              </td>
+              <td class="text-end pe-4">
+                <span class="text-muted fs-8 font-medium">{{ dUser.deleted_at || '—' }}</span>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+
+    </div>
+    }
+
+    <!-- ==========================================
+         TAB 3: DELETION REQUEST MODERATION
+         ========================================== -->
+    @else if (activeAdminTab === 'deletion-requests') {
+    <div class="card-premium p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+          <h4 class="h5 font-bold text-slate-800 m-0">Pending Account Deletion Requests</h4>
+          <p class="text-muted fs-8 m-0 mt-0.5">Review user-submitted deletion requests and approve or reject removal.
+          </p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="loadDeletionRequests()"
+          [disabled]="isLoadingDeletionRequests">
+          <i class="bi bi-arrow-clockwise" [class.spin]="isLoadingDeletionRequests"></i> Refresh
+        </button>
+      </div>
+
+      @if (isLoadingDeletionRequests) {
+      <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <div class="spinner-border text-danger mb-3" role="status"></div>
+        <span class="text-muted fs-8">Fetching deletion requests...</span>
+      </div>
+      } @else if (deletionRequests.length === 0) {
+      <div class="empty-state-box py-5 text-center">
+        <div class="empty-icon-circle mx-auto mb-3 bg-success-soft text-success">
+          <i class="bi bi-shield-check fs-2"></i>
+        </div>
+        <h5 class="font-bold text-slate-800 m-0">No pending deletion requests</h5>
+        <p class="text-muted fs-8 max-w-360 mx-auto mt-1">
+          There are currently no user accounts awaiting administrator deletion review.
+        </p>
+      </div>
+      } @else {
+      <div class="row g-3">
+        @for (req of deletionRequests; track req.id) {
+        <div class="col-12 col-lg-6">
+          <div class="card p-4 border shadow-sm">
+            <div class="d-flex align-items-start justify-content-between mb-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="user-avatar-badge superadmin-avatar">{{ getInitials(req.full_name, req.username) }}</div>
+                <div>
+                  <div class="font-bold text-slate-800 fs-7">{{ req.full_name || 'User' }}</div>
+                  <div class="fs-8 text-muted"><i class="bi bi-envelope me-1"></i>{{ req.username }}</div>
+                </div>
+              </div>
+              <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 fs-9 font-bold">
+                <i class="bi bi-clock-history me-1"></i> PENDING
+              </span>
+            </div>
+
+            <div class="p-3 bg-light rounded mb-3 border">
+              <div class="fs-8 mb-1.5">
+                <span class="text-muted">Reason:</span>
+                <strong class="text-slate-800 ms-1">{{ req.reason || 'Unspecified' }}</strong>
+              </div>
+              <div class="fs-8 text-slate-700">
+                <span class="text-muted">Comments:</span>
+                <p class="m-0 mt-1 fst-italic bg-white p-2 rounded border">
+                  "{{ req.notes || 'No comments provided.' }}"
+                </p>
+              </div>
+              <div class="fs-9 text-muted mt-2">
+                Submitted on {{ req.created_at }}
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="rejectDeletion(req)"
+                [disabled]="isProcessingDeletion === req.id">
+                Reject Request
+              </button>
+              <button type="button" class="btn btn-sm btn-danger d-flex align-items-center gap-1.5"
+                (click)="approveDeletion(req)" [disabled]="isProcessingDeletion === req.id">
+                <i class="bi bi-trash3"></i>
+                <span>Approve & Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+    </div>
+    }
+
+  </div>
+
+  <!-- ==========================================
+       USER PROFILE INSPECTION MODAL (CLEAN LIGHT)
+       ========================================== -->
+  @if (showUserModal && selectedUser) {
+  <div class="admin-modal-backdrop d-flex align-items-center justify-content-center p-3">
+    <div class="admin-modal-card bg-white p-4 shadow-lg">
+
+      <!-- Modal Header -->
+      <div class="d-flex align-items-center justify-content-between pb-3 border-bottom mb-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="user-avatar-badge lg" [class.superadmin-avatar]="selectedUser.role === 'superadmin'">
+            {{ getInitials(selectedUser.full_name, selectedUser.username) }}
+          </div>
+          <div>
+            <h4 class="h5 font-bold text-slate-800 m-0">{{ selectedUser.full_name || 'Anonymous User' }}</h4>
+            <div class="fs-8 text-muted">{{ selectedUser.username }}</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" (click)="closeUserDetails()"></button>
+      </div>
+
+      <!-- Modal Body Content -->
+      <div class="modal-body-scroll">
+
+        <!-- Identity Overview -->
+        <div class="row g-3 mb-3">
+          <div class="col-4">
+            <div class="info-tile-light">
+              <span class="info-label">USER ID</span>
+              <span class="info-val font-monospace font-bold">#{{ selectedUser.id }}</span>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="info-tile-light">
+              <span class="info-label">ROLE</span>
+              <span class="info-val text-capitalize font-semibold">{{ selectedUser.role }}</span>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="info-tile-light">
+              <span class="info-label">STATUS</span>
+              <span class="info-val font-bold" [class.text-success]="selectedUser.status === 'active'"
+                [class.text-danger]="selectedUser.status !== 'active'">
+                {{ selectedUser.status | uppercase }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subscription Details Box -->
+        <div class="p-3 bg-light rounded border mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="font-bold text-slate-800 fs-7 d-flex align-items-center gap-2">
+              <i class="bi bi-gem text-primary"></i> Subscription Plan
+            </div>
+            <span class="badge-tier" [ngClass]="selectedUser.subscription?.plan || 'free'">
+              {{ (selectedUser.subscription?.plan || 'free') | uppercase }}
+            </span>
+          </div>
+          <div class="row g-2 text-slate-700 fs-8">
+            <div class="col-6">
+              <span class="text-muted">Status:</span> <strong>{{ selectedUser.subscription?.status || 'none' }}</strong>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">Started:</span> <strong>{{ selectedUser.subscription?.started_at || 'N/A'
+                }}</strong>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">Renewal:</span> <strong>{{ selectedUser.subscription?.renews_at || 'N/A'
+                }}</strong>
+            </div>
+            <div class="col-12 mt-2 pt-2 border-top d-flex align-items-center justify-content-between">
+              <span class="text-muted font-semibold">Change Tier:</span>
+              <select class="form-select form-select-sm w-auto font-semibold"
+                [ngModel]="selectedUser.subscription?.plan || 'free'"
+                (ngModelChange)="onChangeSubscriptionPlan(selectedUser, $event)"
+                [disabled]="isChangingPlan === selectedUser.id">
+                <option value="free">Free</option>
+                <option value="starter">Starter</option>
+                <option value="pro">Pro</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact & Location -->
+        <div class="p-3 bg-light rounded border mb-3">
+          <div class="font-bold text-slate-800 fs-7 mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-geo-alt text-primary"></i> Contact & Location
+          </div>
+          <div class="row g-2 fs-8 text-slate-700">
+            <div class="col-6">
+              <span class="text-muted">Phone:</span> <strong>{{ selectedUser.phone || 'Not provided' }}</strong>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">Country:</span> <strong>{{ selectedUser.address?.country || 'Not provided'
+                }}</strong>
+            </div>
+            <div class="col-12">
+              <span class="text-muted">Address:</span> <strong>{{ selectedUser.address?.street || 'Not provided'
+                }}</strong>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">City / State:</span> <strong>{{ (selectedUser.address?.city ?
+                selectedUser.address.city + ', ' : '') + (selectedUser.address?.state || '') || 'N/A' }}</strong>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">Postal:</span> <strong>{{ selectedUser.address?.postal_code || 'N/A' }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Platform Activity -->
+        <div class="p-3 bg-light rounded border mb-3">
+          <div class="font-bold text-slate-800 fs-7 mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-bar-chart text-primary"></i> Platform Usage
+          </div>
+          <div class="row g-2 text-center">
+            <div class="col-4">
+              <div class="bg-white p-2 rounded border">
+                <div class="fs-5 font-bold text-primary">{{ selectedUser.workspace_count }}</div>
+                <div class="fs-9 text-muted font-medium">Workspaces</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="bg-white p-2 rounded border">
+                <div class="fs-5 font-bold text-warning">{{ selectedUser.file_count }}</div>
+                <div class="fs-9 text-muted font-medium">Files</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="bg-white p-2 rounded border">
+                <div class="fs-5 font-bold text-success">{{ selectedUser.run_count }}</div>
+                <div class="fs-9 text-muted font-medium">Test Runs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer Actions -->
+      <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="onDeleteUser(selectedUser)"
+          [disabled]="isCurrentUser(selectedUser.username)">
+          <i class="bi bi-trash3 me-1"></i> Delete Account
+        </button>
+        <button type="button" class="btn btn-sm btn-primary px-4" (click)="closeUserDetails()">
+          Done
+        </button>
+      </div>
+
     </div>
   </div>
+  }
+
 </div>

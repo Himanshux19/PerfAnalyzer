@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
 
 export interface UploadResponse {
   message: string;
@@ -57,6 +57,88 @@ export interface JenkinsConfig {
   username: string;
   api_token: string;
   enabled: boolean;
+}
+
+export interface UserAddress {
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  emailVerified: boolean;
+  phone: string;
+  address: UserAddress;
+  role: string;
+  status: string;
+  createdAt: string | null;
+  lastLoginAt: string | null;
+  hasAvatar: boolean;
+  avatarFilename: string;
+  avatarUrl: string | null;
+  deletionRequestPending: boolean;
+}
+
+export interface UserProfileUpdatePayload {
+  first_name: string;
+  last_name: string;
+  phone: string;
+  street_address: string;
+  city: string;
+  state_province: string;
+  postal_code: string;
+  country: string;
+}
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
+}
+
+export interface DeletionRequestPayload {
+  reason: string;
+  notes?: string;
+}
+
+export interface DeletionRequestItem {
+  id: number;
+  userId?: number;
+  username: string;
+  fullName: string;
+  reason: string;
+  notes: string;
+  status: string;
+  requestedAt: string;
+}
+
+export interface SubscriptionUsage {
+  testRunsUsed: number;
+  testRunsLimit: number;
+  storedResultsGb: number;
+  storedResultsLimitGb: number;
+  projectsUsed: number;
+  projectsLimit: number | null;
+  scheduledTestsUsed: number;
+  scheduledTestsLimit: number;
+  exportsUsed: number;
+  exportsLimit: number;
+  maxVus?: number;
+}
+
+export interface SubscriptionInfo {
+  plan: 'starter' | 'pro' | 'enterprise' | string | null;
+  status: 'active' | 'none' | string;
+  startedAt?: string | null;
+  renewsAt?: string | null;
+  usage: SubscriptionUsage;
 }
 
 export interface DashboardSummary {
@@ -322,11 +404,27 @@ export class ApiService {
     return `${this.baseUrl}/generated_tests/${filename}`;
   }
 
-  registerUser(username: string, password: string, fullName: string = ''): Observable<any> {
+  registerUser(
+    username: string,
+    password: string,
+    fullName: string = '',
+    phone: string = '',
+    streetAddress: string = '',
+    city: string = '',
+    stateProvince: string = '',
+    postalCode: string = '',
+    country: string = '',
+  ): Observable<any> {
     const formData = new FormData();
     formData.append('username', username);
     formData.append('password', password);
     formData.append('full_name', fullName);
+    formData.append('phone', phone);
+    formData.append('street_address', streetAddress);
+    formData.append('city', city);
+    formData.append('state_province', stateProvince);
+    formData.append('postal_code', postalCode);
+    formData.append('country', country);
     return this.http.post<any>(`${this.baseUrl}/register`, formData);
   }
 
@@ -392,6 +490,16 @@ export class ApiService {
     );
   }
 
+  superadminUpdateUserSubscription(userId: number, plan: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('plan', plan);
+    return this.http.put<any>(
+      `${this.baseUrl}/superadmin/users/${userId}/subscription`,
+      formData,
+      this.getAdminHeaders(),
+    );
+  }
+
   superadminGetAnalytics(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/superadmin/analytics`, this.getAdminHeaders());
   }
@@ -450,6 +558,221 @@ export class ApiService {
       url += `&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
     }
     return this.http.get<DashboardSummary>(url);
+  }
+
+  getUserHeaders() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+  }
+
+  // ── User Account Management Methods ──────────────────────────
+
+  getUserProfile(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.baseUrl}/api/users/me`, this.getUserHeaders());
+  }
+
+  updateUserProfile(payload: UserProfileUpdatePayload): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/api/users/me`, payload, this.getUserHeaders());
+  }
+
+  changePassword(payload: ChangePasswordPayload): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/api/users/me/change-password`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  uploadAvatar(file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<any>(
+      `${this.baseUrl}/api/users/me/avatar`,
+      formData,
+      this.getUserHeaders(),
+    );
+  }
+
+  deleteAvatar(): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/api/users/me/avatar`, this.getUserHeaders());
+  }
+
+  getAvatarUrl(username?: string): string {
+    const user =
+      username || (typeof window !== 'undefined' ? localStorage.getItem('username') || '' : '');
+    return `${this.baseUrl}/api/users/avatar/${encodeURIComponent(user)}`;
+  }
+
+  submitDeletionRequest(payload: DeletionRequestPayload): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/api/users/me/deletion-request`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  getMyDeletionRequest(): Observable<any> {
+    return this.http.get<any>(
+      `${this.baseUrl}/api/users/me/deletion-request`,
+      this.getUserHeaders(),
+    );
+  }
+
+  getSubscription(): Observable<SubscriptionInfo> {
+    return this.http.get<SubscriptionInfo>(
+      `${this.baseUrl}/api/users/me/subscription`,
+      this.getUserHeaders(),
+    );
+  }
+
+  // ── Super Admin Deletion Request Methods ──────────────────────
+
+  superadminGetDeletionRequests(): Observable<DeletionRequestItem[]> {
+    return this.http.get<DeletionRequestItem[]>(
+      `${this.baseUrl}/superadmin/deletion-requests`,
+      this.getAdminHeaders(),
+    );
+  }
+
+  superadminApproveDeletionRequest(reqId: number): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/superadmin/deletion-requests/${reqId}/approve`,
+      {},
+      this.getAdminHeaders(),
+    );
+  }
+
+  superadminRejectDeletionRequest(reqId: number): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/superadmin/deletion-requests/${reqId}/reject`,
+      {},
+      this.getAdminHeaders(),
+    );
+  }
+
+  superadminGetDeletedUsers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/superadmin/deleted-users`, this.getAdminHeaders());
+  }
+
+  getUserActivities(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/api/users/me/activities`, this.getUserHeaders());
+  }
+
+  // ── Real-Time Active Session Watcher ─────────────────────────
+
+  subscriptionUpdated$ = new Subject<{ plan: string; status: string }>();
+  private sessionSocket: WebSocket | null = null;
+  private sessionCheckInterval: any = null;
+  private isLoggingOut = false;
+
+  initSessionWatcher() {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('auth_token');
+    const role = localStorage.getItem('role');
+    if (!token || role === 'superadmin') return;
+
+    this.isLoggingOut = false;
+
+    // Connect WebSocket for instantaneous 0ms session termination & live subscription sync
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = '127.0.0.1:8000';
+    const wsUrl = `${wsProtocol}//${wsHost}/ws/session?token=${encodeURIComponent(token)}`;
+
+    try {
+      if (this.sessionSocket) {
+        try {
+          this.sessionSocket.close();
+        } catch (_) {}
+      }
+      this.sessionSocket = new WebSocket(wsUrl);
+
+      this.sessionSocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === 'TERMINATE_SESSION') {
+            this.handleForcedLogout(
+              data.reason || 'Your account has been deactivated or deleted by administrator.',
+            );
+          } else if (data.event === 'SUBSCRIPTION_UPDATED') {
+            this.subscriptionUpdated$.next({
+              plan: (data.plan || 'free').toLowerCase(),
+              status: data.status || 'active',
+            });
+          }
+        } catch (_) {}
+      };
+
+      this.sessionSocket.onclose = (event) => {
+        if (event.code === 1008 && !this.isLoggingOut) {
+          // Check if terminated
+          this.checkSessionStatus().subscribe({
+            error: (err) => {
+              if (err.status === 401 || err.status === 403) {
+                this.handleForcedLogout(
+                  err.error?.detail || 'Account deactivated by administrator.',
+                );
+              }
+            },
+          });
+        }
+      };
+    } catch (e) {
+      console.warn('Real-time session watcher socket unavailable, falling back to polling.', e);
+    }
+
+    // High-frequency backup heartbeat check every 3 seconds
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+    }
+    this.sessionCheckInterval = setInterval(() => {
+      const currentToken = localStorage.getItem('auth_token');
+      const currentRole = localStorage.getItem('role');
+      if (!currentToken || currentRole === 'superadmin' || this.isLoggingOut) {
+        clearInterval(this.sessionCheckInterval);
+        return;
+      }
+      this.checkSessionStatus().subscribe({
+        error: (err) => {
+          if (err.status === 401 || err.status === 403) {
+            const msg =
+              err.error?.detail || 'Your account has been suspended or deleted by administrator.';
+            this.handleForcedLogout(msg);
+          }
+        },
+      });
+    }, 3000);
+  }
+
+  handleForcedLogout(reason: string) {
+    if (typeof window === 'undefined' || this.isLoggingOut) return;
+    this.isLoggingOut = true;
+
+    if (this.sessionSocket) {
+      try {
+        this.sessionSocket.close();
+      } catch (_) {}
+      this.sessionSocket = null;
+    }
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+      this.sessionCheckInterval = null;
+    }
+
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('full_name');
+    localStorage.removeItem('role');
+
+    alert(`Account Notice: ${reason}\n\nYou have been logged out.`);
+    window.location.href = '/login';
+  }
+
+  checkSessionStatus(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/api/auth/session-check`, this.getUserHeaders());
   }
 
   // Helpers to add log messages to terminal console

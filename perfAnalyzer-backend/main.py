@@ -1,4 +1,16 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, status, Depends, Header, Query
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    HTTPException,
+    Form,
+    status,
+    Depends,
+    Header,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,11 +18,19 @@ import logging
 import re
 import uuid
 from jmx_builder import build_jmx
-from models import CreateTestRequest, CreateTestResponse, ApiRequest
+from models import (
+    CreateTestRequest,
+    CreateTestResponse,
+    ApiRequest,
+    UserProfileUpdate,
+    ChangePasswordRequest,
+    DeletionRequestCreate,
+)
 from yaml_builder import build_taurus_yaml
 from services.endpoint_discovery import discover_endpoints
 import shutil
 from pathlib import Path
+
 import yaml
 import subprocess
 import hashlib
@@ -21,7 +41,7 @@ import tempfile
 import base64
 import urllib.request
 import urllib.parse
-from typing import Optional
+from typing import Optional, Dict, List
 from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
@@ -156,6 +176,65 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255) DEFAULT '';")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user';")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS street_address VARCHAR(255) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS state_province VARCHAR(100) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code VARCHAR(50) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_filename VARCHAR(255) DEFAULT '';")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS account_deletion_requests (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                username VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255) DEFAULT '',
+                reason VARCHAR(100) DEFAULT '',
+                notes TEXT DEFAULT '',
+                status VARCHAR(50) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TIMESTAMP
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_subscriptions (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                plan VARCHAR(50) DEFAULT 'starter',
+                status VARCHAR(50) DEFAULT 'active',
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                renews_at TIMESTAMP
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS deleted_users (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                username VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255) DEFAULT '',
+                role VARCHAR(50) DEFAULT 'user',
+                deleted_reason VARCHAR(255) DEFAULT 'Deleted by Administrator',
+                deleted_by VARCHAR(255) DEFAULT 'superadmin',
+                deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_activity_logs (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                activity_type VARCHAR(50) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT DEFAULT '',
+                status VARCHAR(50) DEFAULT 'success',
+                icon VARCHAR(100) DEFAULT 'bi-activity',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
 
         # Create test_results table
         cur.execute("""
@@ -238,6 +317,11 @@ def shutdown_event():
 PROJECT_FILES_DIR = Path(__file__).parent / "project_files"
 PROJECT_FILES_DIR.mkdir(parents=True, exist_ok=True)
 
+# ── User Avatar Storage ──────────────────────────────────────────────────────
+USER_AVATARS_DIR = Path(__file__).parent / "user" / "avatars"
+USER_AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
+
 
 def ensure_project_files_schema(conn) -> None:
     """Make project_files compatible with older and newer schema variants."""
@@ -297,8 +381,31 @@ def validate_gmail(email: str):
             detail="Only valid Gmail addresses (@gmail.com) are allowed."
         )
 
+def log_user_activity(username: str, activity_type: str, title: str, description: str = "", status: str = "success", icon: str = "bi-activity"):
+    try:
+        uname = username.strip().lower()
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO user_activity_logs (username, activity_type, title, description, status, icon, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP);
+                    """, (uname, activity_type, title, description, status, icon))
+    except Exception as e:
+        logger.warning(f"Failed to log user activity for '{username}': {e}")
+
 @app.post("/register")
-def register(username: str = Form(...), password: str = Form(...), full_name: str = Form("")):
+def register(
+    username: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(""),
+    phone: str = Form(""),
+    street_address: str = Form(""),
+    city: str = Form(""),
+    state_province: str = Form(""),
+    postal_code: str = Form(""),
+    country: str = Form(""),
+):
     validate_gmail(username)
     username = username.strip().lower()
     full_name = full_name.strip()
@@ -313,13 +420,42 @@ def register(username: str = Form(...), password: str = Form(...), full_name: st
                     if user:
                         raise HTTPException(status_code=400, detail="Gmail address already registered.")
                     
-                    # Insert user
+                    # Insert user with complete details
                     pwd_hash = hash_password(password)
                     cur.execute(
-                        "INSERT INTO users (username, password_hash, full_name) VALUES (%s, %s, %s);",
-                        (username, pwd_hash, full_name)
+                        """
+                        INSERT INTO users (
+                            username, password_hash, full_name, role, status,
+                            phone, street_address, city, state_province, postal_code, country,
+                            last_login_at
+                        ) VALUES (%s, %s, %s, 'user', 'active', %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP);
+                        """,
+                        (
+                            username, pwd_hash, full_name,
+                            phone.strip(), street_address.strip(), city.strip(),
+                            state_province.strip(), postal_code.strip(), country.strip()
+                        )
                     )
-        return JSONResponse({"message": "User registered successfully."})
+        
+        payload = {
+            "username": username,
+            "full_name": full_name,
+            "role": "user",
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+        }
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        
+        # Log registration milestone
+        log_user_activity(username, "milestone", "Account Created", "Joined PerfAnalyzer platform", "primary", "bi-person-plus")
+        log_user_activity(username, "security", "Initial Sign-In", "Signed in upon account creation", "success", "bi-shield-check")
+
+        return JSONResponse({
+            "message": "User registered successfully.",
+            "token": token,
+            "username": username,
+            "full_name": full_name,
+            "role": "user"
+        })
     except HTTPException:
         raise
     except Exception as e:
@@ -332,17 +468,20 @@ def login(username: str = Form(...), password: str = Form(...)):
     
     try:
         with db_session() as conn:
-            with conn.cursor() as cur:
-                # Retrieve user hash, full name, role, and status
-                cur.execute("SELECT password_hash, full_name, role, status FROM users WHERE username = %s;", (username,))
-                row = cur.fetchone()
-                
-                if not row or row[0] != hash_password(password):
-                    raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
+            with conn:
+                with conn.cursor() as cur:
+                    # Retrieve user hash, full name, role, and status
+                    cur.execute("SELECT password_hash, full_name, role, status FROM users WHERE username = %s;", (username,))
+                    row = cur.fetchone()
                     
-                pwd_hash, full_name, role, status = row
-                if status == 'suspended':
-                    raise HTTPException(status_code=403, detail="Your account is suspended. Please contact the administrator.")
+                    if not row or row[0] != hash_password(password):
+                        raise HTTPException(status_code=401, detail="Invalid Gmail address or password.")
+                        
+                    pwd_hash, full_name, role, status = row
+                    if status == 'suspended':
+                        raise HTTPException(status_code=403, detail="Your account is suspended. Please contact the administrator.")
+                    
+                    cur.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE username = %s;", (username,))
         
         payload = {
             "username": username,
@@ -352,6 +491,9 @@ def login(username: str = Form(...), password: str = Form(...)):
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
         
+        # Log sign-in activity
+        log_user_activity(username, "security", "Session Authenticated", "Signed in successfully from web portal", "success", "bi-shield-check")
+
         return JSONResponse({
             "message": "Login successful.",
             "token": token,
@@ -363,6 +505,146 @@ def login(username: str = Form(...), password: str = Form(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error during login: {str(e)}")
+
+
+# ── Active Real-Time Session Manager ─────────────────────────
+
+class ActiveSessionManager:
+    """Manages active user WebSocket connections for immediate real-time session termination."""
+    def __init__(self):
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, username: str, websocket: WebSocket):
+        await websocket.accept()
+        uname = username.strip().lower()
+        if uname not in self.active_connections:
+            self.active_connections[uname] = []
+        self.active_connections[uname].append(websocket)
+        logger.info(f"WebSocket session connected for user '{uname}'. Total sockets: {len(self.active_connections[uname])}")
+
+    def disconnect(self, username: str, websocket: WebSocket):
+        uname = username.strip().lower()
+        if uname in self.active_connections:
+            if websocket in self.active_connections[uname]:
+                self.active_connections[uname].remove(websocket)
+            if not self.active_connections[uname]:
+                del self.active_connections[uname]
+        logger.info(f"WebSocket session disconnected for user '{uname}'")
+
+    async def terminate_user_sessions(self, username: str, reason: str = "suspended"):
+        uname = username.strip().lower()
+        if uname in self.active_connections:
+            sockets = list(self.active_connections[uname])
+            logger.info(f"Terminating {len(sockets)} active sessions for user '{uname}' (reason: {reason})")
+            for ws in sockets:
+                try:
+                    await ws.send_json({
+                        "event": "TERMINATE_SESSION",
+                        "reason": reason,
+                        "timestamp": datetime.datetime.utcnow().isoformat()
+                    })
+                    await ws.close(code=1008)
+                except Exception as e:
+                    logger.warning(f"Error terminating socket for '{uname}': {e}")
+            self.active_connections.pop(uname, None)
+
+    async def notify_user_subscription_update(self, username: str, plan: str, status: str = "active"):
+        uname = username.strip().lower()
+        if uname in self.active_connections:
+            sockets = list(self.active_connections[uname])
+            logger.info(f"Broadcasting SUBSCRIPTION_UPDATED to {len(sockets)} active sessions for user '{uname}' (plan: {plan})")
+            for ws in sockets:
+                try:
+                    await ws.send_json({
+                        "event": "SUBSCRIPTION_UPDATED",
+                        "plan": plan,
+                        "status": status,
+                        "timestamp": datetime.datetime.utcnow().isoformat()
+                    })
+                except Exception as e:
+                    logger.warning(f"Error sending subscription update socket to '{uname}': {e}")
+
+session_manager = ActiveSessionManager()
+
+
+# ── Auth Token Verification Helpers ──────────────────────────
+
+def verify_user_token(authorization: Optional[str] = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header.")
+    try:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid token format.")
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        username = payload.get("username")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token payload.")
+        
+        # Enforce immediate database check for deleted or suspended accounts
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, status FROM users WHERE username = %s;", (username.strip().lower(),))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=401, detail="Account has been deleted by administrator.")
+                if row[1] == 'suspended':
+                    raise HTTPException(status_code=403, detail="Account has been suspended by administrator.")
+                    
+        return payload
+    except HTTPException:
+        raise
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired.")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token.")
+
+
+@app.get("/api/auth/session-check")
+def check_session_status(current_user: dict = Depends(verify_user_token)):
+    return JSONResponse({"status": "active", "username": current_user.get("username")})
+
+
+@app.websocket("/ws/session")
+async def session_websocket_endpoint(websocket: WebSocket, token: Optional[str] = Query(None)):
+    if not token:
+        await websocket.close(code=1008)
+        return
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        username = payload.get("username")
+        if not username:
+            await websocket.close(code=1008)
+            return
+
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, status FROM users WHERE username = %s;", (username.strip().lower(),))
+                row = cur.fetchone()
+                if not row or row[1] == 'suspended':
+                    await websocket.accept()
+                    await websocket.send_json({
+                        "event": "TERMINATE_SESSION",
+                        "reason": "Account suspended by administrator" if (row and row[1] == 'suspended') else "Account deleted by administrator",
+                        "timestamp": datetime.datetime.utcnow().isoformat()
+                    })
+                    await websocket.close(code=1008)
+                    return
+
+        await session_manager.connect(username, websocket)
+        try:
+            while True:
+                # Keep socket alive and respond to client pings
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await websocket.send_text("pong")
+        except WebSocketDisconnect:
+            session_manager.disconnect(username, websocket)
+    except Exception:
+        try:
+            await websocket.close(code=1008)
+        except Exception:
+            pass
 
 
 # ── Super Admin Helpers & Endpoints ─────────────────────────
@@ -437,9 +719,21 @@ def list_users(current_user: dict = Depends(verify_superadmin_token)):
                         u.role, 
                         u.created_at,
                         u.status,
+                        u.phone,
+                        u.avatar_filename,
+                        u.street_address,
+                        u.city,
+                        u.state_province,
+                        u.postal_code,
+                        u.country,
+                        u.last_login_at,
                         (SELECT COUNT(*) FROM projects p WHERE p.owner = u.username) AS workspace_count,
                         (SELECT COUNT(*) FROM project_files pf JOIN projects p ON pf.project_id = p.id WHERE p.owner = u.username) AS file_count,
-                        (SELECT COUNT(*) FROM test_results t WHERE t.username = u.username) AS run_count
+                        (SELECT COUNT(*) FROM test_results t WHERE t.username = u.username) AS run_count,
+                        (SELECT s.plan FROM user_subscriptions s WHERE s.username = u.username AND s.status = 'active' LIMIT 1) AS sub_plan,
+                        (SELECT s.status FROM user_subscriptions s WHERE s.username = u.username AND s.status = 'active' LIMIT 1) AS sub_status,
+                        (SELECT s.started_at FROM user_subscriptions s WHERE s.username = u.username AND s.status = 'active' LIMIT 1) AS sub_started_at,
+                        (SELECT s.renews_at FROM user_subscriptions s WHERE s.username = u.username AND s.status = 'active' LIMIT 1) AS sub_renews_at
                     FROM users u
                     ORDER BY u.created_at DESC;
                 """)
@@ -447,17 +741,37 @@ def list_users(current_user: dict = Depends(verify_superadmin_token)):
         
         users_list = []
         for row in rows:
-            uid, username, full_name, role, created_at, status, workspace_count, file_count, run_count = row
+            (uid, username, full_name, role, created_at, status, phone, avatar_filename,
+             street, city, state, postal, country, last_login_at,
+             workspace_count, file_count, run_count,
+             sub_plan, sub_status, sub_started_at, sub_renews_at) = row
+            
             users_list.append({
                 "id": uid,
                 "username": username,
-                "full_name": full_name,
+                "full_name": full_name or "",
                 "role": role or "user",
                 "status": status or "active",
+                "phone": phone or "",
+                "has_avatar": bool(avatar_filename),
+                "address": {
+                    "street": street or "",
+                    "city": city or "",
+                    "state": state or "",
+                    "postal_code": postal or "",
+                    "country": country or ""
+                },
                 "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "",
-                "workspace_count": workspace_count,
-                "file_count": file_count,
-                "run_count": run_count
+                "last_login_at": last_login_at.strftime("%Y-%m-%d %H:%M:%S") if last_login_at else "",
+                "workspace_count": workspace_count or 0,
+                "file_count": file_count or 0,
+                "run_count": run_count or 0,
+                "subscription": {
+                    "plan": (sub_plan or "free").lower(),
+                    "status": sub_status or "none",
+                    "started_at": sub_started_at.strftime("%Y-%m-%d") if sub_started_at else None,
+                    "renews_at": sub_renews_at.strftime("%Y-%m-%d") if sub_renews_at else None
+                }
             })
         return JSONResponse(users_list)
     except Exception as e:
@@ -465,24 +779,63 @@ def list_users(current_user: dict = Depends(verify_superadmin_token)):
 
 
 @app.delete("/superadmin/users/{user_id}")
-def delete_user(user_id: int, current_user: dict = Depends(verify_superadmin_token)):
+async def delete_user(user_id: int, current_user: dict = Depends(verify_superadmin_token)):
     try:
         with db_session() as conn:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT username, role FROM users WHERE id = %s;", (user_id,))
+                    cur.execute("SELECT username, role, full_name FROM users WHERE id = %s;", (user_id,))
                     row = cur.fetchone()
                     if not row:
                         raise HTTPException(status_code=404, detail="User not found.")
-                    username, role = row
+                    username, role, full_name = row
                     
                     if username == current_user.get("username"):
                         raise HTTPException(status_code=400, detail="Super Admin cannot delete themselves.")
                     
+                    # Record in deleted_users audit archive table
+                    cur.execute("""
+                        INSERT INTO deleted_users (user_id, username, full_name, role, deleted_reason, deleted_by)
+                        VALUES (%s, %s, %s, %s, %s, %s);
+                    """, (user_id, username, full_name or "", role or "user", "Direct administrator deletion", current_user.get("username", "superadmin")))
+
                     cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
+        
+        # Real-time instant session termination for all active client tabs/browsers
+        await session_manager.terminate_user_sessions(username, reason="Account deleted by administrator")
         return JSONResponse({"message": "User deleted successfully."})
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/superadmin/deleted-users")
+def list_deleted_users(current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, user_id, username, full_name, role, deleted_reason, deleted_by, deleted_at
+                    FROM deleted_users
+                    ORDER BY deleted_at DESC;
+                """)
+                rows = cur.fetchall()
+                
+        results = []
+        for row in rows:
+            did, uid, uname, fname, role, reason, by, at = row
+            results.append({
+                "id": did,
+                "user_id": uid,
+                "username": uname,
+                "full_name": fname or "",
+                "role": role or "user",
+                "deleted_reason": reason or "Deleted by administrator",
+                "deleted_by": by or "superadmin",
+                "deleted_at": at.strftime("%Y-%m-%d %H:%M:%S") if at else ""
+            })
+        return JSONResponse(results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -513,7 +866,7 @@ def update_user_role(user_id: int, role: str = Form(...), current_user: dict = D
 
 
 @app.put("/superadmin/users/{user_id}/status")
-def update_user_status(user_id: int, status: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+async def update_user_status(user_id: int, status: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
     status = status.strip().lower()
     if status not in ["active", "suspended"]:
         raise HTTPException(status_code=400, detail="Invalid status. Must be 'active' or 'suspended'.")
@@ -532,7 +885,50 @@ def update_user_status(user_id: int, status: str = Form(...), current_user: dict
                         raise HTTPException(status_code=400, detail="Super Admin cannot suspend themselves.")
                         
                     cur.execute("UPDATE users SET status = %s WHERE id = %s;", (status, user_id))
+        
+        # If suspended, immediately terminate user's active session across all open tabs/devices
+        if status == "suspended":
+            await session_manager.terminate_user_sessions(username, reason="Account suspended by administrator")
+
         return JSONResponse({"message": f"User account is now {status}."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.put("/superadmin/users/{user_id}/subscription")
+async def update_user_subscription(user_id: int, plan: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+    plan = plan.strip().lower()
+    valid_plans = ["starter", "pro", "enterprise", "free"]
+    if plan not in valid_plans:
+        raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
+
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username FROM users WHERE id = %s;", (user_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="User not found.")
+                    username = row[0]
+
+                    if plan == "free":
+                        cur.execute("DELETE FROM user_subscriptions WHERE username = %s;", (username,))
+                        log_user_activity(username, "subscription", "Subscription Changed: Free", "Plan reverted to Free Tier", "warning", "bi-dash-circle")
+                    else:
+                        cur.execute("""
+                            INSERT INTO user_subscriptions (username, plan, status, started_at, renews_at)
+                            VALUES (%s, %s, 'active', NOW(), NOW() + INTERVAL '30 days')
+                            ON CONFLICT (username) 
+                            DO UPDATE SET plan = EXCLUDED.plan, status = 'active', renews_at = NOW() + INTERVAL '30 days';
+                        """, (username, plan))
+                        log_user_activity(username, "subscription", f"Subscription Upgraded: {plan.upper()}", f"Activated {plan.capitalize()} Plan with expanded resources", "primary", "bi-gem")
+        
+        # Real-time WebSocket instant broadcast to user's active client tabs
+        await session_manager.notify_user_subscription_update(username, plan, "active" if plan != "free" else "none")
+        return JSONResponse({"message": f"User subscription updated to {plan.capitalize()}."})
     except HTTPException:
         raise
     except Exception as e:
@@ -547,6 +943,24 @@ def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
                 # Users count
                 cur.execute("SELECT COUNT(*) FROM users;")
                 total_users = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM users WHERE status = 'active';")
+                active_users = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM users WHERE status = 'suspended';")
+                suspended_users = cur.fetchone()[0]
+
+                # Subscriptions breakdown
+                cur.execute("SELECT COUNT(*) FROM user_subscriptions WHERE plan = 'starter' AND status = 'active';")
+                starter_users = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM user_subscriptions WHERE plan = 'pro' AND status = 'active';")
+                pro_users = cur.fetchone()[0]
+
+                cur.execute("SELECT COUNT(*) FROM user_subscriptions WHERE plan = 'enterprise' AND status = 'active';")
+                enterprise_users = cur.fetchone()[0]
+
+                free_users = max(0, total_users - (starter_users + pro_users + enterprise_users))
 
                 # Workspaces count
                 cur.execute("SELECT COUNT(*) FROM projects;")
@@ -574,6 +988,12 @@ def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
 
         return JSONResponse({
             "total_users": total_users,
+            "active_users": active_users,
+            "suspended_users": suspended_users,
+            "free_users": free_users,
+            "starter_users": starter_users,
+            "pro_users": pro_users,
+            "enterprise_users": enterprise_users,
             "total_workspaces": total_workspaces,
             "workspaces_this_week": workspaces_this_week,
             "workspaces_this_month": workspaces_this_month,
@@ -584,6 +1004,563 @@ def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error during analytics fetch: {str(e)}")
+
+
+# ── User Account Management Endpoints ────────────────────────
+
+@app.get("/api/users/me")
+def get_current_user_profile(current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, username, full_name, role, status, phone, street_address,
+                           city, state_province, postal_code, country, avatar_filename,
+                           created_at, last_login_at
+                    FROM users WHERE username = %s;
+                """, (username,))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="User not found.")
+                
+                (uid, uname, full_name, role, status, phone, street_addr,
+                 city, state_prov, postal_code, country, avatar_filename,
+                 created_at, last_login_at) = row
+                
+                # Check for pending deletion request
+                cur.execute("SELECT id FROM account_deletion_requests WHERE username = %s AND status = 'pending';", (username,))
+                pending_del = cur.fetchone() is not None
+                
+                # Split full_name into first and last name
+                name_parts = (full_name or "").strip().split(" ", 1)
+                first_name = name_parts[0] if len(name_parts) > 0 else ""
+                last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+                has_avatar = bool(avatar_filename and (USER_AVATARS_DIR / avatar_filename).exists())
+
+                return JSONResponse({
+                    "id": str(uid),
+                    "username": uname,
+                    "email": uname,
+                    "fullName": full_name or "",
+                    "firstName": first_name,
+                    "lastName": last_name,
+                    "emailVerified": True,
+                    "phone": phone or "",
+                    "address": {
+                        "street": street_addr or "",
+                        "city": city or "",
+                        "state": state_prov or "",
+                        "postalCode": postal_code or "",
+                        "country": country or ""
+                    },
+                    "role": role or "user",
+                    "status": status or "active",
+                    "createdAt": created_at.isoformat() if created_at else None,
+                    "lastLoginAt": last_login_at.isoformat() if last_login_at else None,
+                    "hasAvatar": has_avatar,
+                    "avatarFilename": avatar_filename if has_avatar else "",
+                    "avatarUrl": f"/api/users/avatar/{uname}" if has_avatar else None,
+                    "deletionRequestPending": pending_del
+                })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.put("/api/users/me")
+def update_user_profile(payload: UserProfileUpdate, current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    full_name = f"{payload.first_name.strip()} {payload.last_name.strip()}".strip()
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE users
+                        SET full_name = %s,
+                            phone = %s,
+                            street_address = %s,
+                            city = %s,
+                            state_province = %s,
+                            postal_code = %s,
+                            country = %s
+                        WHERE username = %s;
+                    """, (
+                        full_name,
+                        payload.phone.strip(),
+                        payload.street_address.strip(),
+                        payload.city.strip(),
+                        payload.state_province.strip(),
+                        payload.postal_code.strip(),
+                        payload.country.strip(),
+                        username
+                    ))
+        log_user_activity(username, "account", "Profile Updated", f"Personal information updated — {full_name}", "info", "bi-person-check")
+        return JSONResponse({"message": "Profile updated successfully.", "fullName": full_name})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/api/users/me/change-password")
+def change_password(payload: ChangePasswordRequest, current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT password_hash FROM users WHERE username = %s;", (username,))
+                    row = cur.fetchone()
+                    if not row or row[0] != hash_password(payload.current_password):
+                        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+                    
+                    new_hash = hash_password(payload.new_password)
+                    cur.execute("UPDATE users SET password_hash = %s WHERE username = %s;", (new_hash, username))
+        log_user_activity(username, "security", "Password Changed", "Account password updated successfully", "warning", "bi-shield-lock")
+        return JSONResponse({"message": "Password changed successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/api/users/me/avatar")
+async def upload_avatar(file: UploadFile = File(...), current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    
+    # Validate extension and content type
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp"}
+    file_ext = Path(file.filename or "avatar.png").suffix.lower()
+    if file_ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail="Invalid image format. Allowed formats: JPG, PNG, WEBP.")
+    
+    # Read and check file size (max 2MB)
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Avatar image size exceeds 2 MB limit.")
+    
+    # Safe filename using sanitized username
+    safe_username = re.sub(r'[^a-zA-Z0-9_-]', '_', username)
+    filename = f"avatar_{safe_username}{file_ext}"
+    dest_path = USER_AVATARS_DIR / filename
+    
+    with open(dest_path, "wb") as f:
+        f.write(content)
+        
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("UPDATE users SET avatar_filename = %s WHERE username = %s;", (filename, username))
+        log_user_activity(username, "account", "Profile Photo Updated", "Avatar image uploaded successfully", "info", "bi-camera")
+        return JSONResponse({
+            "message": "Avatar uploaded successfully.",
+            "avatarUrl": f"/api/users/avatar/{username}?t={int(datetime.datetime.utcnow().timestamp())}"
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/api/users/avatar/{username}")
+def get_user_avatar(username: str):
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT avatar_filename FROM users WHERE username = %s;", (username.strip().lower(),))
+                row = cur.fetchone()
+                if not row or not row[0]:
+                    raise HTTPException(status_code=404, detail="Avatar not found.")
+                
+                filename = row[0]
+                avatar_path = USER_AVATARS_DIR / filename
+                if not avatar_path.exists():
+                    raise HTTPException(status_code=404, detail="Avatar file missing.")
+                
+                # Determine media type
+                suffix = avatar_path.suffix.lower()
+                media_type = "image/jpeg"
+                if suffix == ".png":
+                    media_type = "image/png"
+                elif suffix == ".webp":
+                    media_type = "image/webp"
+                
+                return FileResponse(str(avatar_path), media_type=media_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error serving avatar: {str(e)}")
+
+
+@app.delete("/api/users/me/avatar")
+def delete_avatar(current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT avatar_filename FROM users WHERE username = %s;", (username,))
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        avatar_path = USER_AVATARS_DIR / row[0]
+                        if avatar_path.exists():
+                            try:
+                                avatar_path.unlink()
+                            except Exception:
+                                pass
+                    cur.execute("UPDATE users SET avatar_filename = '' WHERE username = %s;", (username,))
+        log_user_activity(username, "account", "Profile Photo Removed", "Avatar image was removed", "warning", "bi-person-x")
+        return JSONResponse({"message": "Avatar removed successfully."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/api/users/me/deletion-request")
+def create_deletion_request(payload: DeletionRequestCreate, current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    # Get user ID and full name
+                    cur.execute("SELECT id, full_name FROM users WHERE username = %s;", (username,))
+                    user_row = cur.fetchone()
+                    if not user_row:
+                        raise HTTPException(status_code=404, detail="User not found.")
+                    uid, full_name = user_row
+                    
+                    # Check if already pending
+                    cur.execute("SELECT id FROM account_deletion_requests WHERE username = %s AND status = 'pending';", (username,))
+                    if cur.fetchone():
+                        raise HTTPException(status_code=400, detail="A deletion request is already pending for this account.")
+                    
+                    cur.execute("""
+                        INSERT INTO account_deletion_requests (user_id, username, full_name, reason, notes, status)
+                        VALUES (%s, %s, %s, %s, %s, 'pending');
+                    """, (uid, username, full_name or "", payload.reason, payload.notes))
+        log_user_activity(username, "security", "Account Deletion Requested", f"Submitted deletion request: {payload.reason}", "danger", "bi-exclamation-triangle")
+        return JSONResponse({"message": "Account deletion request submitted. An administrator will review your request."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/api/users/me/deletion-request")
+def get_my_deletion_request(current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, reason, notes, status, created_at, resolved_at
+                    FROM account_deletion_requests
+                    WHERE username = %s
+                    ORDER BY created_at DESC LIMIT 1;
+                """, (username,))
+                row = cur.fetchone()
+                if not row:
+                    return JSONResponse({"hasRequest": False, "request": None})
+                
+                req_id, reason, notes, status, created_at, resolved_at = row
+                return JSONResponse({
+                    "hasRequest": True,
+                    "request": {
+                        "id": req_id,
+                        "reason": reason,
+                        "notes": notes,
+                        "status": status,
+                        "createdAt": created_at.isoformat() if created_at else None,
+                        "resolvedAt": resolved_at.isoformat() if resolved_at else None
+                    }
+                })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/api/users/me/subscription")
+def get_user_subscription(current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT plan, status, started_at, renews_at
+                    FROM user_subscriptions
+                    WHERE username = %s AND status = 'active';
+                """, (username,))
+                row = cur.fetchone()
+                
+                # Compute usage stats
+                cur.execute("SELECT COUNT(*) FROM test_results WHERE username = %s;", (username,))
+                test_runs_used = cur.fetchone()[0]
+                
+                cur.execute("SELECT COUNT(*) FROM projects WHERE owner = %s;", (username,))
+                projects_used = cur.fetchone()[0]
+                
+                cur.execute("""
+                    SELECT COALESCE(SUM(pf.file_size), 0)
+                    FROM project_files pf
+                    JOIN projects p ON pf.project_id = p.id
+                    WHERE p.owner = %s;
+                """, (username,))
+                stored_bytes = cur.fetchone()[0]
+                stored_gb = round(stored_bytes / (1024 * 1024 * 1024), 2)
+
+                if not row:
+                    # Unsubscribed / Free user
+                    return JSONResponse({
+                        "plan": "free",
+                        "status": "none",
+                        "usage": {
+                            "testRunsUsed": test_runs_used,
+                            "testRunsLimit": 10,
+                            "storedResultsGb": stored_gb,
+                            "storedResultsLimitGb": 1.0,
+                            "projectsUsed": projects_used,
+                            "projectsLimit": 3,
+                            "scheduledTestsUsed": 0,
+                            "scheduledTestsLimit": 0,
+                            "exportsUsed": 0,
+                            "exportsLimit": 0,
+                            "maxVus": 100
+                        }
+                    })
+                
+                plan, status, started_at, renews_at = row
+                
+                # Plan limits
+                limits = {
+                    "starter": {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 500},
+                    "pro": {"runs": 100, "gb": 20.0, "projects": 999, "scheduled": 5, "exports": 20, "vus": 10000},
+                    "enterprise": {"runs": 9999, "gb": 100.0, "projects": 999, "scheduled": 999, "exports": 999, "vus": 50000}
+                }.get(plan.lower(), {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 100})
+
+                return JSONResponse({
+                    "plan": plan.lower(),
+                    "status": status.lower(),
+                    "startedAt": started_at.isoformat() if started_at else None,
+                    "renewsAt": renews_at.isoformat() if renews_at else None,
+                    "usage": {
+                        "testRunsUsed": test_runs_used,
+                        "testRunsLimit": limits["runs"],
+                        "storedResultsGb": stored_gb,
+                        "storedResultsLimitGb": limits["gb"],
+                        "projectsUsed": projects_used,
+                        "projectsLimit": limits["projects"] if limits["projects"] < 999 else None,
+                        "scheduledTestsUsed": 0,
+                        "scheduledTestsLimit": limits["scheduled"],
+                        "exportsUsed": 0,
+                        "exportsLimit": limits["exports"],
+                        "maxVus": limits["vus"]
+                    }
+                })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/api/users/me/activities")
+def get_user_recent_activities(current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username")
+    uname = username.strip().lower() if username else ""
+    activities = []
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                # 1. Query dedicated persistent user activity logs
+                cur.execute("""
+                    SELECT id, activity_type, title, description, status, icon, created_at
+                    FROM user_activity_logs
+                    WHERE username = %s
+                    ORDER BY created_at DESC
+                    LIMIT 12;
+                """, (uname,))
+                log_rows = cur.fetchall()
+
+                if log_rows:
+                    for row in log_rows:
+                        aid, atype, title, desc, status, icon, cat = row
+                        activities.append({
+                            "id": f"log_{aid}",
+                            "type": atype,
+                            "title": title,
+                            "description": desc or "",
+                            "status": status or "info",
+                            "icon": icon or "bi-activity",
+                            "timestamp": cat.strftime("%b %d, %H:%M") if cat else "Recently"
+                        })
+                else:
+                    # Fallback for existing historical data
+                    cur.execute("""
+                        SELECT test_name, status, concurrency, duration, executed_at
+                        FROM test_results
+                        WHERE username = %s
+                        ORDER BY executed_at DESC
+                        LIMIT 4;
+                    """, (uname,))
+                    for row in cur.fetchall():
+                        tname, tstatus, concurr, dur, exec_at = row
+                        activities.append({
+                            "id": f"test_{tname}",
+                            "type": "test_run",
+                            "title": f"Executed test '{tname}'",
+                            "description": f"{concurr or 0} VUs • Duration {dur or 0}s",
+                            "status": tstatus or "success",
+                            "icon": "bi-play-circle",
+                            "timestamp": exec_at.strftime("%b %d, %H:%M") if exec_at else "Recently"
+                        })
+
+                    cur.execute("""
+                        SELECT name, created_at
+                        FROM projects
+                        WHERE owner = %s
+                        ORDER BY created_at DESC
+                        LIMIT 3;
+                    """, (uname,))
+                    for row in cur.fetchall():
+                        pname, cat = row
+                        activities.append({
+                            "id": f"ws_{pname}",
+                            "type": "workspace",
+                            "title": f"Created workspace '{pname}'",
+                            "description": "Workspace configured",
+                            "status": "info",
+                            "icon": "bi-folder-plus",
+                            "timestamp": cat.strftime("%b %d, %H:%M") if cat else "Recently"
+                        })
+
+                    cur.execute("SELECT created_at, last_login_at FROM users WHERE username = %s;", (uname,))
+                    urow = cur.fetchone()
+                    if urow:
+                        created_at, last_login = urow
+                        if last_login:
+                            activities.append({
+                                "id": "login_event",
+                                "type": "security",
+                                "title": "Session Authenticated",
+                                "description": "Signed in successfully from web portal",
+                                "status": "success",
+                                "icon": "bi-shield-check",
+                                "timestamp": last_login.strftime("%b %d, %H:%M") if last_login else "Active now"
+                            })
+                        if created_at:
+                            activities.append({
+                                "id": "join_event",
+                                "type": "milestone",
+                                "title": "Account Created",
+                                "description": "Joined PerfAnalyzer platform",
+                                "status": "primary",
+                                "icon": "bi-person-plus",
+                                "timestamp": created_at.strftime("%b %d, %H:%M") if created_at else "Earlier"
+                            })
+
+        return JSONResponse(activities[:12])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+# ── Super Admin Deletion Request Management ──────────────────
+
+@app.get("/superadmin/deletion-requests")
+def list_deletion_requests(current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT r.id, r.user_id, r.username, r.full_name, r.reason, r.notes, r.status, r.created_at,
+                           u.id as current_user_id
+                    FROM account_deletion_requests r
+                    LEFT JOIN users u ON r.username = u.username
+                    WHERE r.status = 'pending'
+                    ORDER BY r.created_at ASC;
+                """)
+                rows = cur.fetchall()
+                results = []
+                for row in rows:
+                    req_id, user_id, uname, full_name, reason, notes, status, created_at, current_user_id = row
+                    results.append({
+                        "id": req_id,
+                        "userId": current_user_id or user_id,
+                        "username": uname,
+                        "fullName": full_name or "",
+                        "reason": reason or "no_longer_needed",
+                        "notes": notes or "",
+                        "status": status,
+                        "requestedAt": created_at.isoformat() if created_at else None
+                    })
+        return JSONResponse(results)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/superadmin/deletion-requests/{req_id}/approve")
+async def approve_deletion_request(req_id: int, current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username, user_id FROM account_deletion_requests WHERE id = %s;", (req_id,))
+                    req_row = cur.fetchone()
+                    if not req_row:
+                        raise HTTPException(status_code=404, detail="Deletion request not found.")
+                    
+                    uname, uid = req_row
+                    
+                    if uname == current_user.get("username"):
+                        raise HTTPException(status_code=400, detail="Super Admin cannot delete own account via request.")
+                    
+                    # Fetch user details before deletion
+                    cur.execute("SELECT full_name, role, avatar_filename FROM users WHERE username = %s;", (uname,))
+                    u_row = cur.fetchone()
+                    full_name = u_row[0] if u_row else ""
+                    role = u_row[1] if u_row else "user"
+                    if u_row and u_row[2]:
+                        avatar_path = USER_AVATARS_DIR / u_row[2]
+                        if avatar_path.exists():
+                            try:
+                                avatar_path.unlink()
+                            except Exception:
+                                pass
+                    
+                    # Record in deleted_users audit archive table
+                    cur.execute("""
+                        INSERT INTO deleted_users (user_id, username, full_name, role, deleted_reason, deleted_by)
+                        VALUES (%s, %s, %s, %s, %s, %s);
+                    """, (uid, uname, full_name or "", role or "user", "Approved Deletion Request", current_user.get("username", "superadmin")))
+
+                    # Delete user (cascades)
+                    cur.execute("DELETE FROM users WHERE username = %s;", (uname,))
+                    
+                    # Mark request as approved
+                    cur.execute("UPDATE account_deletion_requests SET status = 'approved', resolved_at = CURRENT_TIMESTAMP WHERE id = %s;", (req_id,))
+                    
+        # Instantly terminate any active sessions for this user
+        await session_manager.terminate_user_sessions(uname, reason="Account deleted by administrator")
+        return JSONResponse({"message": f"User '{uname}' account successfully deleted."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/superadmin/deletion-requests/{req_id}/reject")
+def reject_deletion_request(req_id: int, current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT id FROM account_deletion_requests WHERE id = %s;", (req_id,))
+                    if not cur.fetchone():
+                        raise HTTPException(status_code=404, detail="Deletion request not found.")
+                    
+                    cur.execute("UPDATE account_deletion_requests SET status = 'rejected', resolved_at = CURRENT_TIMESTAMP WHERE id = %s;", (req_id,))
+        return JSONResponse({"message": "Deletion request rejected."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
 
 
 app.add_middleware(
@@ -875,8 +1852,19 @@ def update_db_test_result(test_name: str, status: str, error_message: str = ""):
                             avg_rt = %s,
                             error_rate = %s,
                             error_message = %s
-                        WHERE test_name = %s;
+                        WHERE test_name = %s
+                        RETURNING username, concurrency, duration;
                     """, (status, metrics["throughput"], metrics["avg_rt"], metrics["error_rate"], error_message, test_name))
+                    row = cur.fetchone()
+                    if row and status in ("success", "error"):
+                        uname, concurr, dur = row
+                        if uname and uname != "Guest":
+                            status_title = f"Test Succeeded: {test_name}" if status == "success" else f"Test Failed: {test_name}"
+                            status_color = "success" if status == "success" else "danger"
+                            desc = f"{concurr or 0} VUs • Avg RT: {metrics['avg_rt']}ms • Error: {metrics['error_rate']}%"
+                            if error_message and status == "error":
+                                desc = f"Execution error: {error_message[:80]}"
+                            log_user_activity(uname, "test_run", status_title, desc, status_color, "bi-check-circle" if status == "success" else "bi-x-circle")
     except Exception as e:
         print(f"Warning: Failed to update test result in database: {str(e)}")
 
@@ -1333,6 +2321,9 @@ def run_test(
                 except Exception as db_err:
                     print(f"Warning: Failed to insert test execution to database: {str(db_err)}")
 
+                if username and username != "Guest":
+                    log_user_activity(username, "test_run", f"Queued Test: {test_name}", f"Jenkins queue • {threads} VUs • {duration}s", "info", "bi-hourglass-split")
+
                 test_status_db[test_name] = {"status": "queued", "error": "", "source": "jenkins", "queue_id": queue_id}
                 
                 cleanup_copied_workspace_files(test_name)
@@ -1364,6 +2355,9 @@ def run_test(
                         """, (test_name, username, threads, ramp_up, duration, initial_status, project_id, initial_status, threads, ramp_up, duration))
         except Exception as e:
             print(f"Warning: Failed to insert test execution to database: {str(e)}")
+
+        if username and username != "Guest":
+            log_user_activity(username, "test_run", f"Started Test: {test_name}", f"{threads} VUs • Duration {duration}s • Ramp-up {ramp_up}s", "info", "bi-play-circle")
 
         if already_running:
             test_status_db[test_name] = {"status": "queued", "error": ""}
@@ -2358,6 +3352,8 @@ def create_project(
                         RETURNING id, name, description, tags, owner, created_at, updated_at;
                     """, (name.strip(), description.strip(), tags.strip(), username))
                     row = cur.fetchone()
+        if username:
+            log_user_activity(username, "workspace", "Workspace Created", f"New workspace '{name.strip()}' created", "info", "bi-folder-plus")
         return JSONResponse({
             "id": row[0],
             "name": row[1],
@@ -2390,10 +3386,13 @@ def update_project(
                         UPDATE projects
                         SET name = %s, description = %s, tags = %s, updated_at = CURRENT_TIMESTAMP
                         WHERE id = %s
-                        RETURNING id;
+                        RETURNING owner, name;
                     """, (name.strip(), description.strip(), tags.strip(), project_id))
-                    if cur.rowcount == 0:
+                    row = cur.fetchone()
+                    if not row:
                         raise HTTPException(status_code=404, detail="Project not found.")
+                    if row[0]:
+                        log_user_activity(row[0], "workspace", "Workspace Updated", f"Updated workspace details for '{row[1]}'", "info", "bi-folder-check")
         return JSONResponse({"message": "Project updated successfully."})
     except HTTPException:
         raise
@@ -2410,7 +3409,11 @@ def delete_project(project_id: int):
                 with conn.cursor() as cur:
                     cur.execute("SELECT stored_path FROM project_files WHERE project_id = %s;", (project_id,))
                     file_rows = cur.fetchall()
+                    cur.execute("SELECT name, owner FROM projects WHERE id = %s;", (project_id,))
+                    p_info = cur.fetchone()
                     cur.execute("DELETE FROM projects WHERE id = %s;", (project_id,))
+                    if p_info and p_info[1]:
+                        log_user_activity(p_info[1], "workspace", "Workspace Deleted", f"Workspace '{p_info[0]}' was removed", "warning", "bi-folder-x")
         for fr in file_rows:
             p = Path(fr[0])
             if p.exists():
@@ -2483,6 +3486,8 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
             with conn:
                 ensure_project_files_schema(conn)
                 with conn.cursor() as cur:
+                    cur.execute("SELECT name, owner FROM projects WHERE id = %s;", (project_id,))
+                    p_info = cur.fetchone()
                     cur.execute("""
                         INSERT INTO project_files (project_id, filename, file_type, file_size, stored_path, file_path)
                         VALUES (%s, %s, %s, %s, %s, %s)
@@ -2490,6 +3495,8 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
                     """, (project_id, safe_name, file_type, file_size, str(dest), str(dest)))
                     row = cur.fetchone()
                     cur.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = %s;", (project_id,))
+                    if p_info and p_info[1]:
+                        log_user_activity(p_info[1], "file", "File Uploaded", f"Uploaded '{safe_name}' to '{p_info[0]}'", "info", "bi-file-earmark-arrow-up")
         return JSONResponse({
             "id": row[0],
             "filename": row[1],
@@ -2535,15 +3542,19 @@ def delete_project_file(project_id: int, file_id: int):
         with db_session() as conn:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT stored_path FROM project_files WHERE id = %s AND project_id = %s;",
-                        (file_id, project_id)
-                    )
+                    cur.execute("""
+                        SELECT pf.stored_path, pf.filename, p.name, p.owner
+                        FROM project_files pf
+                        JOIN projects p ON pf.project_id = p.id
+                        WHERE pf.id = %s AND pf.project_id = %s;
+                    """, (file_id, project_id))
                     row = cur.fetchone()
                     if not row:
                         raise HTTPException(status_code=404, detail="File not found.")
-                    stored_path = row[0]
+                    stored_path, fname, pname, owner = row
                     cur.execute("DELETE FROM project_files WHERE id = %s;", (file_id,))
+                    if owner:
+                        log_user_activity(owner, "file", "File Deleted", f"Removed '{fname}' from '{pname}'", "warning", "bi-file-earmark-x")
         p = Path(stored_path)
         if p.exists():
             p.unlink(missing_ok=True)

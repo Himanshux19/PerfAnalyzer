@@ -1122,3 +1122,80 @@
   }
 
 }
+
+/* ── Top Header Upgrade to Pro Button ──────────────────────────── */
+.btn-upgrade-top-header {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.775rem;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.02em;
+}
+
+.btn-upgrade-top-header:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.45);
+  filter: brightness(1.06);
+}
+
+.btn-upgrade-top-header:active {
+  transform: translateY(0);
+}
+
+/* ── Top Header Plan Badges ───────────────────────────────────── */
+.badge-active-plan {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.badge-active-plan:hover {
+  transform: translateY(-1px);
+}
+
+.badge-active-plan.badge-pro {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
+}
+
+.badge-active-plan.badge-enterprise {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
+}
+
+.badge-starter-plan {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.badge-starter-plan:hover {
+  background: #ffedd5;
+}

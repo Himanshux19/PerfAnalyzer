@@ -6,6 +6,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 import uptrace
 from dotenv import load_dotenv
 
@@ -17,6 +18,7 @@ def setup_tracing_uptrace():
             service_name="perfanalyzer-backend",
             service_version="1.0.0",
         )
+    Psycopg2Instrumentor().instrument()
     
 def setup_tracing_jaeger(app, engine=None):
     resource = Resource.create({

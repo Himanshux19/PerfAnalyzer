@@ -30,7 +30,7 @@ from yaml_builder import build_taurus_yaml
 from services.endpoint_discovery import discover_endpoints
 import shutil
 from pathlib import Path
-
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import yaml
 import subprocess
 import hashlib
@@ -46,12 +46,14 @@ from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
 import os
-from tracing import setup_tracing
-
+from tracing import setup_tracing_jaeger
+from tracing import setup_tracing_uptrace
 
 app = FastAPI()
 
-setup_tracing(app)
+setup_tracing_uptrace()
+FastAPIInstrumentor.instrument_app(app)
+# setup_tracing_jaeger(app)
 
 app.add_middleware(
     CORSMiddleware,

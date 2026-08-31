@@ -12,6 +12,7 @@ import { TestQueue } from '../test-queue/test-queue';
 import { OverviewDashboard } from '../overview-dashboard/overview-dashboard';
 import { Account } from '../account/account';
 import { Subscribe } from '../subscribe/subscribe';
+import { Monitoring } from '../monitoring/monitoring';
 
 @Component({
   selector: 'app-projects',
@@ -26,6 +27,7 @@ import { Subscribe } from '../subscribe/subscribe';
     OverviewDashboard,
     Account,
     Subscribe,
+    Monitoring,
   ],
   templateUrl: './projects.html',
   styleUrl: './projects.css',
@@ -42,6 +44,7 @@ export class Projects implements OnInit {
     | 'files'
     | 'reports'
     | 'queue'
+    | 'monitoring'
     | 'account' = 'dashboard';
   get sidebarCollapsed(): boolean {
     return this.api.sidebarCollapsed();
@@ -207,6 +210,8 @@ export class Projects implements OnInit {
       this.activeSection = 'reports';
     } else if (cleanUrl.includes('queue')) {
       this.activeSection = 'queue';
+    } else if (cleanUrl.includes('monitoring')) {
+      this.activeSection = 'monitoring';
     } else if (cleanUrl.includes('dashboard') || cleanUrl === '') {
       this.activeSection = 'dashboard';
     } else if (cleanUrl.includes('projects')) {
@@ -492,6 +497,7 @@ export class Projects implements OnInit {
         section === 'dashboard' ||
         section === 'workspaces' ||
         section === 'subscribe' ||
+        section === 'monitoring' ||
         section === 'account';
       const targetPath = `/${section}`;
 

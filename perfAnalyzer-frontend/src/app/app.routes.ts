@@ -19,6 +19,7 @@ export const routes: Routes = [
   { path: 'files', component: Projects, data: { section: 'files' } },
   { path: 'reports', component: Projects, data: { section: 'reports' } },
   { path: 'queue', component: Projects, data: { section: 'queue' } },
+  { path: 'monitoring', component: Projects, data: { section: 'monitoring' } },
   { path: 'account', component: Projects, data: { section: 'account' } },
   { path: 'admin/login', component: AdminAuth },
   { path: 'admin/dashboard', component: AdminDashboard },

@@ -92,4 +92,32 @@ class ChangePasswordRequest(BaseModel):
 
 class DeletionRequestCreate(BaseModel):
     reason: Optional[str] = Field(default="no_longer_needed", max_length=100)
-    notes: Optional[str] = Field(default="", max_length=1000)
+    notes: Optional[str] = Field(default="", max_length=1000)
+
+
+class MonitoringIntegrationCreate(BaseModel):
+    catalogIntegrationId: str = Field(..., min_length=1, max_length=100)
+    name: str = Field(..., min_length=1, max_length=255)
+    category: str = Field(default="frameworks", max_length=50)
+    language: Optional[str] = Field(default="", max_length=50)
+    framework: Optional[str] = Field(default="", max_length=50)
+    serviceName: Optional[str] = Field(default="", max_length=255)
+    uptraceDsn: str = Field(..., min_length=5, max_length=2000, description="Uptrace DSN is required to configure monitoring")
+    dashboardUrl: Optional[str] = Field(default="", max_length=2000)
+    enabled: Optional[bool] = Field(default=True)
+    status: Optional[str] = Field(default="configuration_saved", max_length=50)
+
+
+class MonitoringIntegrationUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    serviceName: Optional[str] = Field(default=None, max_length=255)
+    uptraceDsn: Optional[str] = Field(default=None, max_length=2000)
+    dashboardUrl: Optional[str] = Field(default=None, max_length=2000)
+    enabled: Optional[bool] = Field(default=None)
+    status: Optional[str] = Field(default=None, max_length=50)
+
+
+class MonitoringIntegrationStatusUpdate(BaseModel):
+    enabled: Optional[bool] = Field(default=None)
+    status: Optional[str] = Field(default=None, max_length=50)
+

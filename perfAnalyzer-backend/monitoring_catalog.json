@@ -1,0 +1,1006 @@
+[
+  {
+    "id": "python-fastapi",
+    "name": "FastAPI",
+    "displayName": "FastAPI",
+    "category": "frameworks",
+    "subcategory": "Python Web Framework",
+    "language": "python",
+    "framework": "fastapi",
+    "type": "sdk",
+    "icon": "⚡",
+    "description": "Monitor FastAPI web applications with OpenTelemetry automatic ASGI instrumentation and Uptrace exporter.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-python.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install OpenTelemetry and Uptrace packages",
+        "type": "command",
+        "language": "bash",
+        "description": "Install the Uptrace Python distro alongside the FastAPI and ASGI OpenTelemetry instrumentors using pip:",
+        "content": "pip install uptrace opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-asgi uvicorn"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure environment variables",
+        "type": "environment",
+        "description": "Set the Uptrace DSN and OpenTelemetry service identifier in your environment or .env file:",
+        "variables": [
+          {
+            "name": "UPTRACE_DSN",
+            "value": "https://<token>@uptrace.dev/<project_id>",
+            "description": "Your project DSN from Uptrace Project Settings"
+          },
+          {
+            "name": "OTEL_SERVICE_NAME",
+            "value": "fastapi-backend",
+            "description": "Logical service name displayed in Uptrace dashboard"
+          },
+          {
+            "name": "OTEL_RESOURCE_ATTRIBUTES",
+            "value": "deployment.environment=production,service.version=1.0.0",
+            "description": "Resource attributes for environment and version tagging"
+          }
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "title": "Instrument your FastAPI application",
+        "type": "code",
+        "language": "python",
+        "description": "Initialize Uptrace OpenTelemetry and instrument the FastAPI app instance before starting the server:",
+        "content": "import os\nfrom fastapi import FastAPI\nimport uptrace\nfrom opentelemetry.instrumentation.fastapi import FastAPIInstrumentor\n\napp = FastAPI(title=\"My Instrumented API\")\n\n# Configure OpenTelemetry with Uptrace\nuptrace.configure_opentelemetry(\n    dsn=os.getenv(\"UPTRACE_DSN\"),\n    service_name=os.getenv(\"OTEL_SERVICE_NAME\", \"fastapi-backend\"),\n    service_version=\"1.0.0\",\n)\n\n# Instrument FastAPI application instance\nFastAPIInstrumentor.instrument_app(app)\n\n@app.get(\"/api/hello\")\ndef hello_world():\n    return {\"status\": \"ok\", \"message\": \"OpenTelemetry telemetry active\"}"
+      },
+      {
+        "stepNumber": 4,
+        "title": "Start the application",
+        "type": "command",
+        "language": "bash",
+        "description": "Run your FastAPI application using Uvicorn:",
+        "content": "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+      },
+      {
+        "stepNumber": 5,
+        "title": "Verify telemetry in Uptrace",
+        "type": "verification",
+        "description": "Send a sample HTTP request and verify incoming telemetry in Uptrace:",
+        "content": "curl http://127.0.0.1:8000/api/hello\n\nThen open Uptrace -> Traces / Services to verify spans and requests are visible."
+      }
+    ]
+  },
+  {
+    "id": "python-django",
+    "name": "Django",
+    "displayName": "Django",
+    "category": "frameworks",
+    "subcategory": "Python Web Framework",
+    "language": "python",
+    "framework": "django",
+    "type": "sdk",
+    "icon": "🐍",
+    "description": "Monitor Django web applications, database queries, and view middleware with OpenTelemetry and Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-python.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install dependencies",
+        "type": "command",
+        "language": "bash",
+        "description": "Install the Uptrace distribution and the OpenTelemetry Django instrumentor:",
+        "content": "pip install uptrace opentelemetry-instrumentation-django opentelemetry-instrumentation-psycopg2"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure environment variables",
+        "type": "environment",
+        "description": "Export the Uptrace DSN and service metadata:",
+        "variables": [
+          {
+            "name": "UPTRACE_DSN",
+            "value": "https://<token>@uptrace.dev/<project_id>",
+            "description": "Your Uptrace Project DSN"
+          },
+          {
+            "name": "DJANGO_SETTINGS_MODULE",
+            "value": "myproject.settings",
+            "description": "Your Django settings module"
+          },
+          {
+            "name": "OTEL_SERVICE_NAME",
+            "value": "django-service",
+            "description": "Logical service name in Uptrace"
+          }
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "title": "Initialize tracing in manage.py / wsgi.py",
+        "type": "code",
+        "language": "python",
+        "description": "Add Uptrace configuration and DjangoInstrumentor in your manage.py or wsgi.py entrypoint:",
+        "content": "import os\nimport sys\nimport uptrace\nfrom opentelemetry.instrumentation.django import DjangoInstrumentor\n\ndef main():\n    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')\n    \n    # Configure Uptrace OpenTelemetry\n    uptrace.configure_opentelemetry(\n        dsn=os.getenv(\"UPTRACE_DSN\"),\n        service_name=os.getenv(\"OTEL_SERVICE_NAME\", \"django-service\"),\n        service_version=\"1.0.0\",\n    )\n    DjangoInstrumentor().instrument()\n    \n    from django.core.management import execute_from_command_line\n    execute_from_command_line(sys.argv)\n\nif __name__ == '__main__':\n    main()"
+      },
+      {
+        "stepNumber": 4,
+        "title": "Run Django development server",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch Django:",
+        "content": "python manage.py runserver 0.0.0.0:8000"
+      },
+      {
+        "stepNumber": 5,
+        "title": "Verify telemetry",
+        "type": "verification",
+        "description": "Make HTTP requests against your Django routes and inspect live traces and query spans in Uptrace.",
+        "content": "curl http://127.0.0.1:8000/\nCheck Uptrace -> Traces for Django views and SQL queries."
+      }
+    ]
+  },
+  {
+    "id": "python-flask",
+    "name": "Flask",
+    "displayName": "Flask",
+    "category": "frameworks",
+    "subcategory": "Python Web Framework",
+    "language": "python",
+    "framework": "flask",
+    "type": "sdk",
+    "icon": "🧪",
+    "description": "Instrument Flask applications, route handlers, and WSGI middleware using OpenTelemetry and Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-python.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install packages",
+        "type": "command",
+        "language": "bash",
+        "description": "Install Uptrace SDK and Flask instrumentor:",
+        "content": "pip install uptrace opentelemetry-instrumentation-flask opentelemetry-instrumentation-wsgi flask"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Instrument Flask app",
+        "type": "code",
+        "language": "python",
+        "description": "Configure OpenTelemetry and instrument the Flask application instance:",
+        "content": "import os\nfrom flask import Flask\nimport uptrace\nfrom opentelemetry.instrumentation.flask import FlaskInstrumentor\n\napp = Flask(__name__)\n\nuptrace.configure_opentelemetry(\n    dsn=os.getenv(\"UPTRACE_DSN\"),\n    service_name=\"flask-service\",\n    service_version=\"1.0.0\",\n)\n\nFlaskInstrumentor().instrument_app(app)\n\n@app.route(\"/\")\ndef index():\n    return {\"status\": \"ok\", \"service\": \"flask-monitored\"}\n\nif __name__ == \"__main__\":\n    app.run(port=5000)"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start Flask app and verify",
+        "type": "command",
+        "language": "bash",
+        "description": "Run the Flask application and send test requests:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\npython app.py"
+      }
+    ]
+  },
+  {
+    "id": "python-sdk",
+    "name": "Python",
+    "displayName": "Python SDK",
+    "category": "languages",
+    "subcategory": "General Python Runtime",
+    "language": "python",
+    "framework": "",
+    "type": "sdk",
+    "icon": "🐍",
+    "description": "Configure OpenTelemetry distributed tracing and metrics in any Python service, worker, or script with Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-python.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install Uptrace Python distribution",
+        "type": "command",
+        "language": "bash",
+        "description": "Install the official Uptrace OpenTelemetry bundle for Python:",
+        "content": "pip install uptrace opentelemetry-sdk opentelemetry-exporter-otlp"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure Uptrace in Python code",
+        "type": "code",
+        "language": "python",
+        "description": "Initialize tracer provider and create manual spans:",
+        "content": "import uptrace\nfrom opentelemetry import trace\n\n# Configure OpenTelemetry with Uptrace\nuptrace.configure_opentelemetry(\n    dsn=\"https://<token>@uptrace.dev/<project_id>\",\n    service_name=\"python-worker\",\n    service_version=\"1.0.0\",\n)\n\ntracer = trace.get_tracer(\"worker-tracer\")\n\nwith tracer.start_as_current_span(\"process-job\") as span:\n    span.set_attribute(\"job.id\", 1042)\n    span.set_attribute(\"job.status\", \"completed\")\n    print(\"Processing job complete.\")"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Execute script and verify in Uptrace",
+        "type": "command",
+        "language": "bash",
+        "description": "Run the script to produce spans:",
+        "content": "python worker.py"
+      }
+    ]
+  },
+  {
+    "id": "go-sdk",
+    "name": "Go",
+    "displayName": "Go SDK",
+    "category": "languages",
+    "subcategory": "General Go Runtime",
+    "language": "go",
+    "framework": "",
+    "type": "sdk",
+    "icon": "🐹",
+    "description": "Monitor Go applications with official uptrace-go OpenTelemetry distribution, tracing, and metrics.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-go.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install uptrace-go package",
+        "type": "command",
+        "language": "bash",
+        "description": "Fetch the Uptrace Go SDK into your Go module:",
+        "content": "go get github.com/uptrace/uptrace-go"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Initialize Uptrace in main.go",
+        "type": "code",
+        "language": "go",
+        "description": "Configure OpenTelemetry with Uptrace in your Go entrypoint:",
+        "content": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"os\"\n\n\t\"github.com/uptrace/uptrace-go/uptrace\"\n\t\"go.opentelemetry.io/otel\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\n\t// Configure OpenTelemetry with Uptrace\n\tuptrace.ConfigureOpentelemetry(\n\t\tuptrace.WithDSN(os.Getenv(\"UPTRACE_DSN\")),\n\t\tuptrace.WithServiceName(\"go-backend\"),\n\t\tuptrace.WithServiceVersion(\"1.0.0\"),\n\t)\n\tdefer uptrace.Shutdown(ctx)\n\n\ttracer := otel.Tracer(\"app-tracer\")\n\tctx, span := tracer.Start(ctx, \"main-operation\")\n\tdefer span.End()\n\n\tfmt.Println(\"Uptrace OpenTelemetry initialized successfully.\")\n}"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Run Go application",
+        "type": "command",
+        "language": "bash",
+        "description": "Export environment variable and run the application:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\ngo run main.go"
+      }
+    ]
+  },
+  {
+    "id": "go-gin",
+    "name": "Gin",
+    "displayName": "Gin (Go)",
+    "category": "frameworks",
+    "subcategory": "Go Web Framework",
+    "language": "go",
+    "framework": "gin",
+    "type": "sdk",
+    "icon": "🍸",
+    "description": "Monitor Gin web framework applications with OpenTelemetry otelgin middleware and Uptrace backend.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-go.html",
+    "supportedSignals": ["traces", "metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install otelgin middleware",
+        "type": "command",
+        "language": "bash",
+        "description": "Install uptrace-go and the OpenTelemetry Gin instrumentation middleware:",
+        "content": "go get github.com/uptrace/uptrace-go\ngo get go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Instrument Gin router",
+        "type": "code",
+        "language": "go",
+        "description": "Attach otelgin middleware to the Gin engine instance:",
+        "content": "package main\n\nimport (\n\t\"context\"\n\t\"net/http\"\n\t\"os\"\n\n\t\"github.com/gin-gonic/gin\"\n\t\"github.com/uptrace/uptrace-go/uptrace\"\n\t\"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tuptrace.ConfigureOpentelemetry(\n\t\tuptrace.WithDSN(os.Getenv(\"UPTRACE_DSN\")),\n\t\tuptrace.WithServiceName(\"gin-api-service\"),\n\t)\n\tdefer uptrace.Shutdown(ctx)\n\n\tr := gin.Default()\n\tr.Use(otelgin.Middleware(\"gin-api-service\"))\n\n\tr.GET(\"/api/v1/ping\", func(c *gin.Context) {\n\t\tc.JSON(http.StatusOK, gin.H{\"message\": \"pong\"})\n\t})\n\n\tr.Run(\":8080\")\n}"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Run and verify Gin server",
+        "type": "command",
+        "language": "bash",
+        "description": "Start Gin and trigger endpoint:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\ngo run main.go\ncurl http://localhost:8080/api/v1/ping"
+      }
+    ]
+  },
+  {
+    "id": "nodejs-sdk",
+    "name": "Node.js",
+    "displayName": "Node.js SDK",
+    "category": "languages",
+    "subcategory": "JavaScript / TypeScript Runtime",
+    "language": "javascript",
+    "framework": "",
+    "type": "sdk",
+    "icon": "🟢",
+    "description": "Instrument Node.js, Express, NestJS, and Fastify applications using OpenTelemetry Node SDK and Uptrace exporter.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-nodejs.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install Uptrace Node.js package",
+        "type": "command",
+        "language": "bash",
+        "description": "Install @uptrace/node and OpenTelemetry API:",
+        "content": "npm install --save @uptrace/node @opentelemetry/api"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure Uptrace in tracing.js",
+        "type": "code",
+        "language": "javascript",
+        "description": "Create a tracing initialization file and require it before application code:",
+        "content": "// tracing.js\nconst uptrace = require('@uptrace/node');\n\nuptrace.configureOpentelemetry({\n  dsn: process.env.UPTRACE_DSN || 'https://<token>@uptrace.dev/<project_id>',\n  serviceName: process.env.OTEL_SERVICE_NAME || 'nodejs-service',\n  serviceVersion: '1.0.0',\n});"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start your Node.js application",
+        "type": "command",
+        "language": "bash",
+        "description": "Preload the tracing file when running your Node application:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\nnode -r ./tracing.js app.js"
+      }
+    ]
+  },
+  {
+    "id": "nodejs-express",
+    "name": "Express",
+    "displayName": "Express.js",
+    "category": "frameworks",
+    "subcategory": "Node.js Web Framework",
+    "language": "javascript",
+    "framework": "express",
+    "type": "sdk",
+    "icon": "🚂",
+    "description": "Auto-instrument Express.js routes, HTTP requests, and middleware with OpenTelemetry and Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-nodejs.html",
+    "supportedSignals": ["traces", "metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install dependencies",
+        "type": "command",
+        "language": "bash",
+        "description": "Install Uptrace and Express auto-instrumentations:",
+        "content": "npm install --save @uptrace/node @opentelemetry/auto-instrumentations-node express"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Initialize tracing and Express app",
+        "type": "code",
+        "language": "javascript",
+        "description": "Initialize Uptrace before importing Express:",
+        "content": "const uptrace = require('@uptrace/node');\n\nuptrace.configureOpentelemetry({\n  dsn: process.env.UPTRACE_DSN,\n  serviceName: 'express-service',\n  serviceVersion: '1.0.0',\n});\n\nconst express = require('express');\nconst app = express();\n\napp.get('/api/users', (req, res) => {\n  res.json({ users: [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }] });\n});\n\napp.listen(3000, () => console.log('Express running on http://localhost:3000'));"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start server and verify",
+        "type": "command",
+        "language": "bash",
+        "description": "Run Express server and check Uptrace dashboard:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\nnode app.js\ncurl http://localhost:3000/api/users"
+      }
+    ]
+  },
+  {
+    "id": "java-spring-boot",
+    "name": "Spring Boot",
+    "displayName": "Spring Boot (Java)",
+    "category": "frameworks",
+    "subcategory": "Java Web Framework",
+    "language": "java",
+    "framework": "spring-boot",
+    "type": "sdk",
+    "icon": "🍃",
+    "description": "Monitor Spring Boot applications with OpenTelemetry Java Agent, Micrometer metrics, and Uptrace OTLP backend.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-java.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Download OpenTelemetry Java Agent",
+        "type": "command",
+        "language": "bash",
+        "description": "Download the official opentelemetry-javaagent.jar:",
+        "content": "curl -L -O https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure environment variables",
+        "type": "environment",
+        "description": "Configure OpenTelemetry exporter to route telemetry to Uptrace OTLP/gRPC endpoint:",
+        "variables": [
+          {
+            "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "value": "https://otlp.uptrace.dev:4317",
+            "description": "Uptrace OTLP gRPC endpoint"
+          },
+          {
+            "name": "OTEL_EXPORTER_OTLP_HEADERS",
+            "value": "uptrace-dsn=https://<token>@uptrace.dev/<project_id>",
+            "description": "Authentication header containing your Uptrace DSN"
+          },
+          {
+            "name": "OTEL_SERVICE_NAME",
+            "value": "spring-boot-app",
+            "description": "Your service name in Uptrace"
+          }
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "title": "Run Spring Boot application with Java Agent",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch the packaged JAR with the OpenTelemetry agent:",
+        "content": "java -javaagent:opentelemetry-javaagent.jar \\\n  -Dotel.service.name=spring-boot-app \\\n  -Dotel.exporter.otlp.endpoint=https://otlp.uptrace.dev:4317 \\\n  -Dotel.exporter.otlp.headers=\"uptrace-dsn=https://<token>@uptrace.dev/<project_id>\" \\\n  -jar target/my-spring-app-1.0.0.jar"
+      },
+      {
+        "stepNumber": 4,
+        "title": "Verify telemetry",
+        "type": "verification",
+        "description": "Generate traffic to your Spring Boot REST controllers and observe trace trees and JVM memory metrics in Uptrace.",
+        "content": "curl http://localhost:8080/actuator/health"
+      }
+    ]
+  },
+  {
+    "id": "dotnet-sdk",
+    "name": ".NET",
+    "displayName": ".NET / C#",
+    "category": "languages",
+    "subcategory": ".NET Core / ASP.NET",
+    "language": "csharp",
+    "framework": "aspnetcore",
+    "type": "sdk",
+    "icon": "🔷",
+    "description": "Instrument ASP.NET Core, Entity Framework, and HttpClient with OpenTelemetry .NET SDK and Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-dotnet.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install NuGet packages",
+        "type": "command",
+        "language": "bash",
+        "description": "Add OpenTelemetry and OTLP exporter packages to your .NET project:",
+        "content": "dotnet add package OpenTelemetry.Extensions.Hosting\ndotnet add package OpenTelemetry.Instrumentation.AspNetCore\ndotnet add package OpenTelemetry.Instrumentation.Http\ndotnet add package OpenTelemetry.Exporter.OpenTelemetryProtocol"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure OpenTelemetry in Program.cs",
+        "type": "code",
+        "language": "csharp",
+        "description": "Add OpenTelemetry service configuration in Program.cs:",
+        "content": "using OpenTelemetry.Resources;\nusing OpenTelemetry.Trace;\n\nvar builder = WebApplication.CreateBuilder(args);\n\nvar dsn = Environment.GetEnvironmentVariable(\"UPTRACE_DSN\") ?? \"https://<token>@uptrace.dev/<project_id>\";\n\nbuilder.Services.AddOpenTelemetry()\n    .ConfigureResource(resource => resource.AddService(\"dotnet-api-service\"))\n    .WithTracing(tracing => tracing\n        .AddAspNetCoreInstrumentation()\n        .AddHttpClientInstrumentation()\n        .AddOtlpExporter(opt => {\n            opt.Endpoint = new Uri(\"https://otlp.uptrace.dev:4317\");\n            opt.Headers = $\"uptrace-dsn={dsn}\";\n            opt.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;\n        }));\n\nvar app = builder.Build();\napp.MapGet(\"/ping\", () => \"pong\");\napp.Run();"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Run .NET Application",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch the application:",
+        "content": "dotnet run"
+      }
+    ]
+  },
+  {
+    "id": "ruby-rails",
+    "name": "Ruby on Rails",
+    "displayName": "Ruby on Rails",
+    "category": "frameworks",
+    "subcategory": "Ruby Web Framework",
+    "language": "ruby",
+    "framework": "rails",
+    "type": "sdk",
+    "icon": "💎",
+    "description": "Monitor Ruby on Rails requests, ActiveRecord queries, ActionView, and Sidekiq background jobs with Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-ruby.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Add gems to Gemfile",
+        "type": "command",
+        "language": "bash",
+        "description": "Add uptrace-ruby gem to your Gemfile and bundle install:",
+        "content": "bundle add uptrace opentelemetry-instrumentation-all"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Create config/initializers/uptrace.rb",
+        "type": "code",
+        "language": "ruby",
+        "description": "Initialize Uptrace in Rails initializers:",
+        "content": "# config/initializers/uptrace.rb\nrequire 'uptrace'\n\nUptrace.configure_opentelemetry do |c|\n  c.service_name = 'rails-service'\n  c.service_version = '1.0.0'\n  c.dsn = ENV['UPTRACE_DSN']\n\n  c.use_all # enables auto-instrumentation for Rails, ActiveRecord, Redis, Sidekiq\nend"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start Rails server",
+        "type": "command",
+        "language": "bash",
+        "description": "Start the Rails server:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\nbin/rails server"
+      }
+    ]
+  },
+  {
+    "id": "php-sdk",
+    "name": "PHP",
+    "displayName": "PHP / Laravel",
+    "category": "languages",
+    "subcategory": "PHP Runtime / Frameworks",
+    "language": "php",
+    "framework": "laravel",
+    "type": "sdk",
+    "icon": "🐘",
+    "description": "Instrument PHP applications, Laravel, and Symfony using OpenTelemetry PHP SDK and Uptrace OTLP exporter.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-php.html",
+    "supportedSignals": ["traces", "metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install Composer packages",
+        "type": "command",
+        "language": "bash",
+        "description": "Install the OpenTelemetry SDK and gRPC transport:",
+        "content": "composer require open-telemetry/sdk open-telemetry/exporter-otlp"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure environment variables",
+        "type": "environment",
+        "description": "Set OTLP environment variables for Uptrace:",
+        "variables": [
+          {
+            "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "value": "https://otlp.uptrace.dev:4318",
+            "description": "Uptrace OTLP HTTP endpoint"
+          },
+          {
+            "name": "OTEL_EXPORTER_OTLP_HEADERS",
+            "value": "uptrace-dsn=https://<token>@uptrace.dev/<project_id>",
+            "description": "Your Uptrace project DSN"
+          },
+          {
+            "name": "OTEL_SERVICE_NAME",
+            "value": "php-web-app",
+            "description": "Service name in Uptrace"
+          }
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "title": "Run PHP server",
+        "type": "command",
+        "language": "bash",
+        "description": "Start PHP development server:",
+        "content": "php -S 0.0.0.0:8000 -t public"
+      }
+    ]
+  },
+  {
+    "id": "rust-sdk",
+    "name": "Rust",
+    "displayName": "Rust",
+    "category": "languages",
+    "subcategory": "Rust Systems & Web Services",
+    "language": "rust",
+    "framework": "axum",
+    "type": "sdk",
+    "icon": "🦀",
+    "description": "Monitor Rust async services (Axum, Actix, Tokio) with tracing-opentelemetry and Uptrace OTLP exporter.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-rust.html",
+    "supportedSignals": ["traces", "metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Add dependencies to Cargo.toml",
+        "type": "code",
+        "language": "toml",
+        "description": "Add OpenTelemetry and tracing subscriber crates:",
+        "content": "[dependencies]\nopentelemetry = { version = \"0.24\", features = [\"trace\"] }\nopentelemetry-otlp = { version = \"0.17\", features = [\"grpc-tonic\"] }\ntracing = \"0.1\"\ntracing-subscriber = \"0.3\"\ntracing-opentelemetry = \"0.25\"\ntokio = { version = \"1\", features = [\"full\"] }"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Initialize tracing in main.rs",
+        "type": "code",
+        "language": "rust",
+        "description": "Set up the OTLP exporter pointing to Uptrace:",
+        "content": "use opentelemetry_otlp::WithExportConfig;\nuse tracing_subscriber::layer::SubscriberExt;\nuse tracing_subscriber::util::SubscriberInitExt;\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let dsn = std::env::var(\"UPTRACE_DSN\").expect(\"UPTRACE_DSN must be set\");\n\n    let tracer = opentelemetry_otlp::new_pipeline()\n        .tracing()\n        .with_exporter(\n            opentelemetry_otlp::new_exporter()\n                .tonic()\n                .with_endpoint(\"https://otlp.uptrace.dev:4317\")\n                .with_metadata(tonic::metadata::MetadataMap::from_headers((\n                    \"uptrace-dsn\".parse().unwrap(),\n                    dsn.parse().unwrap(),\n                ))),\n        )\n        .install_batch(opentelemetry_sdk::runtime::Tokio)?;\n\n    tracing_subscriber::registry()\n        .with(tracing_opentelemetry::layer().with_tracer(tracer))\n        .init();\n\n    tracing::info!(\"Rust service initialized with Uptrace.\");\n    Ok(())\n}"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Run Rust binary",
+        "type": "command",
+        "language": "bash",
+        "description": "Compile and run:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\ncargo run --release"
+      }
+    ]
+  },
+  {
+    "id": "collector-kubernetes",
+    "name": "Kubernetes",
+    "displayName": "Kubernetes",
+    "category": "infrastructure",
+    "subcategory": "Container Orchestration",
+    "language": "yaml",
+    "framework": "kubernetes",
+    "type": "collector",
+    "icon": "☸️",
+    "description": "Deploy OpenTelemetry Collector DaemonSet on Kubernetes to collect pod metrics, container logs, and cluster telemetry for Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["traces", "metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Create Kubernetes Secret for Uptrace DSN",
+        "type": "command",
+        "language": "bash",
+        "description": "Store your Uptrace DSN securely in a Kubernetes Secret:",
+        "content": "kubectl create namespace uptrace\nkubectl create secret generic uptrace-dsn \\\n  --namespace uptrace \\\n  --from-literal=UPTRACE_DSN='https://<token>@uptrace.dev/<project_id>'"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Create OpenTelemetry Collector DaemonSet Manifest",
+        "type": "code",
+        "language": "yaml",
+        "description": "Save the following configuration as otel-collector-k8s.yaml:",
+        "content": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: otel-collector-config\n  namespace: uptrace\ndata:\n  otel-collector-config.yaml: |\n    receivers:\n      otlp:\n        protocols:\n          grpc:\n            endpoint: 0.0.0.0:4317\n          http:\n            endpoint: 0.0.0.0:4318\n      k8s_cluster:\n        collection_interval: 30s\n      kubeletstats:\n        collection_interval: 20s\n        auth_type: \"serviceAccount\"\n        endpoint: \"https://${env:K8S_NODE_NAME}:10250\"\n        insecure_skip_verify: true\n\n    processors:\n      batch:\n        timeout: 5s\n        send_batch_size: 1024\n      memory_limiter:\n        check_interval: 1s\n        limit_percentage: 75\n        spike_limit_percentage: 20\n      k8sattributes:\n        auth_type: \"serviceAccount\"\n        passthrough: false\n        extract:\n          metadata:\n            - k8s.pod.name\n            - k8s.namespace.name\n            - k8s.node.name\n            - k8s.deployment.name\n\n    exporters:\n      otlp/uptrace:\n        endpoint: otlp.uptrace.dev:4317\n        tls:\n          insecure: false\n        headers:\n          uptrace-dsn: ${env:UPTRACE_DSN}\n\n    service:\n      pipelines:\n        traces:\n          receivers: [otlp]\n          processors: [memory_limiter, k8sattributes, batch]\n          exporters: [otlp/uptrace]\n        metrics:\n          receivers: [otlp, k8s_cluster, kubeletstats]\n          processors: [memory_limiter, k8sattributes, batch]\n          exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Apply Manifest to Kubernetes Cluster",
+        "type": "command",
+        "language": "bash",
+        "description": "Apply the ConfigMap and Collector DaemonSet:",
+        "content": "kubectl apply -f otel-collector-k8s.yaml\nkubectl get pods -n uptrace"
+      },
+      {
+        "stepNumber": 4,
+        "title": "Verify Cluster Telemetry",
+        "type": "verification",
+        "description": "Open Uptrace -> Infrastructure -> Kubernetes to verify nodes, pods, and container metrics.",
+        "content": "kubectl logs -n uptrace -l app=opentelemetry-collector --tail=50"
+      }
+    ]
+  },
+  {
+    "id": "collector-prometheus",
+    "name": "Prometheus",
+    "displayName": "Prometheus Receiver",
+    "category": "receivers",
+    "subcategory": "Metrics Scraping Receiver",
+    "language": "yaml",
+    "framework": "prometheus",
+    "type": "collector",
+    "icon": "🔥",
+    "description": "Scrape Prometheus targets, endpoints, and exporters using OpenTelemetry Collector and export metrics to Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Configure OpenTelemetry Collector with Prometheus receiver",
+        "type": "code",
+        "language": "yaml",
+        "description": "Define the prometheus receiver job configuration inside otel-collector.yaml:",
+        "content": "receivers:\n  prometheus:\n    config:\n      scrape_configs:\n        - job_name: 'app-metrics'\n          scrape_interval: 15s\n          static_configs:\n            - targets: ['localhost:9090', 'localhost:8080']\n\nprocessors:\n  batch:\n    timeout: 10s\n    send_batch_size: 1024\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [prometheus]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Start OpenTelemetry Collector",
+        "type": "command",
+        "language": "bash",
+        "description": "Run the collector with your configuration file:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\notelcol-contrib --config=otel-collector.yaml"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Verify Metrics in Uptrace",
+        "type": "verification",
+        "description": "Inspect scraped Prometheus counters, gauges, and histograms under Uptrace Metrics Explorer.",
+        "content": "Check Uptrace -> Metrics -> Search for your scrape job metrics."
+      }
+    ]
+  },
+  {
+    "id": "collector-hostmetrics",
+    "name": "Host Metrics",
+    "displayName": "Host Metrics",
+    "category": "infrastructure",
+    "subcategory": "System & Server Monitoring",
+    "language": "yaml",
+    "framework": "hostmetrics",
+    "type": "collector",
+    "icon": "🖥️",
+    "description": "Monitor Linux, macOS, and Windows host CPU, memory, disk I/O, network interfaces, and load average with Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Install OpenTelemetry Collector Contrib",
+        "type": "command",
+        "language": "bash",
+        "description": "Download and install otelcol-contrib package on your host:",
+        "content": "# Debian/Ubuntu\ncurl -L -O https://github.com/open-telemetry/opentelemetry-collector-releases/releases/latest/download/otelcol-contrib_*_linux_amd64.deb\nsudo dpkg -i otelcol-contrib_*_linux_amd64.deb"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure hostmetrics receiver in config.yaml",
+        "type": "code",
+        "language": "yaml",
+        "description": "Create the hostmetrics configuration pipeline:",
+        "content": "receivers:\n  hostmetrics:\n    collection_interval: 10s\n    scrapers:\n      cpu:\n      memory:\n      load:\n      disk:\n      filesystem:\n      network:\n      processes:\n\nprocessors:\n  batch:\n    timeout: 5s\n    send_batch_size: 512\n  resourcedetection:\n    detectors: [system, env]\n    timeout: 2s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [hostmetrics]\n      processors: [resourcedetection, batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start Collector Service",
+        "type": "command",
+        "language": "bash",
+        "description": "Start systemd service or binary with environment variable:",
+        "content": "sudo systemctl set-environment UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\nsudo systemctl restart otelcol-contrib\nsudo systemctl status otelcol-contrib"
+      },
+      {
+        "stepNumber": 4,
+        "title": "Verify Host Telemetry in Uptrace",
+        "type": "verification",
+        "description": "Open Uptrace -> Infrastructure -> Hosts to see real-time CPU, RAM, Disk, and Network charts.",
+        "content": "Check Uptrace -> Infrastructure -> Hosts dashboard."
+      }
+    ]
+  },
+  {
+    "id": "collector-redis",
+    "name": "Redis",
+    "displayName": "Redis",
+    "category": "databases",
+    "subcategory": "In-Memory Key-Value Database",
+    "language": "yaml",
+    "framework": "redis",
+    "type": "collector",
+    "icon": "🟥",
+    "description": "Collect Redis commands throughput, connected clients, memory usage, cache hit ratio, and replication metrics for Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Configure Redis receiver in Collector",
+        "type": "code",
+        "language": "yaml",
+        "description": "Add redis receiver in your otel-collector-config.yaml:",
+        "content": "receivers:\n  redis:\n    endpoint: \"localhost:6379\"\n    collection_interval: 15s\n    password: \"${env:REDIS_PASSWORD}\"\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [redis]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Start OpenTelemetry Collector",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch the collector with your Redis credentials:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\nexport REDIS_PASSWORD=\"\"\notelcol-contrib --config=otel-collector.yaml"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Verify Redis Metrics in Uptrace",
+        "type": "verification",
+        "description": "View Redis connected clients, operations per second, memory RSS, and keyspace statistics in Uptrace.",
+        "content": "Open Uptrace -> Metrics -> redis.*"
+      }
+    ]
+  },
+  {
+    "id": "collector-postgresql",
+    "name": "PostgreSQL",
+    "displayName": "PostgreSQL",
+    "category": "databases",
+    "subcategory": "Relational Database",
+    "language": "yaml",
+    "framework": "postgresql",
+    "type": "collector",
+    "icon": "🐘",
+    "description": "Monitor PostgreSQL active connections, transaction rates, table size, cache hit ratio, and query performance in Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Create monitoring user in PostgreSQL",
+        "type": "command",
+        "language": "sql",
+        "description": "Create a read-only monitoring user with pg_monitor role:",
+        "content": "CREATE USER otel_monitor WITH PASSWORD 'secret_password';\nGRANT pg_monitor TO otel_monitor;"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure postgresql receiver in Collector",
+        "type": "code",
+        "language": "yaml",
+        "description": "Configure the postgresql receiver:",
+        "content": "receivers:\n  postgresql:\n    endpoint: \"localhost:5432\"\n    username: \"otel_monitor\"\n    password: \"secret_password\"\n    databases: [\"postgres\", \"perfanalyzer\"]\n    collection_interval: 20s\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [postgresql]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start Collector and verify",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch the collector:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\notelcol-contrib --config=otel-collector.yaml"
+      }
+    ]
+  },
+  {
+    "id": "collector-mysql",
+    "name": "MySQL",
+    "displayName": "MySQL",
+    "category": "databases",
+    "subcategory": "Relational Database",
+    "language": "yaml",
+    "framework": "mysql",
+    "type": "collector",
+    "icon": "🐬",
+    "description": "Collect MySQL query execution rates, InnoDB buffer pool statistics, row locks, and active threads in Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Create MySQL monitoring user",
+        "type": "command",
+        "language": "sql",
+        "description": "Grant PROCESS and REPLICATION CLIENT privileges:",
+        "content": "CREATE USER 'otel_monitor'@'%' IDENTIFIED BY 'secret_password';\nGRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'otel_monitor'@'%';\nFLUSH PRIVILEGES;"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure mysql receiver in Collector",
+        "type": "code",
+        "language": "yaml",
+        "description": "Add mysql receiver definition in otel-collector-config.yaml:",
+        "content": "receivers:\n  mysql:\n    endpoint: \"localhost:3306\"\n    username: \"otel_monitor\"\n    password: \"secret_password\"\n    collection_interval: 20s\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [mysql]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Start Collector and verify",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch the collector:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\notelcol-contrib --config=otel-collector.yaml"
+      }
+    ]
+  },
+  {
+    "id": "collector-nginx",
+    "name": "Nginx",
+    "displayName": "Nginx",
+    "category": "infrastructure",
+    "subcategory": "Web Server & Reverse Proxy",
+    "language": "yaml",
+    "framework": "nginx",
+    "type": "collector",
+    "icon": "🌐",
+    "description": "Monitor Nginx active connections, requests per second, reading/writing state, and status code distribution in Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Enable ngx_http_stub_status_module in nginx.conf",
+        "type": "code",
+        "language": "nginx",
+        "description": "Add stub_status endpoint in your Nginx configuration:",
+        "content": "server {\n    listen 127.0.0.1:80;\n    server_name localhost;\n\n    location /nginx_status {\n        stub_status on;\n        access_log off;\n        allow 127.0.0.1;\n        deny all;\n    }\n}"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Configure nginx receiver in Collector",
+        "type": "code",
+        "language": "yaml",
+        "description": "Configure the nginx receiver in otel-collector.yaml:",
+        "content": "receivers:\n  nginx:\n    endpoint: \"http://127.0.0.1:80/nginx_status\"\n    collection_interval: 10s\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [nginx]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 3,
+        "title": "Reload Nginx and run Collector",
+        "type": "command",
+        "language": "bash",
+        "description": "Apply Nginx config and start Collector:",
+        "content": "sudo nginx -s reload\nexport UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\notelcol-contrib --config=otel-collector.yaml"
+      }
+    ]
+  },
+  {
+    "id": "collector-docker",
+    "name": "Docker",
+    "displayName": "Docker Engine",
+    "category": "infrastructure",
+    "subcategory": "Container Runtime",
+    "language": "yaml",
+    "framework": "docker",
+    "type": "collector",
+    "icon": "🐳",
+    "description": "Collect container CPU, memory limits, network I/O, and block I/O statistics from local Docker daemon for Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Configure docker_stats receiver in Collector",
+        "type": "code",
+        "language": "yaml",
+        "description": "Add docker_stats receiver connecting to the Docker socket:",
+        "content": "receivers:\n  docker_stats:\n    endpoint: \"unix:///var/run/docker.sock\"\n    collection_interval: 15s\n    timeout: 10s\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [docker_stats]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Run Collector container with Docker socket mount",
+        "type": "command",
+        "language": "bash",
+        "description": "Start otelcol-contrib container with volume mount:",
+        "content": "docker run -d --name otel-collector \\\n  -v /var/run/docker.sock:/var/run/docker.sock:ro \\\n  -v $(pwd)/otel-collector.yaml:/etc/otelcol-contrib/config.yaml \\\n  -e UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\" \\\n  otel/opentelemetry-collector-contrib:latest"
+      }
+    ]
+  },
+  {
+    "id": "collector-kafka",
+    "name": "Apache Kafka",
+    "displayName": "Apache Kafka",
+    "category": "receivers",
+    "subcategory": "Event Streaming & Message Queue",
+    "language": "yaml",
+    "framework": "kafka",
+    "type": "collector",
+    "icon": "📬",
+    "description": "Collect Kafka consumer lag, partition offsets, topic throughput, and broker metrics for Uptrace.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Configure kafkametrics receiver in Collector",
+        "type": "code",
+        "language": "yaml",
+        "description": "Add kafkametrics receiver in otel-collector.yaml:",
+        "content": "receivers:\n  kafkametrics:\n    brokers: [\"localhost:9092\"]\n    protocol_version: \"3.0.0\"\n    scrapers:\n      - brokers\n      - topics\n      - consumers\n    collection_interval: 20s\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [kafkametrics]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Start OpenTelemetry Collector",
+        "type": "command",
+        "language": "bash",
+        "description": "Launch collector:",
+        "content": "export UPTRACE_DSN=\"https://<token>@uptrace.dev/<project_id>\"\notelcol-contrib --config=otel-collector.yaml"
+      }
+    ]
+  },
+  {
+    "id": "collector-aws-cloudwatch",
+    "name": "AWS CloudWatch",
+    "displayName": "AWS CloudWatch",
+    "category": "receivers",
+    "subcategory": "Cloud Infrastructure",
+    "language": "yaml",
+    "framework": "cloudwatch",
+    "type": "collector",
+    "icon": "☁️",
+    "description": "Forward AWS ECS, EC2, RDS, Lambda, and CloudWatch metrics to Uptrace via OpenTelemetry Collector awsecscontainermetrics / CloudWatch pipeline.",
+    "officialDocumentationUrl": "https://uptrace.dev/get/opentelemetry-collector.html",
+    "supportedSignals": ["metrics", "logs"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Configure AWS CloudWatch / ECS receiver",
+        "type": "code",
+        "language": "yaml",
+        "description": "Set up OpenTelemetry Collector for AWS ECS sidecar or CloudWatch scraping:",
+        "content": "receivers:\n  awsecscontainermetrics:\n    collection_interval: 20s\n\nprocessors:\n  batch:\n    timeout: 5s\n\nexporters:\n  otlp/uptrace:\n    endpoint: otlp.uptrace.dev:4317\n    headers:\n      uptrace-dsn: ${env:UPTRACE_DSN}\n\nservice:\n  pipelines:\n    metrics:\n      receivers: [awsecscontainermetrics]\n      processors: [batch]\n      exporters: [otlp/uptrace]"
+      },
+      {
+        "stepNumber": 2,
+        "title": "Deploy as AWS ECS Sidecar Task",
+        "type": "command",
+        "language": "bash",
+        "description": "Attach the OpenTelemetry Collector container as a sidecar in your ECS Task Definition, passing UPTRACE_DSN via AWS Secrets Manager or Parameter Store."
+      }
+    ]
+  }
+]

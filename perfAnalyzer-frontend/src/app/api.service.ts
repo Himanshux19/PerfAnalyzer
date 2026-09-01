@@ -141,8 +141,86 @@ export interface SubscriptionInfo {
   usage: SubscriptionUsage;
 }
 
+// ── Monitoring Module Interfaces (Uptrace Setup Catalog) ───────────────
+export interface MonitoringStepVariable {
+  name: string;
+  value: string;
+  description: string;
+}
+
+export interface MonitoringStep {
+  stepNumber: number;
+  title: string;
+  type: 'command' | 'environment' | 'code' | 'config' | 'verification' | 'troubleshooting';
+  language?: string;
+  description?: string;
+  content?: string;
+  variables?: MonitoringStepVariable[];
+  notes?: string;
+}
+
+export interface MonitoringCatalogEntry {
+  id: string;
+  name: string;
+  displayName: string;
+  category: 'languages' | 'frameworks' | 'receivers' | 'infrastructure' | 'databases' | string;
+  subcategory: string;
+  language?: string;
+  framework?: string;
+  type: 'sdk' | 'collector' | string;
+  icon: string;
+  description: string;
+  officialDocumentationUrl: string;
+  supportedSignals: Array<'traces' | 'metrics' | 'logs' | string>;
+  steps: MonitoringStep[];
+}
+
+export interface MonitoringIntegration {
+  id: number;
+  catalogIntegrationId: string;
+  name: string;
+  category: string;
+  language?: string;
+  framework?: string;
+  serviceName?: string;
+  dashboardUrl?: string;
+  enabled: boolean;
+  status: 'not_configured' | 'configuration_saved' | 'waiting_for_telemetry' | 'telemetry_detected' | 'disabled' | string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  hasDsn: boolean;
+}
+
+export interface CreateMonitoringPayload {
+  catalogIntegrationId: string;
+  name: string;
+  category: string;
+  language?: string;
+  framework?: string;
+  serviceName?: string;
+  uptraceDsn?: string;
+  dashboardUrl?: string;
+  enabled?: boolean;
+  status?: string;
+}
+
+export interface UpdateMonitoringPayload {
+  name?: string;
+  serviceName?: string;
+  uptraceDsn?: string;
+  dashboardUrl?: string;
+  enabled?: boolean;
+  status?: string;
+}
+
+export interface PatchMonitoringStatusPayload {
+  enabled?: boolean;
+  status?: string;
+}
+
 export interface DashboardSummary {
   kpis: {
+
     total_tests: number;
     total_tests_trend: string;
     tests_run: number;
@@ -662,7 +740,78 @@ export class ApiService {
     return this.http.get<any[]>(`${this.baseUrl}/api/users/me/activities`, this.getUserHeaders());
   }
 
+  // ── Monitoring Module API Methods ────────────────────────────
+
+  getCatalog(category?: string, search?: string): Observable<MonitoringCatalogEntry[]> {
+    let params: string[] = [];
+    if (category && category !== 'all') {
+      params.push(`category=${encodeURIComponent(category)}`);
+    }
+    if (search && search.trim()) {
+      params.push(`search=${encodeURIComponent(search.trim())}`);
+    }
+    const queryString = params.length ? `?${params.join('&')}` : '';
+    return this.http.get<MonitoringCatalogEntry[]>(`${this.baseUrl}/api/monitoring/catalog${queryString}`);
+  }
+
+  getCatalogEntry(catalogId: string): Observable<MonitoringCatalogEntry> {
+    return this.http.get<MonitoringCatalogEntry>(`${this.baseUrl}/api/monitoring/catalog/${encodeURIComponent(catalogId)}`);
+  }
+
+  getMonitoringIntegrations(): Observable<MonitoringIntegration[]> {
+    return this.http.get<MonitoringIntegration[]>(
+      `${this.baseUrl}/api/monitoring/integrations`,
+      this.getUserHeaders(),
+    );
+  }
+
+  getMonitoringIntegration(id: number): Observable<MonitoringIntegration> {
+    return this.http.get<MonitoringIntegration>(
+      `${this.baseUrl}/api/monitoring/integrations/${id}`,
+      this.getUserHeaders(),
+    );
+  }
+
+  createMonitoringIntegration(payload: CreateMonitoringPayload): Observable<MonitoringIntegration> {
+    return this.http.post<MonitoringIntegration>(
+      `${this.baseUrl}/api/monitoring/integrations`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  updateMonitoringIntegration(id: number, payload: UpdateMonitoringPayload): Observable<MonitoringIntegration> {
+    return this.http.put<MonitoringIntegration>(
+      `${this.baseUrl}/api/monitoring/integrations/${id}`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  patchMonitoringStatus(id: number, payload: PatchMonitoringStatusPayload): Observable<MonitoringIntegration> {
+    return this.http.patch<MonitoringIntegration>(
+      `${this.baseUrl}/api/monitoring/integrations/${id}/status`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  deleteMonitoringIntegration(id: number): Observable<any> {
+    return this.http.delete<any>(
+      `${this.baseUrl}/api/monitoring/integrations/${id}`,
+      this.getUserHeaders(),
+    );
+  }
+
+  getMonitoringConfiguration(id: number): Observable<{ monitor: MonitoringIntegration; catalog: MonitoringCatalogEntry }> {
+    return this.http.get<{ monitor: MonitoringIntegration; catalog: MonitoringCatalogEntry }>(
+      `${this.baseUrl}/api/monitoring/integrations/${id}/configuration`,
+      this.getUserHeaders(),
+    );
+  }
+
   // ── Real-Time Active Session Watcher ─────────────────────────
+
 
   subscriptionUpdated$ = new Subject<{ plan: string; status: string }>();
   private sessionSocket: WebSocket | null = null;

@@ -246,12 +246,13 @@
       <div class="d-flex align-items-center gap-2">
         <h4 class="h6 m-0 font-bold text-slate-800">{{
           activeSection === 'dashboard' ? 'Dashboard Overview' :
-          activeSection === 'monitoring' ? 'System & Engine Monitoring' :
+          activeSection === 'monitoring' ? 'Monitoring' :
           activeSection === 'subscribe' ? 'Subscription Plans' :
           activeSection === 'account' ? 'Account Settings' :
           activeSection === 'workspaces' ? 'Manage Workspaces' :
           activeSection === 'about' ? ('About ' + (drawerProject?.name || 'Workspace')) :
           (drawerProject?.name || 'Workspace Section') }}</h4>
+
       </div>
 
       <!-- Top Right Subscribe CTA / Active Plan Indicator -->

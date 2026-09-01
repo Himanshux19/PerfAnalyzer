@@ -1,11 +1,848 @@
-<div class="monitoring-container p-4">
-  <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-4">
-    <div class="empty-icon-wrap mx-auto mb-3">
-      <i class="bi bi-activity text-primary fs-1"></i>
+<div class="monitoring-root">
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 1. DETAIL VIEW: Step-by-step guided setup for a specific integration   -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeView === 'detail' && selectedCatalogEntry" class="fade-in">
+
+    <!-- Topbar -->
+    <div class="detail-topbar d-flex align-items-center justify-content-between px-4 py-3 bg-white border-bottom sticky-top">
+      <button class="btn btn-sm btn-ghost-back d-flex align-items-center gap-2" (click)="backToCatalog()">
+        <i class="bi bi-arrow-left"></i>
+        <span>Back to Catalog</span>
+      </button>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8" (click)="openDsnGuideModal($event)">
+          <i class="bi bi-key-fill text-info me-1"></i>How to get DSN?
+        </button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fs-8" (click)="openDocUrl(selectedCatalogEntry.officialDocumentationUrl, $event)">
+          <i class="bi bi-book me-1"></i>Uptrace Docs ↗
+        </button>
+        <button class="btn btn-sm btn-primary rounded-pill px-3 fs-8 fw-semibold shadow-sm" (click)="openConfigureModal(selectedCatalogEntry)">
+          <i class="bi bi-sliders me-1"></i>Configure Monitor
+        </button>
+      </div>
     </div>
-    <h4 class="h5 font-bold text-slate-800 mb-2">System & Engine Monitoring</h4>
-    <p class="text-muted fs-8 mx-auto mb-0" style="max-width: 480px;">
-      Live server metrics, load generators telemetry, and worker process monitoring will appear here.
-    </p>
+
+    <div class="detail-body px-4 py-4">
+
+      <!-- Integration Header -->
+      <div class="detail-hero d-flex align-items-start gap-4 mb-4">
+        <!-- Devicon official logo container with brand accent glow -->
+        <div class="detail-hero-logo-box flex-shrink-0 d-flex align-items-center justify-content-center"
+          [style.background]="getTechAccent(selectedCatalogEntry.id).bg"
+          [style.borderColor]="getTechAccent(selectedCatalogEntry.id).border"
+          [style.boxShadow]="'0 8px 24px ' + getTechAccent(selectedCatalogEntry.id).glow">
+          <i *ngIf="getDeviconClass(selectedCatalogEntry.id)" [class]="getDeviconClass(selectedCatalogEntry.id)" class="devicon-hero-icon"></i>
+          <div *ngIf="!getDeviconClass(selectedCatalogEntry.id)" class="svg-fallback-icon" [innerHTML]="getFallbackSvg(selectedCatalogEntry.category)"></div>
+        </div>
+
+        <div class="flex-grow-1">
+          <!-- Breadcrumb path -->
+          <div class="d-flex align-items-center gap-2 mb-2 fs-9 text-muted">
+            <i class="bi" [ngClass]="getCategoryIcon(selectedCatalogEntry.category)"></i>
+            <span class="text-capitalize">{{ getCategoryLabel(selectedCatalogEntry.category) }}</span>
+            <i class="bi bi-chevron-right"></i>
+            <span class="fw-semibold text-slate-700">{{ selectedCatalogEntry.displayName }}</span>
+          </div>
+          <h1 class="h3 fw-bold text-slate-900 mb-2">{{ selectedCatalogEntry.displayName }}</h1>
+          <p class="text-secondary mb-3" style="max-width: 760px; line-height: 1.6;">{{ selectedCatalogEntry.description }}</p>
+          <!-- Metadata row -->
+          <div class="d-flex align-items-center flex-wrap gap-2">
+            <span [ngClass]="getTypeBadgeClass(selectedCatalogEntry.type)" class="type-badge rounded-pill px-3 py-1 fs-9 fw-semibold">
+              <i class="bi me-1" [ngClass]="selectedCatalogEntry.type === 'collector' ? 'bi-reception-4' : 'bi-code-slash'"></i>
+              {{ getTypeLabel(selectedCatalogEntry.type) }}
+            </span>
+            <span *ngFor="let sig of selectedCatalogEntry.supportedSignals"
+              [ngClass]="getSignalBadgeClass(sig)" class="signal-badge rounded-pill px-2.5 py-1 fs-9 fw-semibold">
+              <i class="bi me-1" [ngClass]="getSignalIcon(sig)"></i>{{ sig }}
+            </span>
+            <span *ngIf="selectedCatalogEntry.subcategory" class="badge bg-slate-100 text-slate-600 rounded-pill px-2.5 py-1 fs-9 border">
+              {{ selectedCatalogEntry.subcategory }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive DSN & Service Name Customizer Bar -->
+      <div class="dsn-customizer-card p-3 mb-4 rounded-4 bg-white border shadow-sm">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-2">
+          <div class="d-flex align-items-center gap-2">
+            <div class="customizer-icon rounded-circle bg-blue-50 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+              <i class="bi bi-magic fs-6"></i>
+            </div>
+            <div>
+              <span class="fs-8 fw-bold text-slate-900">Interactive Snippet Customizer</span>
+              <span class="fs-9 text-muted d-block">Paste your DSN below to customize all configuration code in real time</span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-link text-primary fs-8 p-0 text-decoration-none" (click)="openDsnGuideModal($event)">
+            <i class="bi bi-info-circle me-1"></i>Where do I find my DSN?
+          </button>
+        </div>
+
+        <div class="row g-2 align-items-center pt-2 border-top">
+          <!-- DSN Input -->
+          <div class="col-12 col-md-7">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-slate-50 text-muted fs-9 font-mono">UPTRACE_DSN</span>
+              <input [type]="showCustomDsnText ? 'text' : 'password'"
+                class="form-control font-mono fs-8"
+                placeholder="https://<token>@uptrace.dev/<project_id>"
+                [(ngModel)]="customDsn" />
+              <button type="button" class="btn btn-outline-secondary" (click)="showCustomDsnText = !showCustomDsnText" title="Toggle visibility">
+                <i class="bi" [ngClass]="showCustomDsnText ? 'bi-eye-slash' : 'bi-eye'"></i>
+              </button>
+              <button *ngIf="customDsn" type="button" class="btn btn-outline-secondary" (click)="customDsn = ''" title="Clear">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Service Name Input -->
+          <div class="col-12 col-md-5">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-slate-50 text-muted fs-9 font-mono">SERVICE_NAME</span>
+              <input type="text"
+                class="form-control font-mono fs-8"
+                placeholder="e.g. backend-api"
+                [(ngModel)]="customServiceName" />
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="customDsn" class="mt-2 d-flex align-items-center gap-2 fs-9 text-success">
+          <i class="bi bi-check-circle-fill"></i>
+          <span>All installation snippets below are dynamically populated with your actual DSN & service name!</span>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="steps-wrapper">
+        <div class="steps-timeline">
+          <div *ngFor="let step of selectedCatalogEntry.steps; let idx = index; let last = last"
+            class="step-item" [class.step-last]="last">
+
+            <!-- Step number connector -->
+            <div class="step-connector">
+              <div class="step-num-circle">{{ step.stepNumber || (idx + 1) }}</div>
+              <div *ngIf="!last" class="step-line"></div>
+            </div>
+
+            <!-- Step card -->
+            <div class="step-card bg-white border rounded-4 shadow-sm mb-4 overflow-hidden">
+              <!-- Step card header -->
+              <div class="step-card-header d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-slate-50">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="step-type-pill d-flex align-items-center gap-1.5 rounded-pill px-2.5 py-1 fs-9 fw-semibold"
+                    [ngClass]="'step-type-' + step.type">
+                    <i class="bi" [ngClass]="getStepTypeIcon(step.type)"></i>
+                    <span>{{ getStepTypeLabel(step.type) }}</span>
+                  </div>
+                  <h3 class="h6 fw-bold text-slate-900 m-0">{{ step.title }}</h3>
+                </div>
+                <span *ngIf="step.language" class="badge bg-white border text-slate-700 rounded-pill px-2 py-1 fs-9 font-mono">
+                  {{ step.language }}
+                </span>
+              </div>
+
+              <!-- Step card body -->
+              <div class="step-card-body px-4 py-3">
+                <p *ngIf="step.description" class="text-secondary fs-8 mb-3" style="line-height: 1.6;">
+                  {{ step.description }}
+                </p>
+
+                <!-- Environment variables -->
+                <div *ngIf="step.variables && step.variables.length > 0" class="env-table-wrap border rounded-3 overflow-hidden mb-3">
+                  <div class="env-table-header d-flex align-items-center justify-content-between px-3 py-2 bg-slate-50 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="bi bi-sliders text-primary fs-9"></i>
+                      <span class="fs-9 fw-semibold text-muted text-uppercase tracking-wider">Required Environment Variables</span>
+                    </div>
+                    <span *ngIf="customDsn" class="badge bg-green-50 text-success border border-success-subtle fs-10">
+                      <i class="bi bi-check2"></i> Custom DSN Applied
+                    </span>
+                  </div>
+                  <table class="table table-sm m-0 fs-8">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 36%" class="ps-3 py-2 text-muted fw-semibold">Variable Name</th>
+                        <th class="py-2 text-muted fw-semibold">Configured Value</th>
+                        <th class="text-end pe-3 py-2" style="width: 90px;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let env of step.variables; let envIdx = index">
+                        <td class="ps-3 py-2 align-middle">
+                          <code class="text-primary fw-semibold fs-9">{{ env.name }}</code>
+                        </td>
+                        <td class="py-2 align-middle">
+                          <code class="text-slate-800 fs-9 text-break">{{ getInterpolatedVariableValue(env.value, env.name) }}</code>
+                          <div *ngIf="env.description" class="text-muted fs-9 mt-0.5">{{ env.description }}</div>
+                        </td>
+                        <td class="pe-3 py-2 text-end align-middle">
+                          <button type="button"
+                            class="btn btn-xs btn-copy rounded-pill px-2 py-1"
+                            (click)="copyToClipboard(env.name + '=' + getInterpolatedVariableValue(env.value, env.name), 'env-' + idx + '-' + envIdx, $event)">
+                            <i class="bi" [ngClass]="isCopied('env-' + idx + '-' + envIdx) ? 'bi-check2 text-success' : 'bi-clipboard'"></i>
+                            {{ isCopied('env-' + idx + '-' + envIdx) ? 'Copied' : 'Copy' }}
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Code / Command / YAML block (Dynamically Interpolated) -->
+                <div *ngIf="step.content" class="code-wrap rounded-3 overflow-hidden border">
+                  <div class="code-header d-flex align-items-center justify-content-between px-3 py-2">
+                    <div class="d-flex align-items-center gap-2 text-muted fs-9">
+                      <!-- Terminal dots -->
+                      <span class="term-dot dot-red"></span>
+                      <span class="term-dot dot-yellow"></span>
+                      <span class="term-dot dot-green"></span>
+                      <span class="ms-2 font-mono fs-9 text-slate-300">
+                        <i class="bi me-1" [ngClass]="getStepTypeIcon(step.type)"></i>
+                        {{ step.type === 'command' ? 'Terminal Command' : (step.language || 'Configuration') }}
+                      </span>
+                    </div>
+                    <button type="button"
+                      class="btn-copy-code d-flex align-items-center gap-1 rounded-pill px-2.5 py-1 fs-9 fw-medium"
+                      [class.copied]="isCopied('step-' + idx)"
+                      (click)="copyToClipboard(getInterpolatedContent(step.content), 'step-' + idx, $event)">
+                      <i class="bi" [ngClass]="isCopied('step-' + idx) ? 'bi-check-lg text-success' : 'bi-clipboard'"></i>
+                      {{ isCopied('step-' + idx) ? 'Copied!' : 'Copy Code' }}
+                    </button>
+                  </div>
+                  <pre class="code-body m-0 p-3 overflow-x-auto"><code>{{ getInterpolatedContent(step.content) }}</code></pre>
+                </div>
+
+                <!-- Notes -->
+                <div *ngIf="step.notes" class="alert alert-info py-2 px-3 fs-9 mt-3 mb-0 rounded-3 border-0 bg-blue-50 text-blue-900">
+                  <i class="bi bi-lightbulb-fill me-1 text-warning"></i> {{ step.notes }}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom CTA -->
+      <div class="detail-cta d-flex flex-wrap align-items-center justify-content-between gap-3 rounded-4 border border-primary-subtle bg-primary-subtle px-4 py-4 mt-2 mb-5">
+        <div>
+          <h4 class="h6 fw-bold text-slate-900 mb-1">Done configuring your service?</h4>
+          <p class="fs-8 text-secondary mb-0">Save this monitor in PerfAnalyzer to track service endpoints, enable/disable tracking, and open live dashboards.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary rounded-pill px-3 py-2 fs-8"
+            (click)="openDocUrl(selectedCatalogEntry.officialDocumentationUrl, $event)">
+            <i class="bi bi-book me-1"></i>Full Uptrace Docs ↗
+          </button>
+          <button class="btn btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
+            (click)="openConfigureModal(selectedCatalogEntry)">
+            <i class="bi bi-plus-circle me-1"></i>Save as Monitor
+          </button>
+        </div>
+      </div>
+
+    </div>
   </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 2. CATALOG VIEW: Browse integrations + My Monitors                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeView === 'catalog'" class="fade-in px-4 py-4">
+
+    <!-- Page Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <div>
+        <h1 class="h4 fw-bold text-slate-900 mb-0">Monitoring Integrations</h1>
+        <p class="text-secondary fs-8 mt-1 mb-0">
+          Guided setup catalog across programming languages, web frameworks, collectors, infrastructure, and databases.
+        </p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 rounded-pill px-3 py-2 fs-8"
+          (click)="openDocUrl('https://uptrace.dev/guides', $event)" title="Browse official Uptrace guides and tutorials">
+          <i class="bi bi-book text-slate-600"></i>
+          <span>Uptrace Guides ↗</span>
+        </button>
+        <button class="btn btn-sm btn-outline-info d-flex align-items-center gap-2 rounded-pill px-3 py-2 fs-8"
+          (click)="openDsnGuideModal($event)">
+          <i class="bi bi-key-fill text-info"></i>
+          <span>Get Uptrace DSN</span>
+        </button>
+        <button class="btn btn-sm btn-primary d-flex align-items-center gap-2 rounded-pill px-3.5 py-2 fs-8 fw-semibold shadow-sm"
+          (click)="openConfigureModal()">
+          <i class="bi bi-plus-lg"></i>
+          <span>Add Monitor</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar d-flex flex-wrap align-items-center justify-content-between gap-3 bg-white border rounded-4 shadow-sm p-2 mb-4">
+      <!-- Category tabs -->
+      <div class="d-flex align-items-center gap-1 flex-wrap">
+        <button type="button" class="cat-tab" [class.active]="activeCategory === 'all'" (click)="selectCategory('all')">
+          <i class="bi bi-grid-fill me-1"></i>All Integrations
+          <span class="cat-count">{{ getCategoryCount('all') }}</span>
+        </button>
+        <button type="button" class="cat-tab" [class.active]="activeCategory === 'frameworks'" (click)="selectCategory('frameworks')">
+          <i class="bi bi-layers me-1"></i>Frameworks
+          <span class="cat-count">{{ getCategoryCount('frameworks') }}</span>
+        </button>
+        <button type="button" class="cat-tab" [class.active]="activeCategory === 'languages'" (click)="selectCategory('languages')">
+          <i class="bi bi-code-slash me-1"></i>Languages
+          <span class="cat-count">{{ getCategoryCount('languages') }}</span>
+        </button>
+        <button type="button" class="cat-tab" [class.active]="activeCategory === 'infrastructure'" (click)="selectCategory('infrastructure')">
+          <i class="bi bi-server me-1"></i>Infrastructure
+          <span class="cat-count">{{ getCategoryCount('infrastructure') }}</span>
+        </button>
+        <button type="button" class="cat-tab" [class.active]="activeCategory === 'receivers'" (click)="selectCategory('receivers')">
+          <i class="bi bi-reception-4 me-1"></i>Receivers
+          <span class="cat-count">{{ getCategoryCount('receivers') }}</span>
+        </button>
+        <button type="button" class="cat-tab" [class.active]="activeCategory === 'databases'" (click)="selectCategory('databases')">
+          <i class="bi bi-database me-1"></i>Databases
+          <span class="cat-count">{{ getCategoryCount('databases') }}</span>
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-wrap position-relative">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted fs-9"></i>
+        <input type="text"
+          class="form-control form-control-sm ps-5 pe-4 rounded-pill border fs-8"
+          style="min-width: 250px;"
+          placeholder="Search (e.g. fastapi, redis, k8s)..."
+          [(ngModel)]="searchQuery" />
+        <button *ngIf="searchQuery" type="button"
+          class="btn btn-sm btn-link position-absolute top-50 end-0 translate-middle-y me-2 p-0 text-muted border-0"
+          (click)="searchQuery = ''">
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Catalog Grid -->
+    <div class="mb-5">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="fs-9 fw-semibold text-muted text-uppercase tracking-wider">
+          Available Integrations ({{ filteredCatalog.length }})
+        </span>
+        <span class="fs-9 text-muted">Click any card to view official step-by-step setup</span>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="catalogLoading" class="text-center py-5">
+        <div class="spinner-border text-primary mb-2" role="status"></div>
+        <p class="text-muted fs-8">Loading integrations catalog…</p>
+      </div>
+
+      <!-- Error -->
+      <div *ngIf="catalogError" class="alert alert-danger rounded-4 text-center p-4">
+        <i class="bi bi-exclamation-triangle-fill fs-3 text-danger d-block mb-2"></i>
+        <p class="mb-2 fs-8">{{ catalogError }}</p>
+        <button class="btn btn-sm btn-outline-danger rounded-pill px-3" (click)="loadCatalog()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Retry Loading
+        </button>
+      </div>
+
+      <!-- Grid -->
+      <div *ngIf="!catalogLoading && !catalogError" class="row g-3">
+
+        <div *ngFor="let item of filteredCatalog" class="col-12 col-sm-6 col-lg-4 col-xl-3">
+          <div class="integ-card h-100 bg-white border rounded-4 shadow-sm d-flex flex-column cursor-pointer"
+            (click)="openIntegrationDetail(item)">
+
+            <!-- Card top section -->
+            <div class="integ-card-top p-3 d-flex align-items-start justify-content-between">
+              <!-- Devicon official logo box -->
+              <div class="integ-logo-box flex-shrink-0 d-flex align-items-center justify-content-center"
+                [style.background]="getTechAccent(item.id).bg"
+                [style.borderColor]="getTechAccent(item.id).border">
+                <i *ngIf="getDeviconClass(item.id)" [class]="getDeviconClass(item.id)" class="devicon-tech-icon"></i>
+                <div *ngIf="!getDeviconClass(item.id)" class="svg-fallback-icon" [innerHTML]="getFallbackSvg(item.category)"></div>
+              </div>
+              <!-- Category badge top-right -->
+              <span class="badge bg-slate-100 text-slate-700 border rounded-pill px-2.5 py-1 fs-9 font-medium text-capitalize">
+                {{ getCategoryLabel(item.category) }}
+              </span>
+            </div>
+
+            <!-- Card body -->
+            <div class="integ-card-body px-3 pb-2 flex-grow-1 d-flex flex-column">
+              <h3 class="h6 fw-bold text-slate-900 mb-1 text-truncate">{{ item.displayName }}</h3>
+              <p class="text-secondary fs-9 line-clamp-2 mb-auto" style="min-height: 34px; line-height: 1.5;">
+                {{ item.description }}
+              </p>
+            </div>
+
+            <!-- Card footer -->
+            <div class="integ-card-footer px-3 py-2.5 border-top d-flex align-items-center justify-content-between">
+              <span class="text-primary fs-8 fw-semibold d-flex align-items-center gap-1">
+                Setup <i class="bi bi-chevron-right fs-9"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div *ngIf="filteredCatalog.length === 0" class="col-12">
+          <div class="text-center py-5 bg-white rounded-4 border">
+            <i class="bi bi-search fs-1 text-muted d-block mb-2"></i>
+            <h5 class="h6 fw-bold text-slate-800 mb-1">No integrations matching "{{ searchQuery }}"</h5>
+            <p class="text-muted fs-8 mb-3">Try searching: python, fastapi, redis, kubernetes, prometheus, spring</p>
+            <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+              (click)="searchQuery = ''; activeCategory = 'all'">Clear filter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 3. MY MONITORS SECTION                                             -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <div class="my-monitors-section border-top pt-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+          <h2 class="h5 fw-bold text-slate-900 mb-0">My Configured Monitors</h2>
+          <p class="text-secondary fs-8 mt-1 mb-0">Active telemetry integrations and monitoring targets in PerfAnalyzer.</p>
+        </div>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-2 d-flex align-items-center gap-1"
+          (click)="openConfigureModal()">
+          <i class="bi bi-plus-lg"></i> Configure New
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="monitorsLoading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+        <span class="text-muted fs-8">Loading monitors…</span>
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="!monitorsLoading && monitors.length === 0"
+        class="empty-monitors rounded-4 border bg-white p-5 text-center shadow-sm">
+        <div class="empty-monitors-icon mx-auto mb-3">
+          <i class="bi bi-broadcast text-primary"></i>
+        </div>
+        <h4 class="h6 fw-bold text-slate-800 mb-1">No Monitors Configured Yet</h4>
+        <p class="text-muted fs-8 mx-auto mb-3" style="max-width: 480px;">
+          Select an integration above to view the step-by-step OpenTelemetry setup guide and save your application monitor.
+        </p>
+        <button class="btn btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
+          (click)="openConfigureModal()">
+          <i class="bi bi-plus-circle me-1.5"></i>Configure First Monitor
+        </button>
+      </div>
+
+      <!-- Monitor cards -->
+      <div *ngIf="!monitorsLoading && monitors.length > 0" class="d-flex flex-column gap-3">
+        <div *ngFor="let m of monitors"
+          class="monitor-card bg-white border rounded-4 shadow-sm overflow-hidden"
+          [class.monitor-disabled]="!m.enabled">
+
+          <!-- Main row -->
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-4">
+
+            <!-- Left: Devicon official logo + info -->
+            <div class="d-flex align-items-center gap-3">
+              <div class="monitor-logo-box flex-shrink-0 d-flex align-items-center justify-content-center"
+                [style.background]="getTechAccent(m.catalogIntegrationId).bg"
+                [style.borderColor]="getTechAccent(m.catalogIntegrationId).border">
+                <i *ngIf="getDeviconClass(m.catalogIntegrationId)" [class]="getDeviconClass(m.catalogIntegrationId)" class="devicon-monitor-icon"></i>
+                <div *ngIf="!getDeviconClass(m.catalogIntegrationId)" class="svg-fallback-icon" [innerHTML]="getFallbackSvg(m.category)"></div>
+              </div>
+              <div>
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                  <span class="fw-bold text-slate-900 fs-7">{{ m.name }}</span>
+                  <span [ngClass]="getStatusBadgeClass(m.status)" class="status-badge rounded-pill px-2.5 py-0.5 fs-9 fw-semibold d-flex align-items-center gap-1">
+                    <i class="bi fs-10" [ngClass]="getStatusIcon(m.status, m.enabled)"></i>
+                    {{ m.enabled ? getStatusLabel(m.status) : 'Disabled' }}
+                  </span>
+                  <span *ngIf="m.hasDsn" class="badge-dsn rounded-pill px-2 py-0.5 fs-10 fw-semibold d-flex align-items-center gap-1">
+                    <i class="bi bi-shield-lock-fill"></i>DSN Encrypted
+                  </span>
+                </div>
+                <div class="d-flex align-items-center flex-wrap gap-2 fs-9 text-muted">
+                  <span class="text-capitalize fw-medium text-slate-700">
+                    {{ m.language ? (m.language + (m.framework ? ' + ' + m.framework : '')) : getCategoryLabel(m.category) }}
+                  </span>
+                  <span *ngIf="m.serviceName" class="d-flex align-items-center gap-1">
+                    • Service: <code class="text-primary">{{ m.serviceName }}</code>
+                  </span>
+                  <span *ngIf="m.createdAt" class="text-muted">• Added {{ formatDate(m.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: actions -->
+            <div class="d-flex align-items-center flex-wrap gap-2">
+              <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 fs-8"
+                (click)="openMonitorSetupGuide(m, $event)" title="View Setup Instructions">
+                <i class="bi bi-journal-code me-1"></i>Setup
+              </button>
+              <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-1.5 fs-8"
+                (click)="openTelemetryGuide(m, $event)" title="View Telemetry Verification Checklist">
+                <i class="bi bi-arrow-repeat me-1"></i>Check Telemetry
+              </button>
+              <button class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 fs-8"
+                [class.active]="activeViewerMonitor?.id === m.id"
+                (click)="toggleLiveViewer(m, $event)" title="Toggle Embedded Live View">
+                <i class="bi bi-display"></i>
+              </button>
+              <button class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fs-8 fw-semibold shadow-sm"
+                (click)="openUptrace(m.dashboardUrl, $event)">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Open Uptrace ↗
+              </button>
+              <!-- Enable toggle -->
+              <div class="form-check form-switch m-0 ms-1" [title]="m.enabled ? 'Click to Disable' : 'Click to Enable'">
+                <input class="form-check-input cursor-pointer" type="checkbox" role="switch"
+                  [checked]="m.enabled" (change)="toggleMonitor(m, $event)"
+                  style="width: 2.2em; height: 1.2em;" />
+              </div>
+              <!-- Edit -->
+              <button class="btn btn-sm btn-link text-muted p-1 border-0" (click)="openEditModal(m, $event)" title="Edit Monitor Settings">
+                <i class="bi bi-gear-fill"></i>
+              </button>
+              <!-- Delete -->
+              <button class="btn btn-sm btn-link text-danger p-1 border-0" (click)="openDeleteModal(m, $event)" title="Delete Monitor">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Viewer embed panel -->
+          <div *ngIf="activeViewerMonitor?.id === m.id" class="viewer-panel border-top">
+            <div class="d-flex align-items-center justify-content-between px-4 py-2 border-bottom bg-slate-50">
+              <span class="fs-9 fw-semibold text-muted d-flex align-items-center gap-2">
+                <i class="bi bi-display text-primary"></i>Live View: {{ m.name }}
+              </span>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5 fs-9"
+                  (click)="openUptrace(m.dashboardUrl, $event)">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>Fullscreen in New Tab ↗
+                </button>
+                <button class="btn btn-sm btn-link text-muted p-0 border-0" (click)="closeViewer()">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+            <div style="height: 480px;" class="position-relative bg-slate-950">
+              <iframe *ngIf="viewerSafeUrl && !viewerIframeError"
+                [src]="viewerSafeUrl" class="w-100 h-100 border-0"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                (error)="onIframeError()">
+              </iframe>
+              <div *ngIf="viewerIframeError"
+                class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-white p-4">
+                <i class="bi bi-shield-lock fs-1 text-warning mb-2"></i>
+                <h5 class="h6 fw-bold mb-1">Direct Embedding Restricted by Provider</h5>
+                <p class="fs-9 text-slate-400 mb-3" style="max-width: 420px;">
+                  Uptrace security policy prohibits framing within another domain. Open Uptrace directly in a new secure tab.
+                </p>
+                <button class="btn btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
+                  (click)="openUptrace(m.dashboardUrl, $event)">
+                  <i class="bi bi-box-arrow-up-right me-1.5"></i>Open in Uptrace Tab ↗
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 4. MODAL: HOW TO GET / ACHIEVE YOUR UPTRACE DSN                        -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="showDsnGuideModal" class="mon-modal-backdrop" (click)="closeDsnGuideModal()">
+    <div class="mon-modal bg-white rounded-4 shadow-xl p-4" (click)="$event.stopPropagation()" style="max-width: 620px;">
+
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <div class="modal-icon-circle rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center" style="background: #e0f2fe; color: #0284c7; width: 38px; height: 38px;">
+            <i class="bi bi-key-fill fs-5"></i>
+          </div>
+          <div>
+            <h3 class="h6 fw-bold text-slate-900 m-0">How to Obtain Your Uptrace DSN</h3>
+            <span class="fs-9 text-muted">Data Source Name for OpenTelemetry & Uptrace Ingestion</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-link text-muted p-0 border-0" (click)="closeDsnGuideModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <!-- What is DSN Box -->
+      <div class="p-3 mb-3 rounded-3 bg-slate-50 border">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <i class="bi bi-info-circle-fill text-primary"></i>
+          <span class="fs-8 fw-bold text-slate-900">What is an Uptrace DSN?</span>
+        </div>
+        <p class="fs-8 text-secondary mb-2">
+          The <strong>DSN (Data Source Name)</strong> authenticates your application and points your OpenTelemetry traces, metrics, and logs to your specific Uptrace project.
+        </p>
+        <div class="p-2 rounded-2 bg-slate-900 text-light font-mono fs-9">
+          <span class="text-slate-400"># Uptrace Cloud Format:</span><br/>
+          <span class="text-warning">https://</span><span class="text-info">&lt;project_token&gt;</span><span class="text-slate-300">@uptrace.dev/</span><span class="text-success">&lt;project_id&gt;</span>
+        </div>
+      </div>
+
+      <!-- Step-by-Step Retrieval Guide -->
+      <div class="d-flex flex-column gap-2.5 mb-4">
+        <div class="d-flex align-items-start gap-3 p-3 rounded-3 bg-white border">
+          <div class="badge-step-num bg-primary text-white rounded-circle fs-9 fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 24px; height: 24px;">1</div>
+          <div class="flex-grow-1">
+            <div class="fs-8 fw-semibold text-slate-900">Log in to Uptrace</div>
+            <div class="fs-9 text-muted">Navigate to <a href="https://app.uptrace.dev" target="_blank" rel="noopener noreferrer" class="text-primary fw-semibold">https://app.uptrace.dev ↗</a> (or your self-hosted instance).</div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-start gap-3 p-3 rounded-3 bg-white border">
+          <div class="badge-step-num bg-primary text-white rounded-circle fs-9 fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 24px; height: 24px;">2</div>
+          <div class="flex-grow-1">
+            <div class="fs-8 fw-semibold text-slate-900">Create or Select a Project</div>
+            <div class="fs-9 text-muted">Create a new project (e.g. <em>Production API</em>) or click on an existing project.</div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-start gap-3 p-3 rounded-3 bg-white border">
+          <div class="badge-step-num bg-primary text-white rounded-circle fs-9 fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 24px; height: 24px;">3</div>
+          <div class="flex-grow-1">
+            <div class="fs-8 fw-semibold text-slate-900">Copy the Project DSN</div>
+            <div class="fs-9 text-muted">Go to <strong>Project Settings → DSN / API Keys</strong> or view the Setup instructions on Uptrace. Copy the full DSN URL.</div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-start gap-3 p-3 rounded-3 bg-white border">
+          <div class="badge-step-num bg-primary text-white rounded-circle fs-9 fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 24px; height: 24px;">4</div>
+          <div class="flex-grow-1">
+            <div class="fs-8 fw-semibold text-slate-900">Paste in PerfAnalyzer</div>
+            <div class="fs-9 text-muted">Paste your DSN into the customizer bar or the monitor configuration modal. PerfAnalyzer encrypts it securely with AES-Fernet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer / Actions -->
+      <div class="d-flex align-items-center justify-content-between pt-3 border-top">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fs-8" (click)="closeDsnGuideModal()">
+          Got it
+        </button>
+        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3.5 py-2 fs-8 fw-semibold shadow-sm"
+          (click)="openUptrace('https://app.uptrace.dev/projects', $event)">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Go to Uptrace Projects ↗
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 5. MODAL: CONFIGURE / EDIT MONITOR                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="showConfigureModal" class="mon-modal-backdrop" (click)="closeConfigureModal()">
+    <div class="mon-modal bg-white rounded-4 shadow-xl p-4" (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <div class="modal-icon-circle bg-primary text-white d-flex align-items-center justify-content-center rounded-circle flex-shrink-0">
+            <i class="bi bi-sliders fs-6"></i>
+          </div>
+          <div>
+            <h3 class="h6 fw-bold text-slate-900 m-0">
+              {{ isEditingMonitor ? 'Edit Monitor Configuration' : 'Configure New Monitor' }}
+            </h3>
+            <span class="fs-9 text-muted">Create a managed telemetry target inside PerfAnalyzer</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-link text-muted p-0 border-0" (click)="closeConfigureModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <div *ngIf="formError" class="alert alert-danger py-2 px-3 fs-8 rounded-3 mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-circle-fill"></i> {{ formError }}
+      </div>
+
+      <form (ngSubmit)="saveConfigureMonitor()">
+
+        <!-- Integration selector (create only) -->
+        <div *ngIf="!isEditingMonitor" class="mb-3">
+          <label class="form-label fs-8 fw-semibold text-slate-700">Integration Template</label>
+          <select class="form-select form-select-sm rounded-3 fs-8" [(ngModel)]="formCatalogId" name="formCatalogId">
+            <option *ngFor="let item of catalogItems" [value]="item.id">
+              {{ item.displayName }} ({{ getCategoryLabel(item.category) }})
+            </option>
+          </select>
+        </div>
+
+        <!-- Monitor Name -->
+        <div class="mb-3">
+          <label class="form-label fs-8 fw-semibold text-slate-700">Monitor Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-sm rounded-3 fs-8"
+            placeholder="e.g. Production FastAPI Backend"
+            [(ngModel)]="formMonitorName" name="formMonitorName" required />
+        </div>
+
+        <!-- Service Name -->
+        <div class="mb-3">
+          <label class="form-label fs-8 fw-semibold text-slate-700">
+            Service Name
+            <span class="text-muted fw-normal fs-9 ms-1">(OTEL_SERVICE_NAME)</span>
+          </label>
+          <input type="text" class="form-control form-control-sm rounded-3 fs-8 font-mono"
+            placeholder="e.g. fastapi-backend"
+            [(ngModel)]="formServiceName" name="formServiceName" />
+          <div class="form-text fs-9 text-muted mt-1">Logical service identifier passed in telemetry spans to Uptrace.</div>
+        </div>
+
+        <!-- DSN (encrypted & required) -->
+        <div class="mb-3">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <label class="form-label fs-8 fw-semibold text-slate-700 m-0">
+              Uptrace Project DSN <span *ngIf="!isEditingMonitor" class="text-danger">*</span>
+            </label>
+            <div class="d-flex align-items-center gap-2">
+              <a href="javascript:void(0)" (click)="openDsnGuideModal($event)" class="fs-9 text-primary text-decoration-none">
+                <i class="bi bi-question-circle"></i> How to get DSN?
+              </a>
+              <span class="badge bg-green-50 text-success border border-success-subtle fs-9 rounded-pill px-2 py-0.5">
+                <i class="bi bi-shield-check me-0.5"></i> AES/Fernet Encrypted
+              </span>
+            </div>
+          </div>
+          <div class="input-group input-group-sm">
+            <input [type]="showDsnText ? 'text' : 'password'"
+              class="form-control rounded-start-3 fs-8 font-mono"
+              [placeholder]="isEditingMonitor ? 'Leave blank to keep existing encrypted DSN' : 'https://<token>@uptrace.dev/<project_id>'"
+              [(ngModel)]="formUptraceDsn" name="formUptraceDsn" [required]="!isEditingMonitor" />
+            <button type="button" class="btn btn-outline-secondary" (click)="showDsnText = !showDsnText">
+              <i class="bi" [ngClass]="showDsnText ? 'bi-eye-slash' : 'bi-eye'"></i>
+            </button>
+          </div>
+          <div class="form-text fs-9 text-muted mt-1">
+            <span *ngIf="!isEditingMonitor" class="text-danger fw-semibold">Required: </span>
+            The DSN is encrypted before database persistence and is never exposed in plaintext over the API.
+          </div>
+        </div>
+
+        <!-- Dashboard URL -->
+        <div class="mb-3">
+          <label class="form-label fs-8 fw-semibold text-slate-700">Dashboard URL</label>
+          <input type="url" class="form-control form-control-sm rounded-3 fs-8"
+            placeholder="https://app.uptrace.dev"
+            [(ngModel)]="formDashboardUrl" name="formDashboardUrl" />
+          <div class="form-text fs-9 text-muted mt-1">Target URL opened when clicking "Open Uptrace ↗".</div>
+        </div>
+
+        <!-- Enable toggle -->
+        <div class="form-check form-switch d-flex align-items-center gap-2 mb-4">
+          <input class="form-check-input cursor-pointer" type="checkbox" role="switch" id="monEnabledCheck"
+            [(ngModel)]="formEnabled" name="formEnabled" />
+          <label class="form-check-label fs-8 fw-medium text-slate-800 cursor-pointer" for="monEnabledCheck">
+            Enable monitoring profile
+          </label>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex align-items-center justify-content-end gap-2 pt-3 border-top">
+          <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fs-8"
+            (click)="closeConfigureModal()" [disabled]="formSaving">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
+            [disabled]="formSaving">
+            <span *ngIf="formSaving" class="spinner-border spinner-border-sm me-1"></span>
+            {{ isEditingMonitor ? 'Save Changes' : 'Create Monitor' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 6. MODAL: TELEMETRY CHECKLIST                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="showTelemetryGuideModal && telemetryGuideMonitor" class="mon-modal-backdrop" (click)="closeTelemetryGuide()">
+    <div class="mon-modal bg-white rounded-4 shadow-xl p-4" (click)="$event.stopPropagation()">
+      <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <div class="modal-icon-circle bg-warning text-white d-flex align-items-center justify-content-center rounded-circle flex-shrink-0">
+            <i class="bi bi-hourglass-split fs-6"></i>
+          </div>
+          <div>
+            <h3 class="h6 fw-bold text-slate-900 m-0">Waiting for Telemetry</h3>
+            <span class="fs-9 text-muted">{{ telemetryGuideMonitor.name }}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-link text-muted p-0 border-0" (click)="closeTelemetryGuide()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <p class="text-muted fs-8 mb-3">Follow these steps to verify your service is sending telemetry to Uptrace.</p>
+
+      <div class="d-flex flex-column gap-2 mb-4">
+        <div *ngFor="let item of [
+          { n: 1, title: 'Apply configuration', body: 'Set environment variables or deploy Collector YAML to your service.' },
+          { n: 2, title: 'Restart your service', body: 'Relaunch the application or restart the Docker/Kubernetes container.' },
+          { n: 3, title: 'Generate traffic', body: 'Send an HTTP request or trigger background job to create spans.' },
+          { n: 4, title: 'Verify in Uptrace', body: 'Open Uptrace → Services or Traces and confirm your service name appears.' }
+        ]" class="d-flex align-items-start gap-3 rounded-3 bg-slate-50 border p-3">
+          <div class="checklist-num bg-primary text-white rounded-circle fs-9 fw-bold d-flex align-items-center justify-content-center flex-shrink-0">{{ item.n }}</div>
+          <div>
+            <div class="fs-8 fw-semibold text-slate-800">{{ item.title }}</div>
+            <div class="fs-9 text-muted mt-0.5">{{ item.body }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between pt-3 border-top">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fs-8" (click)="closeTelemetryGuide()">Close</button>
+        <button class="btn btn-sm btn-primary rounded-pill px-3.5 py-2 fs-8 fw-semibold shadow-sm"
+          (click)="openUptrace(telemetryGuideMonitor.dashboardUrl, $event)">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Open Uptrace ↗
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 7. MODAL: DELETE CONFIRM                                               -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="showDeleteModal && deletingMonitor" class="mon-modal-backdrop" (click)="closeDeleteModal()">
+    <div class="mon-modal mon-modal-sm bg-white rounded-4 shadow-xl p-4" (click)="$event.stopPropagation()">
+      <div class="text-center mb-4">
+        <div class="delete-icon-circle mx-auto mb-3">
+          <i class="bi bi-trash3 text-danger fs-4"></i>
+        </div>
+        <h4 class="h6 fw-bold text-slate-900 mb-1">Delete Monitor Profile?</h4>
+        <p class="text-muted fs-8 mb-0">
+          Are you sure you want to remove <strong>{{ deletingMonitor.name }}</strong> from PerfAnalyzer? Your remote Uptrace project will not be affected.
+        </p>
+      </div>
+      <div class="d-flex align-items-center justify-content-center gap-2 pt-3 border-top">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-4 py-2 fs-8"
+          (click)="closeDeleteModal()" [disabled]="deleteSaving">Cancel</button>
+        <button class="btn btn-sm btn-danger rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
+          (click)="confirmDeleteMonitor()" [disabled]="deleteSaving">
+          <span *ngIf="deleteSaving" class="spinner-border spinner-border-sm me-1"></span>
+          Delete Monitor
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>

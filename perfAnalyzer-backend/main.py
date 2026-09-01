@@ -25,7 +25,12 @@ from models import (
     UserProfileUpdate,
     ChangePasswordRequest,
     DeletionRequestCreate,
+    MonitoringIntegrationCreate,
+    MonitoringIntegrationUpdate,
+    MonitoringIntegrationStatusUpdate,
 )
+from monitoring_crypto import encrypt_dsn, decrypt_dsn
+
 from yaml_builder import build_taurus_yaml
 from services.endpoint_discovery import discover_endpoints
 import shutil
@@ -289,6 +294,29 @@ def init_db():
                 uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        cur2.execute("""
+            CREATE TABLE IF NOT EXISTS monitoring_integrations (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                catalog_integration_id VARCHAR(100) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                category VARCHAR(50) NOT NULL,
+                language VARCHAR(50) DEFAULT '',
+                framework VARCHAR(50) DEFAULT '',
+                service_name VARCHAR(255) DEFAULT '',
+                uptrace_dsn_encrypted TEXT DEFAULT '',
+                dashboard_url TEXT DEFAULT '',
+                enabled BOOLEAN DEFAULT true,
+                status VARCHAR(50) DEFAULT 'configuration_saved',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cur2.execute("ALTER TABLE monitoring_integrations ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+        cur2.execute("ALTER TABLE monitoring_integrations ADD COLUMN IF NOT EXISTS dashboard_url TEXT DEFAULT '';")
+        cur2.execute("ALTER TABLE monitoring_integrations ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'configuration_saved';")
+        conn2.commit()
+
         conn2.commit()
         cur2.close()
         conn2.close()
@@ -4431,6 +4459,457 @@ def get_scheduled_tests():
 def get_recent_reports_api():
     res = get_dashboard_summary()
     return JSONResponse(res.body)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── MONITORING MODULE REST API (Uptrace / OpenTelemetry Guided Catalog) ───────
+# ══════════════════════════════════════════════════════════════════════════════
+
+CATALOG_PATH = Path(__file__).parent / "monitoring_catalog.json"
+
+def _get_catalog_items() -> List[dict]:
+    if not CATALOG_PATH.exists():
+        return []
+    try:
+        with open(CATALOG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read monitoring_catalog.json: {e}")
+        return []
+
+
+@app.get("/api/monitoring/catalog")
+def get_monitoring_catalog(
+    category: Optional[str] = Query(None, description="Filter by category (languages, frameworks, receivers, infrastructure, databases)"),
+    search: Optional[str] = Query(None, description="Search query string"),
+):
+    """
+    Returns the list of supported Uptrace/OpenTelemetry integrations from the catalog.
+    Supports real-time search and category filtering.
+    """
+    items = _get_catalog_items()
+    
+    if category and category.lower() != "all":
+        cat_filter = category.strip().lower()
+        items = [
+            item for item in items
+            if item.get("category", "").lower() == cat_filter
+        ]
+        
+    if search:
+        query = search.strip().lower()
+        items = [
+            item for item in items
+            if query in item.get("name", "").lower()
+            or query in item.get("displayName", "").lower()
+            or query in item.get("description", "").lower()
+            or query in item.get("language", "").lower()
+            or query in item.get("framework", "").lower()
+            or query in item.get("category", "").lower()
+        ]
+        
+    return JSONResponse(items)
+
+
+@app.get("/api/monitoring/catalog/{catalog_id}")
+def get_monitoring_catalog_entry(catalog_id: str):
+    """
+    Returns full details and official setup steps for a specific catalog integration.
+    """
+    items = _get_catalog_items()
+    entry = next((item for item in items if item.get("id") == catalog_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Integration '{catalog_id}' not found in catalog.")
+    return JSONResponse(entry)
+
+
+@app.get("/api/monitoring/integrations")
+def list_user_monitors(current_user: dict = Depends(verify_user_token)):
+    """
+    Lists all saved monitors for the authenticated user.
+    CRITICAL SECURITY: Never returns plaintext DSN or encrypted DSN in response.
+    """
+    uname = current_user.get("username", "").strip().lower()
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT 
+                        id, catalog_integration_id, name, category, language, framework,
+                        service_name, dashboard_url, enabled, status, created_at, updated_at,
+                        (CASE WHEN uptrace_dsn_encrypted IS NOT NULL AND uptrace_dsn_encrypted != '' THEN true ELSE false END) AS has_dsn
+                    FROM monitoring_integrations
+                    WHERE username = %s
+                    ORDER BY created_at DESC;
+                """, (uname,))
+                rows = cur.fetchall()
+                
+        monitors = []
+        for r in rows:
+            (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn) = r
+            monitors.append({
+                "id": mid,
+                "catalogIntegrationId": cat_id,
+                "name": name,
+                "category": cat,
+                "language": lang or "",
+                "framework": fw or "",
+                "serviceName": svc or "",
+                "dashboardUrl": dash_url or "",
+                "enabled": bool(enabled),
+                "status": st or "configuration_saved",
+                "createdAt": c_at.isoformat() if c_at else None,
+                "updatedAt": u_at.isoformat() if u_at else None,
+                "hasDsn": bool(has_dsn)
+            })
+        return JSONResponse(monitors)
+    except Exception as e:
+        logger.error(f"Failed to list user monitors for '{uname}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch monitoring integrations.")
+
+
+@app.get("/api/monitoring/integrations/{integration_id}")
+def get_user_monitor(integration_id: int, current_user: dict = Depends(verify_user_token)):
+    """
+    Returns single saved monitor record (without exposing DSN secret).
+    """
+    uname = current_user.get("username", "").strip().lower()
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT 
+                        id, catalog_integration_id, name, category, language, framework,
+                        service_name, dashboard_url, enabled, status, created_at, updated_at,
+                        (CASE WHEN uptrace_dsn_encrypted IS NOT NULL AND uptrace_dsn_encrypted != '' THEN true ELSE false END) AS has_dsn
+                    FROM monitoring_integrations
+                    WHERE id = %s AND username = %s;
+                """, (integration_id, uname))
+                row = cur.fetchone()
+                
+        if not row:
+            raise HTTPException(status_code=404, detail="Monitor not found.")
+            
+        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn) = row
+        return JSONResponse({
+            "id": mid,
+            "catalogIntegrationId": cat_id,
+            "name": name,
+            "category": cat,
+            "language": lang or "",
+            "framework": fw or "",
+            "serviceName": svc or "",
+            "dashboardUrl": dash_url or "",
+            "enabled": bool(enabled),
+            "status": st or "configuration_saved",
+            "createdAt": c_at.isoformat() if c_at else None,
+            "updatedAt": u_at.isoformat() if u_at else None,
+            "hasDsn": bool(has_dsn)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get monitor {integration_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve monitor.")
+
+
+@app.post("/api/monitoring/integrations")
+def create_user_monitor(
+    payload: MonitoringIntegrationCreate,
+    current_user: dict = Depends(verify_user_token)
+):
+    """
+    Creates and persists a new monitoring integration.
+    Requires a valid Uptrace DSN. Encrypts Uptrace DSN with Fernet key before writing to DB.
+    """
+    uname = current_user.get("username", "").strip().lower()
+    
+    # Ensure DSN is provided and non-empty
+    raw_dsn = (payload.uptraceDsn or "").strip()
+    if not raw_dsn:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Uptrace DSN is required to configure monitoring. Please provide your project DSN."
+        )
+    
+    if not (raw_dsn.startswith("http://") or raw_dsn.startswith("https://")) or "@" not in raw_dsn:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid Uptrace DSN format. Expected format: https://<token>@uptrace.dev/<project_id>"
+        )
+
+    # Encrypt DSN securely
+    encrypted_dsn = encrypt_dsn(raw_dsn)
+    
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO monitoring_integrations (
+                            username, catalog_integration_id, name, category, language, framework,
+                            service_name, uptrace_dsn_encrypted, dashboard_url, enabled, status,
+                            created_at, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        RETURNING id, created_at, updated_at;
+                    """, (
+                        uname,
+                        payload.catalogIntegrationId.strip(),
+                        payload.name.strip(),
+                        payload.category.strip(),
+                        (payload.language or "").strip(),
+                        (payload.framework or "").strip(),
+                        (payload.serviceName or "").strip(),
+                        encrypted_dsn,
+                        (payload.dashboardUrl or "").strip(),
+                        payload.enabled if payload.enabled is not None else True,
+                        (payload.status or "configuration_saved").strip()
+                    ))
+                    res = cur.fetchone()
+                    new_id, c_at, u_at = res[0], res[1], res[2]
+                    
+        log_user_activity(
+            uname, "monitoring", "Monitor Configured",
+            f"Configured {payload.name} ({payload.catalogIntegrationId})",
+            "success", "bi-activity"
+        )
+        
+        return JSONResponse({
+            "id": new_id,
+            "catalogIntegrationId": payload.catalogIntegrationId,
+            "name": payload.name,
+            "category": payload.category,
+            "language": payload.language or "",
+            "framework": payload.framework or "",
+            "serviceName": payload.serviceName or "",
+            "dashboardUrl": payload.dashboardUrl or "",
+            "enabled": payload.enabled if payload.enabled is not None else True,
+            "status": payload.status or "configuration_saved",
+            "createdAt": c_at.isoformat() if c_at else None,
+            "updatedAt": u_at.isoformat() if u_at else None,
+            "hasDsn": bool(encrypted_dsn)
+        }, status_code=201)
+    except Exception as e:
+        logger.error(f"Failed to create monitor for '{uname}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to save monitoring configuration.")
+
+
+@app.put("/api/monitoring/integrations/{integration_id}")
+def update_user_monitor(
+    integration_id: int,
+    payload: MonitoringIntegrationUpdate,
+    current_user: dict = Depends(verify_user_token)
+):
+    """
+    Updates an existing monitor. If a new DSN is provided, it is re-encrypted.
+    """
+    uname = current_user.get("username", "").strip().lower()
+    
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    # Check existence
+                    cur.execute("SELECT id, uptrace_dsn_encrypted FROM monitoring_integrations WHERE id = %s AND username = %s;", (integration_id, uname))
+                    existing = cur.fetchone()
+                    if not existing:
+                        raise HTTPException(status_code=404, detail="Monitor not found.")
+                        
+                    enc_dsn = existing[1]
+                    if payload.uptraceDsn is not None:
+                        enc_dsn = encrypt_dsn(payload.uptraceDsn) if payload.uptraceDsn.strip() else ""
+                        
+                    updates = []
+                    params = []
+                    
+                    if payload.name is not None:
+                        updates.append("name = %s")
+                        params.append(payload.name.strip())
+                    if payload.serviceName is not None:
+                        updates.append("service_name = %s")
+                        params.append(payload.serviceName.strip())
+                    if payload.dashboardUrl is not None:
+                        updates.append("dashboard_url = %s")
+                        params.append(payload.dashboardUrl.strip())
+                    if payload.enabled is not None:
+                        updates.append("enabled = %s")
+                        params.append(payload.enabled)
+                    if payload.status is not None:
+                        updates.append("status = %s")
+                        params.append(payload.status.strip())
+                    if payload.uptraceDsn is not None:
+                        updates.append("uptrace_dsn_encrypted = %s")
+                        params.append(enc_dsn)
+                        
+                    updates.append("updated_at = CURRENT_TIMESTAMP")
+                    
+                    if updates:
+                        sql = f"UPDATE monitoring_integrations SET {', '.join(updates)} WHERE id = %s AND username = %s RETURNING id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status, created_at, updated_at, (CASE WHEN uptrace_dsn_encrypted != '' THEN true ELSE false END);"
+                        params.extend([integration_id, uname])
+                        cur.execute(sql, tuple(params))
+                        row = cur.fetchone()
+                        
+        if not row:
+            raise HTTPException(status_code=404, detail="Monitor not found.")
+            
+        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn) = row
+        return JSONResponse({
+            "id": mid,
+            "catalogIntegrationId": cat_id,
+            "name": name,
+            "category": cat,
+            "language": lang or "",
+            "framework": fw or "",
+            "serviceName": svc or "",
+            "dashboardUrl": dash_url or "",
+            "enabled": bool(enabled),
+            "status": st or "configuration_saved",
+            "createdAt": c_at.isoformat() if c_at else None,
+            "updatedAt": u_at.isoformat() if u_at else None,
+            "hasDsn": bool(has_dsn)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update monitor {integration_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update monitor.")
+
+
+@app.patch("/api/monitoring/integrations/{integration_id}/status")
+def patch_monitor_status(
+    integration_id: int,
+    payload: MonitoringIntegrationStatusUpdate,
+    current_user: dict = Depends(verify_user_token)
+):
+    """
+    Toggles enabled state or changes status of monitor.
+    """
+    uname = current_user.get("username", "").strip().lower()
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    updates = []
+                    params = []
+                    if payload.enabled is not None:
+                        updates.append("enabled = %s")
+                        params.append(payload.enabled)
+                        if not payload.enabled and payload.status is None:
+                            updates.append("status = %s")
+                            params.append("disabled")
+                        elif payload.enabled and payload.status is None:
+                            updates.append("status = %s")
+                            params.append("configuration_saved")
+                            
+                    if payload.status is not None:
+                        updates.append("status = %s")
+                        params.append(payload.status.strip())
+                        
+                    updates.append("updated_at = CURRENT_TIMESTAMP")
+                    params.extend([integration_id, uname])
+                    
+                    cur.execute(f"""
+                        UPDATE monitoring_integrations 
+                        SET {', '.join(updates)}
+                        WHERE id = %s AND username = %s
+                        RETURNING id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status, created_at, updated_at, (CASE WHEN uptrace_dsn_encrypted != '' THEN true ELSE false END);
+                    """, tuple(params))
+                    row = cur.fetchone()
+                    
+        if not row:
+            raise HTTPException(status_code=404, detail="Monitor not found.")
+            
+        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn) = row
+        return JSONResponse({
+            "id": mid,
+            "catalogIntegrationId": cat_id,
+            "name": name,
+            "category": cat,
+            "language": lang or "",
+            "framework": fw or "",
+            "serviceName": svc or "",
+            "dashboardUrl": dash_url or "",
+            "enabled": bool(enabled),
+            "status": st or "configuration_saved",
+            "createdAt": c_at.isoformat() if c_at else None,
+            "updatedAt": u_at.isoformat() if u_at else None,
+            "hasDsn": bool(has_dsn)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to patch monitor status {integration_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update monitor status.")
+
+
+@app.delete("/api/monitoring/integrations/{integration_id}")
+def delete_user_monitor(integration_id: int, current_user: dict = Depends(verify_user_token)):
+    """
+    Deletes a configured monitor record.
+    """
+    uname = current_user.get("username", "").strip().lower()
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM monitoring_integrations WHERE id = %s AND username = %s RETURNING name;", (integration_id, uname))
+                    deleted = cur.fetchone()
+                    if not deleted:
+                        raise HTTPException(status_code=404, detail="Monitor not found.")
+                        
+        log_user_activity(uname, "monitoring", "Monitor Deleted", f"Deleted monitor {deleted[0]}", "warning", "bi-trash")
+        return JSONResponse({"message": "Monitor deleted successfully.", "id": integration_id})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete monitor {integration_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete monitor.")
+
+
+@app.get("/api/monitoring/integrations/{integration_id}/configuration")
+def get_monitor_full_configuration(integration_id: int, current_user: dict = Depends(verify_user_token)):
+    """
+    Returns populated configuration guide tailored to the user's saved monitor settings.
+    """
+    uname = current_user.get("username", "").strip().lower()
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status
+                    FROM monitoring_integrations
+                    WHERE id = %s AND username = %s;
+                """, (integration_id, uname))
+                row = cur.fetchone()
+                
+        if not row:
+            raise HTTPException(status_code=404, detail="Monitor not found.")
+            
+        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st) = row
+        items = _get_catalog_items()
+        catalog_entry = next((item for item in items if item.get("id") == cat_id), None)
+        
+        return JSONResponse({
+            "monitor": {
+                "id": mid,
+                "catalogIntegrationId": cat_id,
+                "name": name,
+                "category": cat,
+                "language": lang,
+                "framework": fw,
+                "serviceName": svc,
+                "dashboardUrl": dash_url,
+                "enabled": enabled,
+                "status": st
+            },
+            "catalog": catalog_entry
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get full configuration for monitor {integration_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve configuration.")
+
 
 
 

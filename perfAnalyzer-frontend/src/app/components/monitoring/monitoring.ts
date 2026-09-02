@@ -10,58 +10,193 @@ import {
   UpdateMonitoringPayload,
 } from '../../api.service';
 
-// ── Devicon CSS Class Map ─────────────────────────────────────────────────────
 export const DEVICON_MAP: Record<string, string> = {
-  'python-fastapi': 'devicon-fastapi-plain colored',
-  'python-django': 'devicon-django-plain colored',
-  'python-flask': 'devicon-flask-original colored',
-  'python-sdk': 'devicon-python-plain colored',
-  'go-sdk': 'devicon-go-original-wordmark colored',
-  'go-gin': 'devicon-go-plain colored',
-  'nodejs-sdk': 'devicon-nodejs-plain colored',
-  'nodejs-express': 'devicon-express-original',
-  'java-spring-boot': 'devicon-spring-original colored',
   'dotnet-sdk': 'devicon-dot-net-plain colored',
-  'ruby-rails': 'devicon-rails-plain colored',
+  'go-sdk': 'devicon-go-original-wordmark colored',
+  'nodejs-sdk': 'devicon-nodejs-plain colored',
   'php-sdk': 'devicon-php-plain colored',
+  'python-sdk': 'devicon-python-plain colored',
   'rust-sdk': 'devicon-rust-original colored',
-  'collector-kubernetes': 'devicon-kubernetes-plain colored',
-  'collector-prometheus': 'devicon-prometheus-original colored',
-  'collector-hostmetrics': 'devicon-linux-plain colored',
-  'collector-redis': 'devicon-redis-plain colored',
-  'collector-postgresql': 'devicon-postgresql-plain colored',
+  'opentelemetry-phoenix': 'devicon-phoenix-original colored',
+  'opentelemetry-beego': 'devicon-go-original colored',
+  'opentelemetry-echo': 'devicon-go-original colored',
+  'go-gin': 'devicon-go-plain colored',
+  'opentelemetry-go-zero': 'devicon-go-original colored',
+  'opentelemetry-gorilla-mux': 'devicon-go-original colored',
+  'opentelemetry-go-grpc': 'devicon-grpc-original colored',
+  'opentelemetry-net-http': 'devicon-go-original colored',
+  'opentelemetry-quarkus': 'devicon-quarkus-original colored',
+  'java-spring-boot': 'devicon-spring-original colored',
+  'nodejs-express': 'devicon-express-original',
+  'opentelemetry-laravel': 'devicon-laravel-original colored',
+  'opentelemetry-slim': 'devicon-php-plain colored',
+  'opentelemetry-symfony': 'devicon-symfony-original colored',
+  'opentelemetry-celery': 'devicon-python-plain colored',
+  'python-django': 'devicon-django-plain colored',
+  'opentelemetry-falcon': 'devicon-python-plain colored',
+  'python-fastapi': 'devicon-fastapi-plain colored',
+  'python-flask': 'devicon-flask-original colored',
+  'opentelemetry-pyramid': 'devicon-python-plain colored',
+  'ruby-rails': 'devicon-rails-plain colored',
+  'opentelemetry-sinatra': 'devicon-ruby-plain colored',
+  'opentelemetry-nestjs': 'devicon-nestjs-original colored',
+  'opentelemetry-nextjs': 'devicon-nextjs-original colored',
+  'opentelemetry-database-sql': 'devicon-go-original colored',
+  'opentelemetry-ent': 'devicon-go-original colored',
+  'opentelemetry-gorm': 'devicon-go-original colored',
+  'opentelemetry-sqlalchemy': 'devicon-sqlalchemy-original colored',
+  'opentelemetry-go-lambda': 'devicon-amazonwebservices-plain-wordmark colored',
+  'opentelemetry-node-lambda': 'devicon-amazonwebservices-plain-wordmark colored',
   'collector-mysql': 'devicon-mysql-original colored',
-  'collector-nginx': 'devicon-nginx-original colored',
+  'collector-postgresql': 'devicon-postgresql-plain colored',
+  'collector-redis': 'devicon-redis-plain colored',
+  'opentelemetry-tomcat': 'devicon-tomcat-original colored',
+  'opentelemetry-php-fpm': 'devicon-php-plain colored',
   'collector-docker': 'devicon-docker-plain colored',
+  'collector-hostmetrics': 'devicon-linux-plain colored',
+  'collector-kubernetes': 'devicon-kubernetes-plain colored',
+  'collector-nginx': 'devicon-nginx-original colored',
   'collector-kafka': 'devicon-apachekafka-original colored',
   'collector-aws-cloudwatch': 'devicon-amazonwebservices-plain-wordmark colored',
+  'opentelemetry-filelog-receiver': 'devicon-linux-plain colored',
+  'opentelemetry-httpcheck': 'devicon-networkx-original colored',
+  'opentelemetry-k8seventsreceiver': 'devicon-kubernetes-plain colored',
+  'collector-prometheus': 'devicon-prometheus-original colored',
+  'opentelemetry-rabbitmq': 'devicon-rabbitmq-original colored',
+  'opentelemetry-syslog-receiver': 'devicon-linux-plain colored',
+  'opentelemetry-logrus': 'devicon-go-original colored',
+  'opentelemetry-slog': 'devicon-go-original colored',
+  'opentelemetry-zap': 'devicon-go-original colored',
+  'opentelemetry-log4j': 'devicon-java-plain colored',
+  'opentelemetry-logback': 'devicon-java-plain colored',
+  'opentelemetry-openai': 'devicon-python-plain colored',
+  'opentelemetry-rag-observability': 'devicon-python-plain colored',
 };
 
-// ── Tech Theme Background Accents (for icon container cards) ──────────────────
+export const DEVICON_URLS: Record<string, string> = {
+  'dotnet-sdk': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/dot-net/dot-net-original.svg',
+  'go-sdk': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original-wordmark.svg',
+  'nodejs-sdk': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg',
+  'php-sdk': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/php/php-original.svg',
+  'python-sdk': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+  'rust-sdk': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg',
+  'opentelemetry-phoenix': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/phoenix/phoenix-original.svg',
+  'opentelemetry-beego': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-echo': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'go-gin': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-go-zero': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-gorilla-mux': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-go-grpc': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/grpc/grpc-original.svg',
+  'opentelemetry-net-http': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-quarkus': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/quarkus/quarkus-original.svg',
+  'java-spring-boot': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/spring/spring-original.svg',
+  'nodejs-express': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/express/express-original.svg',
+  'opentelemetry-laravel': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/laravel/laravel-original.svg',
+  'opentelemetry-slim': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/php/php-original.svg',
+  'opentelemetry-symfony': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/symfony/symfony-original.svg',
+  'opentelemetry-celery': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+  'python-django': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/django/django-plain.svg',
+  'opentelemetry-falcon': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+  'python-fastapi': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/fastapi/fastapi-original.svg',
+  'python-flask': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/flask/flask-original.svg',
+  'opentelemetry-pyramid': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+  'ruby-rails': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rails/rails-plain.svg',
+  'opentelemetry-sinatra': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/ruby/ruby-original.svg',
+  'opentelemetry-nestjs': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nestjs/nestjs-original.svg',
+  'opentelemetry-nextjs': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg',
+  'opentelemetry-database-sql': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-ent': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-gorm': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-sqlalchemy': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/sqlalchemy/sqlalchemy-original.svg',
+  'opentelemetry-go-lambda': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/amazonwebservices/amazonwebservices-plain-wordmark.svg',
+  'opentelemetry-node-lambda': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/amazonwebservices/amazonwebservices-plain-wordmark.svg',
+  'collector-mysql': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/mysql/mysql-original.svg',
+  'collector-postgresql': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg',
+  'collector-redis': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/redis/redis-original.svg',
+  'opentelemetry-tomcat': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tomcat/tomcat-original.svg',
+  'opentelemetry-php-fpm': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/php/php-original.svg',
+  'collector-docker': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg',
+  'collector-hostmetrics': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/linux/linux-original.svg',
+  'collector-kubernetes': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg',
+  'collector-nginx': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nginx/nginx-original.svg',
+  'collector-kafka': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/apachekafka/apachekafka-original.svg',
+  'collector-aws-cloudwatch': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/amazonwebservices/amazonwebservices-plain-wordmark.svg',
+  'opentelemetry-filelog-receiver': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/linux/linux-original.svg',
+  'opentelemetry-httpcheck': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/networkx/networkx-original.svg',
+  'opentelemetry-k8seventsreceiver': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg',
+  'collector-prometheus': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/prometheus/prometheus-original.svg',
+  'opentelemetry-rabbitmq': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rabbitmq/rabbitmq-original.svg',
+  'opentelemetry-syslog-receiver': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/linux/linux-original.svg',
+  'opentelemetry-logrus': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-slog': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-zap': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/go/go-original.svg',
+  'opentelemetry-log4j': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/java/java-original.svg',
+  'opentelemetry-logback': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/java/java-original.svg',
+  'opentelemetry-openai': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+  'opentelemetry-rag-observability': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+};
+
 export const TECH_ACCENTS: Record<string, { bg: string; border: string; glow: string }> = {
-  'python-fastapi': { bg: '#e6fffa', border: '#b2f5ea', glow: 'rgba(0, 150, 136, 0.15)' },
-  'python-django': { bg: '#ebfbee', border: '#c3fad5', glow: 'rgba(9, 46, 32, 0.15)' },
-  'python-flask': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(0, 0, 0, 0.1)' },
-  'python-sdk': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(55, 118, 171, 0.15)' },
-  'go-sdk': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
-  'go-gin': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 129, 167, 0.15)' },
-  'nodejs-sdk': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(95, 160, 78, 0.15)' },
-  'nodejs-express': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(0, 0, 0, 0.12)' },
-  'java-spring-boot': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(109, 179, 63, 0.15)' },
   'dotnet-sdk': { bg: '#f5f3ff', border: '#ddd6fe', glow: 'rgba(81, 43, 212, 0.15)' },
-  'ruby-rails': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(204, 0, 0, 0.15)' },
+  'go-sdk': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'nodejs-sdk': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(95, 160, 78, 0.15)' },
   'php-sdk': { bg: '#eef2ff', border: '#c7d2fe', glow: 'rgba(119, 123, 180, 0.15)' },
+  'python-sdk': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(55, 118, 171, 0.15)' },
   'rust-sdk': { bg: '#fff7ed', border: '#ffedd5', glow: 'rgba(206, 65, 43, 0.15)' },
-  'collector-kubernetes': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(50, 108, 229, 0.15)' },
-  'collector-prometheus': { bg: '#fff7ed', border: '#ffedd5', glow: 'rgba(230, 82, 44, 0.15)' },
-  'collector-hostmetrics': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(71, 85, 105, 0.15)' },
-  'collector-redis': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(220, 56, 45, 0.15)' },
-  'collector-postgresql': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(51, 103, 145, 0.15)' },
+  'opentelemetry-phoenix': { bg: '#fdf2f8', border: '#fbcfe8', glow: 'rgba(236, 72, 153, 0.15)' },
+  'opentelemetry-beego': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-echo': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'go-gin': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 129, 167, 0.15)' },
+  'opentelemetry-go-zero': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-gorilla-mux': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-go-grpc': { bg: '#e0f2fe', border: '#bae6fd', glow: 'rgba(36, 150, 237, 0.15)' },
+  'opentelemetry-net-http': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-quarkus': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(70, 153, 234, 0.15)' },
+  'java-spring-boot': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(109, 179, 63, 0.15)' },
+  'nodejs-express': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(0, 0, 0, 0.12)' },
+  'opentelemetry-laravel': { bg: '#fff1f2', border: '#fecdd3', glow: 'rgba(244, 63, 94, 0.15)' },
+  'opentelemetry-slim': { bg: '#eef2ff', border: '#c7d2fe', glow: 'rgba(119, 123, 180, 0.15)' },
+  'opentelemetry-symfony': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(0, 0, 0, 0.12)' },
+  'opentelemetry-celery': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(55, 118, 171, 0.15)' },
+  'python-django': { bg: '#ebfbee', border: '#c3fad5', glow: 'rgba(9, 46, 32, 0.15)' },
+  'opentelemetry-falcon': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(55, 118, 171, 0.15)' },
+  'python-fastapi': { bg: '#e6fffa', border: '#b2f5ea', glow: 'rgba(0, 150, 136, 0.15)' },
+  'python-flask': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(0, 0, 0, 0.1)' },
+  'opentelemetry-pyramid': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(100, 116, 139, 0.15)' },
+  'ruby-rails': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(204, 0, 0, 0.15)' },
+  'opentelemetry-sinatra': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(204, 0, 0, 0.15)' },
+  'opentelemetry-nestjs': { bg: '#fff1f2', border: '#fecdd3', glow: 'rgba(224, 35, 78, 0.15)' },
+  'opentelemetry-nextjs': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(0, 0, 0, 0.15)' },
+  'opentelemetry-database-sql': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-ent': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-gorm': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-sqlalchemy': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(215, 27, 27, 0.15)' },
+  'opentelemetry-go-lambda': { bg: '#fffbeb', border: '#fef3c7', glow: 'rgba(255, 153, 0, 0.15)' },
+  'opentelemetry-node-lambda': { bg: '#fffbeb', border: '#fef3c7', glow: 'rgba(255, 153, 0, 0.15)' },
   'collector-mysql': { bg: '#fffbeb', border: '#fef3c7', glow: 'rgba(242, 145, 17, 0.15)' },
-  'collector-nginx': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(0, 150, 57, 0.15)' },
+  'collector-postgresql': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(51, 103, 145, 0.15)' },
+  'collector-redis': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(220, 56, 45, 0.15)' },
+  'opentelemetry-tomcat': { bg: '#fffbeb', border: '#fef3c7', glow: 'rgba(248, 152, 29, 0.15)' },
+  'opentelemetry-php-fpm': { bg: '#eef2ff', border: '#c7d2fe', glow: 'rgba(119, 123, 180, 0.15)' },
   'collector-docker': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(36, 150, 237, 0.15)' },
+  'collector-hostmetrics': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(71, 85, 105, 0.15)' },
+  'collector-kubernetes': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(50, 108, 229, 0.15)' },
+  'collector-nginx': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(0, 150, 57, 0.15)' },
   'collector-kafka': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(35, 31, 32, 0.12)' },
   'collector-aws-cloudwatch': { bg: '#fffbeb', border: '#fef3c7', glow: 'rgba(255, 153, 0, 0.15)' },
+  'opentelemetry-filelog-receiver': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(71, 85, 105, 0.15)' },
+  'opentelemetry-httpcheck': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(37, 99, 235, 0.15)' },
+  'opentelemetry-k8seventsreceiver': { bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(50, 108, 229, 0.15)' },
+  'collector-prometheus': { bg: '#fff7ed', border: '#ffedd5', glow: 'rgba(230, 82, 44, 0.15)' },
+  'opentelemetry-rabbitmq': { bg: '#fff7ed', border: '#ffedd5', glow: 'rgba(255, 102, 0, 0.15)' },
+  'opentelemetry-syslog-receiver': { bg: '#f8fafc', border: '#e2e8f0', glow: 'rgba(71, 85, 105, 0.15)' },
+  'opentelemetry-logrus': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-slog': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-zap': { bg: '#e0f7fa', border: '#b2ebf2', glow: 'rgba(0, 173, 216, 0.15)' },
+  'opentelemetry-log4j': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(231, 111, 81, 0.15)' },
+  'opentelemetry-logback': { bg: '#fef2f2', border: '#fecaca', glow: 'rgba(231, 111, 81, 0.15)' },
+  'opentelemetry-openai': { bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(16, 163, 127, 0.15)' },
+  'opentelemetry-rag-observability': { bg: '#f5f3ff', border: '#ddd6fe', glow: 'rgba(139, 92, 246, 0.15)' },
 };
 
 // ── Fallback SVG Logos ────────────────────────────────────────────────────────
@@ -84,7 +219,7 @@ export const FALLBACK_SVGS: Record<string, string> = {
 export class Monitoring implements OnInit {
   // Navigation & View State
   activeView: 'catalog' | 'detail' = 'catalog';
-  activeCategory: 'all' | 'languages' | 'frameworks' | 'receivers' | 'infrastructure' | 'databases' = 'all';
+  activeCategory: string = 'all';
   searchQuery = '';
 
   // Catalog Data
@@ -168,6 +303,26 @@ export class Monitoring implements OnInit {
 
   // ── Devicon & Icon Resolvers ─────────────────────────────────
 
+  failedIcons = new Set<string>();
+
+  onIconError(id?: string | null): void {
+    if (id) {
+      this.failedIcons.add(id.toLowerCase().trim());
+      this.cdr.markForCheck();
+    }
+  }
+
+  hasIconFailed(id?: string | null): boolean {
+    if (!id) return true;
+    return this.failedIcons.has(id.toLowerCase().trim());
+  }
+
+  getDeviconUrl(id?: string | null): string {
+    if (!id) return '';
+    const key = id.toLowerCase().trim();
+    return DEVICON_URLS[key] || '';
+  }
+
   getDeviconClass(id?: string | null): string {
     if (!id) return '';
     const key = id.toLowerCase().trim();
@@ -233,6 +388,20 @@ export class Monitoring implements OnInit {
     return originalValue;
   }
 
+  getEnvVariablesSnippet(variables?: Array<{ name: string; value: string; description?: string }>): string {
+    if (!variables || variables.length === 0) return '';
+    return variables
+      .map((v) => `${v.name}=${this.getInterpolatedVariableValue(v.value, v.name)}`)
+      .join('\n');
+  }
+
+  getExportCommandsSnippet(variables?: Array<{ name: string; value: string; description?: string }>): string {
+    if (!variables || variables.length === 0) return '';
+    return variables
+      .map((v) => `export ${v.name}="${this.getInterpolatedVariableValue(v.value, v.name)}"`)
+      .join('\n');
+  }
+
   // ── DSN Helper Guide Modal ───────────────────────────────────
 
   openDsnGuideModal(event?: Event): void {
@@ -296,7 +465,7 @@ export class Monitoring implements OnInit {
     return this.catalogItems.filter((i) => (i.category || '').toLowerCase() === cat.toLowerCase()).length;
   }
 
-  selectCategory(cat: 'all' | 'languages' | 'frameworks' | 'receivers' | 'infrastructure' | 'databases'): void {
+  selectCategory(cat: string): void {
     this.activeCategory = cat;
     this.cdr.detectChanges();
   }
@@ -406,6 +575,26 @@ export class Monitoring implements OnInit {
     this.formStatus = 'configuration_saved';
     this.showConfigureModal = true;
     this.cdr.detectChanges();
+  }
+
+  onModalCatalogChange(): void {
+    const found = this.catalogItems.find((c) => c.id === this.formCatalogId);
+    if (found) {
+      this.formCategory = found.category;
+      this.formLanguage = found.language || '';
+      this.formFramework = found.framework || '';
+      if (!this.formMonitorName || this.formMonitorName.endsWith('Monitor')) {
+        this.formMonitorName = `${found.displayName} Monitor`;
+      }
+      if (!this.formServiceName) {
+        this.formServiceName = this.customServiceName || (found.framework
+          ? `${found.framework}-service`
+          : found.language
+            ? `${found.language}-app`
+            : 'my-service');
+      }
+      this.cdr.detectChanges();
+    }
   }
 
   openEditModal(monitor: MonitoringIntegration, event?: Event): void {
@@ -759,7 +948,7 @@ export class Monitoring implements OnInit {
   }
 
   getCategoryLabel(category: string): string {
-    switch (category) {
+    switch (category?.toLowerCase()) {
       case 'languages':
         return 'Language';
       case 'frameworks':
@@ -770,13 +959,21 @@ export class Monitoring implements OnInit {
         return 'Infrastructure';
       case 'databases':
         return 'Database';
+      case 'libraries':
+        return 'Library / ORM';
+      case 'logging':
+        return 'Logging';
+      case 'ai':
+        return 'AI & LLM';
+      case 'serverless':
+        return 'Serverless';
       default:
-        return category;
+        return category || '';
     }
   }
 
   getCategoryIcon(category: string): string {
-    switch (category) {
+    switch (category?.toLowerCase()) {
       case 'languages':
         return 'bi-code-slash';
       case 'frameworks':
@@ -787,6 +984,14 @@ export class Monitoring implements OnInit {
         return 'bi-server';
       case 'databases':
         return 'bi-database';
+      case 'libraries':
+        return 'bi-collection';
+      case 'logging':
+        return 'bi-journal-text';
+      case 'ai':
+        return 'bi-cpu';
+      case 'serverless':
+        return 'bi-lightning-charge';
       default:
         return 'bi-box';
     }

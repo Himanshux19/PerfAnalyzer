@@ -4472,7 +4472,24 @@ def _get_catalog_items() -> List[dict]:
         return []
     try:
         with open(CATALOG_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if isinstance(data, dict):
+                items = data.get("integrations", [])
+            elif isinstance(data, list):
+                items = data
+            else:
+                items = []
+
+            # Defensive deduplication by ID preserving order
+            seen = set()
+            unique_items = []
+            for item in items:
+                if isinstance(item, dict):
+                    item_id = item.get("id")
+                    if item_id and item_id not in seen:
+                        seen.add(item_id)
+                        unique_items.append(item)
+            return unique_items
     except Exception as e:
         logger.error(f"Failed to read monitoring_catalog.json: {e}")
         return []

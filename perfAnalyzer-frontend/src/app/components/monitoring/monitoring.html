@@ -15,9 +15,6 @@
         <button class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8 fw-medium" (click)="openDsnGuideModal($event)">
           <i class="bi bi-key-fill text-info me-1"></i>How to get DSN?
         </button>
-        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fs-8 fw-medium" (click)="openDocUrl(selectedCatalogEntry.officialDocumentationUrl, $event)">
-          <i class="bi bi-book me-1"></i>Uptrace Docs ↗
-        </button>
         <button class="btn btn-sm btn-primary rounded-pill px-3.5 fs-8 fw-semibold shadow-sm" (click)="openConfigureModal(selectedCatalogEntry)">
           <i class="bi bi-sliders me-1"></i>Configure Monitor
         </button>
@@ -273,10 +270,6 @@
           <p class="fs-8 text-secondary mb-0">Save this monitor in PerfAnalyzer to track service endpoints, toggle tracing, and launch live dashboards.</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-outline-secondary rounded-pill px-3 py-2 fs-8 fw-medium"
-            (click)="openDocUrl(selectedCatalogEntry.officialDocumentationUrl, $event)">
-            <i class="bi bi-book me-1"></i>Full Uptrace Docs ↗
-          </button>
           <button class="btn btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
             (click)="openConfigureModal(selectedCatalogEntry)">
             <i class="bi bi-plus-circle me-1"></i>Save as Monitor
@@ -302,11 +295,6 @@
         </p>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 rounded-pill px-3 py-2 fs-8 fw-medium"
-          (click)="openDocUrl('https://uptrace.dev/guides', $event)" title="Browse official Uptrace guides and tutorials">
-          <i class="bi bi-book text-slate-600"></i>
-          <span>Uptrace Guides ↗</span>
-        </button>
         <button class="btn btn-sm btn-outline-info d-flex align-items-center gap-2 rounded-pill px-3 py-2 fs-8 fw-medium"
           (click)="openDsnGuideModal($event)">
           <i class="bi bi-key-fill text-info"></i>
@@ -711,8 +699,8 @@
           Got it
         </button>
         <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
-          (click)="openUptrace('https://app.uptrace.dev/projects', $event)">
-          <i class="bi bi-box-arrow-up-right me-1"></i>Go to Uptrace Projects ↗
+          (click)="openUptrace('https://app.uptrace.dev/projects/new', $event)">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Create New Project ↗
         </button>
       </div>
 
@@ -729,8 +717,7 @@
       <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
         <div class="d-flex align-items-center gap-2.5">
-          <div class="modal-icon-circle bg-primary text-white d-flex align-items-center justify-content-center">
-            <i class="bi bi-sliders fs-5"></i>
+          <div class="text-white d-flex align-items-center justify-content-center">
           </div>
           <div>
             <h3 class="h6 fw-bold text-slate-900 m-0">
@@ -867,8 +854,8 @@
     <div class="mon-modal bg-white shadow-xl p-4" (click)="$event.stopPropagation()">
       <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
         <div class="d-flex align-items-center gap-2.5">
-          <div class="modal-icon-circle bg-warning text-white d-flex align-items-center justify-content-center">
-            <i class="bi bi-hourglass-split fs-5"></i>
+          <div class=" text-white d-flex align-items-center justify-content-center">
+            <!-- <i class="bi bi-hourglass-split fs-5"></i> -->
           </div>
           <div>
             <h3 class="h6 fw-bold text-slate-900 m-0">Waiting for Telemetry</h3>

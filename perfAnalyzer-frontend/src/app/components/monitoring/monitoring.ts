@@ -522,6 +522,10 @@ export class Monitoring implements OnInit {
     monitor.enabled = newEnabled;
     monitor.status = newStatus;
 
+    if (!newEnabled && this.activeViewerMonitor?.id === monitor.id) {
+      this.closeViewer();
+    }
+
     this.api.patchMonitoringStatus(monitor.id, { enabled: newEnabled, status: newStatus }).subscribe({
       next: (updated) => {
         monitor.enabled = updated.enabled;
@@ -764,6 +768,7 @@ export class Monitoring implements OnInit {
 
   openMonitorSetupGuide(monitor: MonitoringIntegration, event?: Event): void {
     if (event) event.stopPropagation();
+    if (!monitor.enabled) return;
     const entry = this.catalogItems.find((i) => i.id === monitor.catalogIntegrationId);
     if (entry) {
       this.selectedCatalogEntry = entry;
@@ -791,6 +796,7 @@ export class Monitoring implements OnInit {
 
   openTelemetryGuide(monitor: MonitoringIntegration, event?: Event): void {
     if (event) event.stopPropagation();
+    if (!monitor.enabled) return;
     this.telemetryGuideMonitor = monitor;
     this.showTelemetryGuideModal = true;
     this.cdr.detectChanges();
@@ -816,6 +822,12 @@ export class Monitoring implements OnInit {
 
   toggleLiveViewer(monitor: MonitoringIntegration, event?: Event): void {
     if (event) event.stopPropagation();
+    if (!monitor.enabled) {
+      if (this.activeViewerMonitor?.id === monitor.id) {
+        this.closeViewer();
+      }
+      return;
+    }
     if (this.activeViewerMonitor?.id === monitor.id) {
       this.closeViewer();
       return;

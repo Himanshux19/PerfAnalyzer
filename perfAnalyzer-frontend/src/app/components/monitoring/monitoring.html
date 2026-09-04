@@ -436,7 +436,7 @@
               <span class="setup-link">
                 <span>Setup Guide</span> <i class="bi bi-arrow-right fs-9"></i>
               </span>
-              <span class="badge bg-white border text-slate-500 rounded-pill px-2 py-0.5 fs-10 font-mono">
+              <span class="badge bg-white border text-dark text-slate-500 rounded-pill px-2 py-0.5 fs-10 font-mono">
                 {{ item.language || item.type }}
               </span>
             </div>
@@ -542,74 +542,102 @@
               </div>
             </div>
 
-            <!-- Right: actions -->
+            <!-- Right: actions (all disabled when monitor is disabled) -->
             <div class="d-flex align-items-center flex-wrap gap-2">
               <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 fs-8 fw-medium"
-                (click)="openMonitorSetupGuide(m, $event)" title="View Setup Instructions">
+                [disabled]="!m.enabled"
+                [title]="m.enabled ? 'View Setup Instructions' : 'Monitor is disabled'"
+                (click)="openMonitorSetupGuide(m, $event)">
                 <i class="bi bi-journal-code me-1"></i>Setup
               </button>
               <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-1.5 fs-8 fw-medium"
-                (click)="openTelemetryGuide(m, $event)" title="View Telemetry Verification Checklist">
+                [disabled]="!m.enabled"
+                [title]="m.enabled ? 'View Telemetry Verification Checklist' : 'Monitor is disabled'"
+                (click)="openTelemetryGuide(m, $event)">
                 <i class="bi bi-arrow-repeat me-1"></i>Check Telemetry
               </button>
               <button class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 fs-8"
                 [class.active]="activeViewerMonitor?.id === m.id"
-                (click)="toggleLiveViewer(m, $event)" title="Toggle Embedded Live View">
+                [disabled]="!m.enabled"
+                [title]="m.enabled ? 'Toggle Embedded Live View' : 'Monitor is disabled'"
+                (click)="toggleLiveViewer(m, $event)">
                 <i class="bi bi-display"></i>
               </button>
               <button class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fs-8 fw-semibold shadow-sm"
+                [disabled]="!m.enabled"
+                [title]="m.enabled ? 'Open in Uptrace' : 'Monitor is disabled'"
                 (click)="openUptrace(m.dashboardUrl, $event)">
-                <i class="bi bi-box-arrow-up-right me-1"></i>Open Uptrace ↗
+                <i class="bi bi-box-arrow-up-right me-1"></i>See Monitoring ↗
               </button>
-              <!-- Enable toggle -->
+              <!-- Enable toggle switch (always clickable to toggle monitor state) -->
               <div class="form-check form-switch m-0 ms-1" [title]="m.enabled ? 'Click to Disable' : 'Click to Enable'">
                 <input class="form-check-input cursor-pointer" type="checkbox" role="switch"
                   [checked]="m.enabled" (change)="toggleMonitor(m, $event)"
                   style="width: 2.2em; height: 1.2em;" />
               </div>
               <!-- Edit -->
-              <button class="btn btn-sm btn-link text-muted p-1 border-0" (click)="openEditModal(m, $event)" title="Edit Monitor Settings">
+              <button class="btn btn-sm btn-link p-1 border-0"
+                [class.text-muted]="m.enabled"
+                [class.text-slate-300]="!m.enabled"
+                [disabled]="!m.enabled"
+                [title]="m.enabled ? 'Edit Monitor Settings' : 'Monitor is disabled'"
+                (click)="openEditModal(m, $event)">
                 <i class="bi bi-gear-fill"></i>
               </button>
               <!-- Delete -->
-              <button class="btn btn-sm btn-link text-danger p-1 border-0" (click)="openDeleteModal(m, $event)" title="Delete Monitor">
+              <button class="btn btn-sm btn-link p-1 border-0"
+                [class.text-danger]="m.enabled"
+                [class.text-slate-300]="!m.enabled"
+                [disabled]="!m.enabled"
+                [title]="m.enabled ? 'Delete Monitor' : 'Monitor is disabled'"
+                (click)="openDeleteModal(m, $event)">
                 <i class="bi bi-trash"></i>
               </button>
             </div>
           </div>
 
-          <!-- Viewer embed panel -->
-          <div *ngIf="activeViewerMonitor?.id === m.id" class="viewer-panel border-top">
+          <!-- Viewer embed panel (only displayed when enabled and active) -->
+          <div *ngIf="m.enabled && activeViewerMonitor?.id === m.id" class="viewer-panel border-top">
             <div class="d-flex align-items-center justify-content-between px-4 py-2 border-bottom bg-slate-900">
               <span class="fs-9 fw-semibold text-slate-300 d-flex align-items-center gap-2">
                 <i class="bi bi-display text-primary"></i>Live View: {{ m.name }}
               </span>
               <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5 fs-9"
-                  (click)="openUptrace(m.dashboardUrl, $event)">
-                  <i class="bi bi-box-arrow-up-right me-1"></i>Fullscreen in New Tab ↗
-                </button>
                 <button class="btn btn-sm btn-link text-muted p-0 border-0" (click)="closeViewer()">
                   <i class="bi bi-x-lg"></i>
                 </button>
               </div>
             </div>
-            <div style="height: 480px;" class="position-relative bg-slate-950">
+
+            <!-- Provider security info & quick redirect banner -->
+            <div class="viewer-direct-bar px-4 py-2 d-flex align-items-center justify-content-between border-bottom"
+              style="background: #111827; border-color: rgba(255,255,255,0.08)!important;">
+              <span class="fs-9 text-slate-400 d-flex align-items-center gap-2">
+                <i class="bi bi-shield-check text-info"></i>
+                <span>Direct session sync: If the embedded view displays a login screen or restricts frame cookies, click <strong>See Monitoring on Uptrace</strong> to view all live traces and metrics in your authenticated session.</span>
+              </span>
+              <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-0.5 fs-9 fw-medium flex-shrink-0 ms-2"
+                (click)="openUptrace(m.dashboardUrl, $event)">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Open Full Dashboard ↗
+              </button>
+            </div>
+
+            <div style="height: 520px;" class="position-relative bg-slate-950">
               <iframe *ngIf="viewerSafeUrl && !viewerIframeError"
                 [src]="viewerSafeUrl" class="w-100 h-100 border-0"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                allow="storage-access *; cross-origin-isolated"
                 (error)="onIframeError()">
               </iframe>
               <div *ngIf="viewerIframeError"
                 class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-white p-4">
                 <i class="bi bi-shield-lock fs-1 text-warning mb-2"></i>
                 <h5 class="h6 fw-bold mb-1">Direct Embedding Restricted by Provider</h5>
-                <p class="fs-9 text-slate-400 mb-3" style="max-width: 420px;">
-                  Uptrace security policy prohibits framing within another domain. Open Uptrace directly in a new secure tab.
+                <p class="fs-9 text-slate-400 mb-3" style="max-width: 440px;">
+                  Uptrace security policy restricts cross-origin framing and requires direct session authentication. Click below to see your monitoring live on Uptrace with your active session.
                 </p>
                 <button class="btn btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
                   (click)="openUptrace(m.dashboardUrl, $event)">
-                  <i class="bi bi-box-arrow-up-right me-1.5"></i>Open in Uptrace Tab ↗
+                  <i class="bi bi-box-arrow-up-right me-1.5"></i>See Monitoring on Uptrace ↗
                 </button>
               </div>
             </div>

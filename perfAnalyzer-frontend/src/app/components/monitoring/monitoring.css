@@ -669,8 +669,19 @@
 }
 
 .monitor-disabled {
-  opacity: 0.65;
-  filter: grayscale(20%);
+  opacity: 0.6;
+  filter: grayscale(35%);
+  background: #fafafa !important;
+  border-left-color: #cbd5e1 !important;
+}
+
+.monitor-disabled button:not(.form-check-input):disabled {
+  cursor: not-allowed !important;
+  opacity: 0.55;
+}
+
+.text-slate-300 {
+  color: #cbd5e1 !important;
 }
 
 /* Status Badges */

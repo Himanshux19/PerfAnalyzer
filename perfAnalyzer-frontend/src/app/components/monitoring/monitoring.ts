@@ -232,6 +232,8 @@ export class Monitoring implements OnInit {
   customDsn = '';
   customServiceName = '';
   showCustomDsnText = false;
+  envDefaultDsn = '';
+  envDefaultServiceName = '';
 
   // How to get DSN Guide Modal
   showDsnGuideModal = false;
@@ -289,8 +291,30 @@ export class Monitoring implements OnInit {
 
   ngOnInit(): void {
     this.preloadFallbackSvgs();
+    this.loadEnvironmentDefaults();
     this.loadCatalog();
     this.loadMonitors();
+  }
+
+  loadEnvironmentDefaults(): void {
+    this.api.getMonitoringDefaults().subscribe({
+      next: (data) => {
+        if (data) {
+          this.envDefaultDsn = (data.uptraceDsn || '').trim();
+          this.envDefaultServiceName = (data.serviceName || '').trim();
+          if (!this.customDsn && this.envDefaultDsn) {
+            this.customDsn = this.envDefaultDsn;
+          }
+          if (!this.customServiceName && this.envDefaultServiceName) {
+            this.customServiceName = this.envDefaultServiceName;
+          }
+          this.cdr.detectChanges();
+        }
+      },
+      error: () => {
+        // Fallback silently if unavailable
+      },
+    });
   }
 
   // ── Preload Fallback SVGs ─────────────────────────────────────
@@ -516,28 +540,61 @@ export class Monitoring implements OnInit {
   toggleMonitor(monitor: MonitoringIntegration, event: Event): void {
     event.stopPropagation();
     const newEnabled = !monitor.enabled;
-    const newStatus = newEnabled ? 'configuration_saved' : 'disabled';
+    const newStatus = newEnabled ? 'telemetry_detected' : 'disabled';
 
-    // Optimistic update
-    monitor.enabled = newEnabled;
-    monitor.status = newStatus;
+    // Optimistic update for this monitor and any other monitor with the same serviceName
+    const targetService = (monitor.serviceName || '').trim().toLowerCase();
+    this.monitors.forEach((m) => {
+      if (m.id === monitor.id || (targetService && (m.serviceName || '').trim().toLowerCase() === targetService)) {
+        m.enabled = newEnabled;
+        m.status = newStatus;
+      }
+    });
 
-    if (!newEnabled && this.activeViewerMonitor?.id === monitor.id) {
-      this.closeViewer();
+    if (newEnabled) {
+      // Automatically show the live monitoring panel when enabling
+      this.activeViewerMonitor = monitor;
+      this.viewerIframeError = false;
+      const url = monitor.dashboardUrl || 'https://app.uptrace.dev';
+      this.viewerSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    } else {
+      if (this.activeViewerMonitor?.id === monitor.id) {
+        this.closeViewer();
+      }
     }
 
     this.api.patchMonitoringStatus(monitor.id, { enabled: newEnabled, status: newStatus }).subscribe({
       next: (updated) => {
-        monitor.enabled = updated.enabled;
-        monitor.status = updated.status;
-        this.cdr.detectChanges();
+        this.zone.run(() => {
+          this.monitors.forEach((m) => {
+            if (m.id === updated.id || (targetService && (m.serviceName || '').trim().toLowerCase() === targetService)) {
+              m.enabled = updated.enabled;
+              m.status = updated.status;
+            }
+          });
+          if (newEnabled && (!this.activeViewerMonitor || this.activeViewerMonitor.id === updated.id)) {
+            this.activeViewerMonitor = updated;
+            const url = updated.dashboardUrl || 'https://app.uptrace.dev';
+            this.viewerSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+          }
+          this.cdr.detectChanges();
+        });
       },
       error: () => {
         // Revert on error
-        monitor.enabled = !newEnabled;
-        monitor.status = monitor.enabled ? 'configuration_saved' : 'disabled';
-        alert('Failed to update monitor state.');
-        this.cdr.detectChanges();
+        this.zone.run(() => {
+          this.monitors.forEach((m) => {
+            if (m.id === monitor.id || (targetService && (m.serviceName || '').trim().toLowerCase() === targetService)) {
+              m.enabled = !newEnabled;
+              m.status = m.enabled ? 'telemetry_detected' : 'disabled';
+            }
+          });
+          if (newEnabled) {
+            this.closeViewer();
+          }
+          alert('Failed to update monitor state.');
+          this.cdr.detectChanges();
+        });
       },
     });
   }
@@ -557,22 +614,22 @@ export class Monitoring implements OnInit {
       this.formCategory = sourceEntry.category;
       this.formLanguage = sourceEntry.language || '';
       this.formFramework = sourceEntry.framework || '';
-      this.formServiceName = this.customServiceName || (sourceEntry.framework
+      this.formServiceName = this.customServiceName || this.envDefaultServiceName || (sourceEntry.framework
         ? `${sourceEntry.framework}-service`
         : sourceEntry.language
           ? `${sourceEntry.language}-app`
           : 'my-service');
       this.formDashboardUrl = 'https://app.uptrace.dev';
-      this.formUptraceDsn = this.customDsn || '';
+      this.formUptraceDsn = this.customDsn || this.envDefaultDsn || '';
     } else {
       this.formCatalogId = '';
       this.formMonitorName = '';
       this.formCategory = 'frameworks';
       this.formLanguage = '';
       this.formFramework = '';
-      this.formServiceName = '';
+      this.formServiceName = this.customServiceName || this.envDefaultServiceName || '';
       this.formDashboardUrl = 'https://app.uptrace.dev';
-      this.formUptraceDsn = '';
+      this.formUptraceDsn = this.customDsn || this.envDefaultDsn || '';
     }
 
     this.formEnabled = true;
@@ -809,8 +866,9 @@ export class Monitoring implements OnInit {
 
   // ── Uptrace External Links & Viewer ─────────────────────────
 
-  openUptrace(url?: string | null, event?: Event): void {
+  openUptrace(url?: string | null, event?: Event, monitor?: MonitoringIntegration): void {
     if (event) event.stopPropagation();
+    if (monitor && !monitor.enabled) return;
     const targetUrl = url && url.trim() ? url.trim() : 'https://app.uptrace.dev';
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   }

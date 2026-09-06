@@ -742,6 +742,13 @@ export class ApiService {
 
   // ── Monitoring Module API Methods ────────────────────────────
 
+  getMonitoringDefaults(): Observable<{ uptraceDsn: string; serviceName: string; active: boolean }> {
+    return this.http.get<{ uptraceDsn: string; serviceName: string; active: boolean }>(
+      `${this.baseUrl}/api/monitoring/defaults`,
+    );
+  }
+
+
   getCatalog(category?: string, search?: string): Observable<MonitoringCatalogEntry[]> {
     let params: string[] = [];
     if (category && category !== 'all') {

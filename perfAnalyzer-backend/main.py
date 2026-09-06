@@ -51,25 +51,10 @@ from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
 import os
-from tracing import setup_tracing_jaeger
-from tracing import setup_tracing_uptrace
-
-app = FastAPI()
-
-setup_tracing_uptrace()
-FastAPIInstrumentor.instrument_app(app)
-# setup_tracing_jaeger(app)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 def load_env_file():
-    env_path = Path(".env")
+    env_path = Path(__file__).resolve().parent / ".env"
+    if not env_path.exists():
+        env_path = Path(".env")
     if env_path.exists():
         with open(env_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -79,6 +64,22 @@ def load_env_file():
                     os.environ[key.strip()] = val.strip()
 
 load_env_file()
+
+from tracing import setup_tracing_jaeger
+from tracing import setup_tracing_uptrace, stop_tracing_uptrace, get_tracing_status
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+setup_tracing_uptrace(app=app)
+# setup_tracing_jaeger(app)
 
 # PostgreSQL Configurations
 DB_HOST = os.getenv("DB_HOST", "")
@@ -4528,6 +4529,24 @@ def get_monitoring_catalog(
     return JSONResponse(items)
 
 
+@app.get("/api/monitoring/defaults")
+def get_monitoring_defaults():
+    """
+    Returns the configured default Uptrace DSN and Service Name loaded from the backend environment (.env)
+    along with current live monitoring status.
+    """
+    env_dsn = (os.getenv("UPTRACE_DSN") or "").strip()
+    env_service = (os.getenv("OTEL_SERVICE_NAME") or "perfanalyzer-backend").strip()
+    tracing_status = get_tracing_status()
+    
+    return JSONResponse({
+        "uptraceDsn": env_dsn,
+        "serviceName": tracing_status.get("service_name") or env_service,
+        "active": tracing_status.get("active", False)
+    })
+
+
+
 @app.get("/api/monitoring/catalog/{catalog_id}")
 def get_monitoring_catalog_entry(catalog_id: str):
     """
@@ -4680,11 +4699,21 @@ def create_user_monitor(
                         encrypted_dsn,
                         (payload.dashboardUrl or "").strip(),
                         payload.enabled if payload.enabled is not None else True,
-                        (payload.status or "configuration_saved").strip()
+                        "telemetry_detected" if (payload.enabled if payload.enabled is not None else True) else "disabled"
                     ))
                     res = cur.fetchone()
                     new_id, c_at, u_at = res[0], res[1], res[2]
                     
+        # Only activate PerfAnalyzer backend tracing if this monitor represents the backend service
+        backend_svc = os.getenv("OTEL_SERVICE_NAME", "perfanalyzer-backend").strip().lower()
+        target_svc = (payload.serviceName or "").strip().lower()
+        is_enabled = payload.enabled if payload.enabled is not None else True
+        if is_enabled and (not target_svc or target_svc == backend_svc):
+            try:
+                setup_tracing_uptrace(app=app, service_name=payload.serviceName, dsn=raw_dsn)
+            except Exception as trace_err:
+                logger.warning(f"Error starting tracing on monitor creation: {trace_err}")
+
         log_user_activity(
             uname, "monitoring", "Monitor Configured",
             f"Configured {payload.name} ({payload.catalogIntegrationId})",
@@ -4700,8 +4729,8 @@ def create_user_monitor(
             "framework": payload.framework or "",
             "serviceName": payload.serviceName or "",
             "dashboardUrl": payload.dashboardUrl or "",
-            "enabled": payload.enabled if payload.enabled is not None else True,
-            "status": payload.status or "configuration_saved",
+            "enabled": is_enabled,
+            "status": "telemetry_detected" if is_enabled else "disabled",
             "createdAt": c_at.isoformat() if c_at else None,
             "updatedAt": u_at.isoformat() if u_at else None,
             "hasDsn": bool(encrypted_dsn)
@@ -4761,7 +4790,7 @@ def update_user_monitor(
                     updates.append("updated_at = CURRENT_TIMESTAMP")
                     
                     if updates:
-                        sql = f"UPDATE monitoring_integrations SET {', '.join(updates)} WHERE id = %s AND username = %s RETURNING id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status, created_at, updated_at, (CASE WHEN uptrace_dsn_encrypted != '' THEN true ELSE false END);"
+                        sql = f"UPDATE monitoring_integrations SET {', '.join(updates)} WHERE id = %s AND username = %s RETURNING id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status, created_at, updated_at, (CASE WHEN uptrace_dsn_encrypted != '' THEN true ELSE false END), uptrace_dsn_encrypted;"
                         params.extend([integration_id, uname])
                         cur.execute(sql, tuple(params))
                         row = cur.fetchone()
@@ -4769,7 +4798,25 @@ def update_user_monitor(
         if not row:
             raise HTTPException(status_code=404, detail="Monitor not found.")
             
-        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn) = row
+        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn, enc_dsn) = row
+
+        backend_svc = os.getenv("OTEL_SERVICE_NAME", "perfanalyzer-backend").strip().lower()
+        target_svc = (svc or "").strip().lower()
+        try:
+            if not enabled:
+                stop_tracing_uptrace(service_name=svc, app=app)
+            else:
+                if not target_svc or target_svc == backend_svc:
+                    active_dsn = None
+                    if enc_dsn:
+                        try:
+                            active_dsn = decrypt_dsn(enc_dsn)
+                        except Exception:
+                            pass
+                    setup_tracing_uptrace(app=app, service_name=svc, dsn=active_dsn)
+        except Exception as trace_err:
+            logger.warning(f"Error adjusting backend tracing on monitor update for '{svc}': {trace_err}")
+
         return JSONResponse({
             "id": mid,
             "catalogIntegrationId": cat_id,
@@ -4816,7 +4863,7 @@ def patch_monitor_status(
                             params.append("disabled")
                         elif payload.enabled and payload.status is None:
                             updates.append("status = %s")
-                            params.append("configuration_saved")
+                            params.append("telemetry_detected")
                             
                     if payload.status is not None:
                         updates.append("status = %s")
@@ -4829,14 +4876,49 @@ def patch_monitor_status(
                         UPDATE monitoring_integrations 
                         SET {', '.join(updates)}
                         WHERE id = %s AND username = %s
-                        RETURNING id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status, created_at, updated_at, (CASE WHEN uptrace_dsn_encrypted != '' THEN true ELSE false END);
+                        RETURNING id, catalog_integration_id, name, category, language, framework, service_name, dashboard_url, enabled, status, created_at, updated_at, (CASE WHEN uptrace_dsn_encrypted != '' THEN true ELSE false END), uptrace_dsn_encrypted;
                     """, tuple(params))
                     row = cur.fetchone()
+                    
+                    if row and payload.enabled is not None:
+                        target_svc = row[6]
+                        # Keep all monitors for this user with the same service_name in exact sync
+                        if target_svc and target_svc.strip():
+                            sync_st = "disabled" if not payload.enabled else (payload.status or "telemetry_detected")
+                            cur.execute("""
+                                UPDATE monitoring_integrations
+                                SET enabled = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+                                WHERE username = %s AND service_name = %s AND id != %s;
+                            """, (payload.enabled, sync_st, uname, target_svc.strip(), integration_id))
                     
         if not row:
             raise HTTPException(status_code=404, detail="Monitor not found.")
             
-        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn) = row
+        (mid, cat_id, name, cat, lang, fw, svc, dash_url, enabled, st, c_at, u_at, has_dsn, enc_dsn) = row
+        
+        # Stop or start backend monitoring dynamically based on enabled state
+        backend_svc = os.getenv("OTEL_SERVICE_NAME", "perfanalyzer-backend").strip().lower()
+        target_svc = (svc or "").strip().lower()
+        try:
+            if not enabled:
+                stopped = stop_tracing_uptrace(service_name=svc, app=app)
+                if stopped:
+                    logger.info(f"Backend tracing halted for service '{svc}' on monitor disable.")
+            else:
+                # Only re-instrument backend tracing if this monitor corresponds to the backend service
+                if not target_svc or target_svc == backend_svc:
+                    active_dsn = None
+                    if enc_dsn:
+                        try:
+                            active_dsn = decrypt_dsn(enc_dsn)
+                        except Exception:
+                            pass
+                    started = setup_tracing_uptrace(app=app, service_name=svc, dsn=active_dsn)
+                    if started:
+                        logger.info(f"Backend tracing resumed for service '{svc}' on monitor enable.")
+        except Exception as trace_err:
+            logger.warning(f"Error adjusting backend tracing for '{svc}': {trace_err}")
+
         return JSONResponse({
             "id": mid,
             "catalogIntegrationId": cat_id,
@@ -4869,12 +4951,19 @@ def delete_user_monitor(integration_id: int, current_user: dict = Depends(verify
         with db_session() as conn:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM monitoring_integrations WHERE id = %s AND username = %s RETURNING name;", (integration_id, uname))
+                    cur.execute("DELETE FROM monitoring_integrations WHERE id = %s AND username = %s RETURNING name, service_name;", (integration_id, uname))
                     deleted = cur.fetchone()
                     if not deleted:
                         raise HTTPException(status_code=404, detail="Monitor not found.")
                         
-        log_user_activity(uname, "monitoring", "Monitor Deleted", f"Deleted monitor {deleted[0]}", "warning", "bi-trash")
+        del_name, del_svc = deleted[0], deleted[1]
+        try:
+            if del_svc:
+                stop_tracing_uptrace(service_name=del_svc, app=app)
+        except Exception:
+            pass
+
+        log_user_activity(uname, "monitoring", "Monitor Deleted", f"Deleted monitor {del_name}", "warning", "bi-trash")
         return JSONResponse({"message": "Monitor deleted successfully.", "id": integration_id})
     except HTTPException:
         raise

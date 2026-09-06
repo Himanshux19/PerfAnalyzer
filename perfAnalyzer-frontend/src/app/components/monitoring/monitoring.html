@@ -566,7 +566,7 @@
               <button class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fs-8 fw-semibold shadow-sm"
                 [disabled]="!m.enabled"
                 [title]="m.enabled ? 'Open in Uptrace' : 'Monitor is disabled'"
-                (click)="openUptrace(m.dashboardUrl, $event)">
+                (click)="openUptrace(m.dashboardUrl, $event, m)">
                 <i class="bi bi-box-arrow-up-right me-1"></i>See Monitoring ↗
               </button>
               <!-- Enable toggle switch (always clickable to toggle monitor state) -->
@@ -575,21 +575,15 @@
                   [checked]="m.enabled" (change)="toggleMonitor(m, $event)"
                   style="width: 2.2em; height: 1.2em;" />
               </div>
-              <!-- Edit -->
-              <button class="btn btn-sm btn-link p-1 border-0"
-                [class.text-muted]="m.enabled"
-                [class.text-slate-300]="!m.enabled"
-                [disabled]="!m.enabled"
-                [title]="m.enabled ? 'Edit Monitor Settings' : 'Monitor is disabled'"
+              <!-- Edit (always accessible so user can update settings or reconfigure) -->
+              <button class="btn btn-sm btn-link text-muted p-1 border-0"
+                title="Edit Monitor Settings"
                 (click)="openEditModal(m, $event)">
                 <i class="bi bi-gear-fill"></i>
               </button>
-              <!-- Delete -->
-              <button class="btn btn-sm btn-link p-1 border-0"
-                [class.text-danger]="m.enabled"
-                [class.text-slate-300]="!m.enabled"
-                [disabled]="!m.enabled"
-                [title]="m.enabled ? 'Delete Monitor' : 'Monitor is disabled'"
+              <!-- Delete (always accessible so user can remove monitor) -->
+              <button class="btn btn-sm btn-link text-danger p-1 border-0"
+                title="Delete Monitor"
                 (click)="openDeleteModal(m, $event)">
                 <i class="bi bi-trash"></i>
               </button>

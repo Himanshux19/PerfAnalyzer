@@ -1204,7 +1204,7 @@
         "type": "code",
         "language": "properties",
         "description": "Set OTLP endpoint and service name in application.properties:",
-        "content": "otel.exporter.otlp.endpoint=https://otlp.uptrace.dev:4317\notel.exporter.otlp.headers=uptrace-dsn=https://<token>@api.uptrace.dev/<project_id>\notel.service.name=spring-boot-service\notel.resource.attributes=deployment.environment=production\notel.traces.exporter=otlp\notel.metrics.exporter=otlp\notel.logs.exporter=otlp",
+        "content": "otel.exporter.otlp.endpoint=https://api.uptrace.dev:4317\notel.exporter.otlp.headers=uptrace-dsn=https://<token>@api.uptrace.dev/<project_id>\notel.service.name=spring-boot-service\notel.resource.attributes=deployment.environment=production\notel.traces.exporter=otlp\notel.metrics.exporter=otlp\notel.logs.exporter=otlp\notel.exporter.otlp.protocol=grpc",
         "required": true,
         "copyable": true
       },

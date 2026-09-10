@@ -8,10 +8,11 @@ from fastapi import (
     Depends,
     Header,
     Query,
+    Request,
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import logging
@@ -51,6 +52,7 @@ from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
 import os
+import httpx
 def load_env_file():
     env_path = Path(__file__).resolve().parent / ".env"
     if not env_path.exists():
@@ -91,6 +93,11 @@ DB_PASS = os.getenv("DB_PASS", "")
 # JWT configurations loaded from environment
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
+
+# Uptrace Dashboard Reverse Proxy configuration (server-side only)
+_UPTRACE_APP_BASE = "https://app.uptrace.dev"
+_UPTRACE_AUTH_TOKEN = os.getenv("UPTRACE_AUTH_TOKEN", "").strip()
+_UPTRACE_PROJECT_ID = os.getenv("UPTRACE_PROJECT_ID", "").strip()
 
 logger = logging.getLogger("perfanalyzer")
 logging.basicConfig(level=logging.INFO)
@@ -4542,7 +4549,8 @@ def get_monitoring_defaults():
     return JSONResponse({
         "uptraceDsn": env_dsn,
         "serviceName": tracing_status.get("service_name") or env_service,
-        "active": tracing_status.get("active", False)
+        "active": tracing_status.get("active", False),
+        "projectId": _UPTRACE_PROJECT_ID
     })
 
 
@@ -5015,6 +5023,154 @@ def get_monitor_full_configuration(integration_id: int, current_user: dict = Dep
     except Exception as e:
         logger.error(f"Failed to get full configuration for monitor {integration_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve configuration.")
+
+
+_uptrace_assets_cache: dict[str, tuple[bytes, str]] = {}
+_uptrace_html_cache: Optional[str] = None
+
+@app.get("/assets/{asset_path:path}")
+async def uptrace_asset_proxy(asset_path: str):
+    """
+    Proxies and caches Uptrace static assets (JS, CSS, fonts, icons).
+    Rewrites the internal API base URL in JavaScript bundles to point to /uptrace-api.
+    """
+    if asset_path in _uptrace_assets_cache:
+        content, ctype = _uptrace_assets_cache[asset_path]
+        return Response(content=content, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
+
+    url = f"{_UPTRACE_APP_BASE}/assets/{asset_path}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            r = await client.get(url)
+        except Exception as e:
+            logger.error(f"Failed to fetch Uptrace asset {asset_path}: {e}")
+            raise HTTPException(status_code=502, detail="Failed to fetch asset from Uptrace.")
+
+    content = r.content
+    ctype = r.headers.get("content-type", "application/octet-stream")
+    if asset_path.endswith(".js"):
+        ctype = "application/javascript"
+        content_str = content.decode("utf-8", errors="replace")
+        content_str = content_str.replace("https://api2.uptrace.dev", "/uptrace-api")
+        content = content_str.encode("utf-8")
+    elif asset_path.endswith(".css"):
+        ctype = "text/css"
+
+    _uptrace_assets_cache[asset_path] = (content, ctype)
+    return Response(content=content, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/layers.css")
+async def uptrace_layers_proxy():
+    if "layers.css" in _uptrace_assets_cache:
+        c, ct = _uptrace_assets_cache["layers.css"]
+        return Response(content=c, media_type=ct)
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        r = await client.get(f"{_UPTRACE_APP_BASE}/layers.css")
+    _uptrace_assets_cache["layers.css"] = (r.content, "text/css")
+    return Response(content=r.content, media_type="text/css")
+
+
+@app.get("/favicon.svg")
+async def uptrace_favicon_proxy():
+    if "favicon.svg" in _uptrace_assets_cache:
+        c, ct = _uptrace_assets_cache["favicon.svg"]
+        return Response(content=c, media_type=ct)
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        r = await client.get(f"{_UPTRACE_APP_BASE}/favicon.svg")
+    _uptrace_assets_cache["favicon.svg"] = (r.content, "image/svg+xml")
+    return Response(content=r.content, media_type="image/svg+xml")
+
+
+@app.api_route("/uptrace-api/{api_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def uptrace_api_proxy(api_path: str, request: Request):
+    """
+    Authenticated reverse proxy for all Uptrace UI internal API requests.
+    Injects Authorization: Bearer <UPTRACE_AUTH_TOKEN> server-side.
+    """
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+                "Access-Control-Allow-Headers": "*",
+            },
+        )
+
+    if not _UPTRACE_AUTH_TOKEN:
+        raise HTTPException(status_code=503, detail="UPTRACE_AUTH_TOKEN is not configured on server.")
+
+    url = f"https://api2.uptrace.dev/{api_path}"
+    headers = {
+        "Authorization": f"Bearer {_UPTRACE_AUTH_TOKEN}",
+        "User-Agent": request.headers.get("user-agent", "Mozilla/5.0"),
+    }
+    for h in ["content-type", "accept", "if-none-match", "accept-language"]:
+        if h in request.headers:
+            headers[h] = request.headers[h]
+
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            r = await client.request(
+                method=request.method,
+                url=url,
+                headers=headers,
+                params=dict(request.query_params),
+                content=body if body else None,
+            )
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=504, detail="Uptrace API request timed out.")
+        except Exception as e:
+            logger.error(f"Uptrace API proxy error for {api_path}: {e}")
+            raise HTTPException(status_code=502, detail=f"Failed to connect to Uptrace API.")
+
+    resp_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+    if "content-type" in r.headers:
+        resp_headers["content-type"] = r.headers["content-type"]
+
+    return Response(content=r.content, status_code=r.status_code, headers=resp_headers)
+
+
+async def _fetch_uptrace_index_html() -> str:
+    global _uptrace_html_cache
+    if _uptrace_html_cache:
+        return _uptrace_html_cache
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        r = await client.get(_UPTRACE_APP_BASE)
+        _uptrace_html_cache = r.text
+    return _uptrace_html_cache
+
+
+@app.get("/{project_id:int}")
+@app.get("/{project_id:int}/{rest_of_path:path}")
+@app.get("/overview/{project_id:int}")
+@app.get("/overview/{project_id:int}/{rest_of_path:path}")
+async def uptrace_ui_page(project_id: int, rest_of_path: str = ""):
+    """
+    Serves the Uptrace dashboard SPA HTML for embedding inside an iframe.
+    Configures frame-ancestors to permit embedding in PerfAnalyzer frontend.
+    """
+    try:
+        html = await _fetch_uptrace_index_html()
+    except Exception as e:
+        logger.error(f"Failed to fetch Uptrace index HTML: {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch Uptrace dashboard shell.")
+
+    headers = {
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Frame-Options": "ALLOWALL",
+        "Content-Security-Policy": "frame-ancestors 'self' http://localhost:* http://127.0.0.1:*;",
+    }
+    return HTMLResponse(content=html, headers=headers)
+
+
+
 
 
 

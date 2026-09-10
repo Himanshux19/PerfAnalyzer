@@ -742,8 +742,8 @@ export class ApiService {
 
   // ── Monitoring Module API Methods ────────────────────────────
 
-  getMonitoringDefaults(): Observable<{ uptraceDsn: string; serviceName: string; active: boolean }> {
-    return this.http.get<{ uptraceDsn: string; serviceName: string; active: boolean }>(
+  getMonitoringDefaults(): Observable<{ uptraceDsn: string; serviceName: string; active: boolean; projectId?: string }> {
+    return this.http.get<{ uptraceDsn: string; serviceName: string; active: boolean; projectId?: string }>(
       `${this.baseUrl}/api/monitoring/defaults`,
     );
   }

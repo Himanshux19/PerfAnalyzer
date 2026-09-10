@@ -234,6 +234,7 @@ export class Monitoring implements OnInit {
   showCustomDsnText = false;
   envDefaultDsn = '';
   envDefaultServiceName = '';
+  envDefaultProjectId = '9015';
 
   // How to get DSN Guide Modal
   showDsnGuideModal = false;
@@ -270,10 +271,9 @@ export class Monitoring implements OnInit {
   showTelemetryGuideModal = false;
   telemetryGuideMonitor: MonitoringIntegration | null = null;
 
-  // Monitoring Viewer (Iframe sandbox abstraction)
+  // Monitoring Live Dashboard Viewer (Authenticated iframe via backend reverse proxy)
   activeViewerMonitor: MonitoringIntegration | null = null;
   viewerSafeUrl: SafeResourceUrl | null = null;
-  viewerIframeError = false;
 
   // Copy Feedback state (tracks which snippet ID was copied)
   copiedSnippetKey: string | null = null;
@@ -302,6 +302,9 @@ export class Monitoring implements OnInit {
         if (data) {
           this.envDefaultDsn = (data.uptraceDsn || '').trim();
           this.envDefaultServiceName = (data.serviceName || '').trim();
+          if (data.projectId) {
+            this.envDefaultProjectId = data.projectId.trim();
+          }
           if (!this.customDsn && this.envDefaultDsn) {
             this.customDsn = this.envDefaultDsn;
           }
@@ -552,10 +555,9 @@ export class Monitoring implements OnInit {
     });
 
     if (newEnabled) {
-      // Automatically show the live monitoring panel when enabling
+      // Automatically show the live monitoring iframe when enabling
       this.activeViewerMonitor = monitor;
-      this.viewerIframeError = false;
-      const url = monitor.dashboardUrl || 'https://app.uptrace.dev';
+      const url = this.getIframeUrlForMonitor(monitor);
       this.viewerSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
     } else {
       if (this.activeViewerMonitor?.id === monitor.id) {
@@ -574,7 +576,7 @@ export class Monitoring implements OnInit {
           });
           if (newEnabled && (!this.activeViewerMonitor || this.activeViewerMonitor.id === updated.id)) {
             this.activeViewerMonitor = updated;
-            const url = updated.dashboardUrl || 'https://app.uptrace.dev';
+            const url = this.getIframeUrlForMonitor(updated);
             this.viewerSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
           }
           this.cdr.detectChanges();
@@ -878,6 +880,41 @@ export class Monitoring implements OnInit {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
+  getIframeUrlForMonitor(monitor: MonitoringIntegration): string {
+    const backendBase = 'http://127.0.0.1:8000';
+    const fallbackProj = this.envDefaultProjectId || '9015';
+    if (!monitor.dashboardUrl || !monitor.dashboardUrl.trim()) {
+      return `${backendBase}/${fallbackProj}/overview`;
+    }
+
+    const raw = monitor.dashboardUrl.trim();
+    try {
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        const parsed = new URL(raw);
+        // If it's Uptrace, route through our authenticated reverse proxy to auto-authenticate
+        if (parsed.hostname.includes('uptrace.dev')) {
+          const path = parsed.pathname + (parsed.search || '');
+          return `${backendBase}${path.startsWith('/') ? path : '/' + path}`;
+        }
+        // For other monitoring providers (Grafana, Jaeger, Prometheus, Datadog, etc.), load direct URL
+        return raw;
+      }
+      return `${backendBase}${raw.startsWith('/') ? raw : '/' + raw}`;
+    } catch {
+      return `${backendBase}/${fallbackProj}/overview`;
+    }
+  }
+
+  reloadIframe(monitor: MonitoringIntegration): void {
+    this.viewerSafeUrl = null;
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      const url = this.getIframeUrlForMonitor(monitor);
+      this.viewerSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+      this.cdr.detectChanges();
+    }, 50);
+  }
+
   toggleLiveViewer(monitor: MonitoringIntegration, event?: Event): void {
     if (event) event.stopPropagation();
     if (!monitor.enabled) {
@@ -891,8 +928,7 @@ export class Monitoring implements OnInit {
       return;
     }
     this.activeViewerMonitor = monitor;
-    this.viewerIframeError = false;
-    const url = monitor.dashboardUrl || 'https://app.uptrace.dev';
+    const url = this.getIframeUrlForMonitor(monitor);
     this.viewerSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
     this.cdr.detectChanges();
   }
@@ -900,12 +936,6 @@ export class Monitoring implements OnInit {
   closeViewer(): void {
     this.activeViewerMonitor = null;
     this.viewerSafeUrl = null;
-    this.viewerIframeError = false;
-    this.cdr.detectChanges();
-  }
-
-  onIframeError(): void {
-    this.viewerIframeError = true;
     this.cdr.detectChanges();
   }
 

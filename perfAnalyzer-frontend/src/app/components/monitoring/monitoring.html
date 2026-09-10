@@ -590,49 +590,49 @@
             </div>
           </div>
 
-          <!-- Viewer embed panel (only displayed when enabled and active) -->
+          <!-- ── Live Uptrace Dashboard Iframe Panel ─────────────────────── -->
+          <!-- Embedded via authenticated backend reverse proxy. The official  -->
+          <!-- Uptrace Dashboard with all charts, metrics, and tables renders   -->
+          <!-- directly in this iframe.                                         -->
           <div *ngIf="m.enabled && activeViewerMonitor?.id === m.id" class="viewer-panel border-top">
+
+            <!-- Panel header bar -->
             <div class="d-flex align-items-center justify-content-between px-4 py-2 border-bottom bg-slate-900">
               <span class="fs-9 fw-semibold text-slate-300 d-flex align-items-center gap-2">
-                <i class="bi bi-display text-primary"></i>Live View: {{ m.name }}
+                <i class="bi bi-display text-primary"></i>Live Dashboard: {{ m.name }}
+                <span class="badge bg-success-subtle text-success fs-10 fw-medium px-2 py-0.5 rounded-pill">
+                  <i class="bi bi-shield-lock-fill me-1"></i>Secure Proxy Authenticated
+                </span>
               </span>
               <div class="d-flex align-items-center gap-2">
+                <!-- Reload button -->
+                <button class="btn btn-sm btn-outline-info" title="Reload Dashboard"
+                  (click)="reloadIframe(m)">
+                  <i class="bi bi-arrow-clockwise me-1"></i>Reload
+                </button>
+                <!-- Open full dashboard in Uptrace external tab -->
+                <button class="btn btn-sm btn-outline-primary" (click)="openUptrace(m.dashboardUrl, $event)">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>Open Full in Tab ↗
+                </button>
+                <!-- Close panel -->
                 <button class="btn btn-sm btn-link text-muted p-0 border-0" (click)="closeViewer()">
                   <i class="bi bi-x-lg"></i>
                 </button>
               </div>
             </div>
 
-            <!-- Provider security info & quick redirect banner -->
-            <div class="viewer-direct-bar px-4 py-2 d-flex align-items-center justify-content-between border-bottom"
-              style="background: #111827; border-color: rgba(255,255,255,0.08)!important;">
-              <span class="fs-9 text-slate-400 d-flex align-items-center gap-2">
-                <i class="bi bi-shield-check text-info"></i>
-                <span>Direct session sync: If the embedded view displays a login screen or restricts frame cookies, click <strong>See Monitoring on Uptrace</strong> to view all live traces and metrics in your authenticated session.</span>
-              </span>
-              <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-0.5 fs-9 fw-medium flex-shrink-0 ms-2"
-                (click)="openUptrace(m.dashboardUrl, $event)">
-                <i class="bi bi-box-arrow-up-right me-1"></i>Open Full Dashboard ↗
-              </button>
-            </div>
-
-            <div style="height: 520px;" class="position-relative bg-slate-950">
-              <iframe *ngIf="viewerSafeUrl && !viewerIframeError"
-                [src]="viewerSafeUrl" class="w-100 h-100 border-0"
-                allow="storage-access *; cross-origin-isolated"
-                (error)="onIframeError()">
+            <!-- Exact Uptrace Dashboard iframe -->
+            <div style="height: 680px; width: 100%;" class="position-relative bg-slate-950">
+              <iframe
+                *ngIf="viewerSafeUrl"
+                [src]="viewerSafeUrl"
+                class="w-100 h-100 border-0"
+                allow="clipboard-read; clipboard-write;"
+                title="Uptrace Dashboard">
               </iframe>
-              <div *ngIf="viewerIframeError"
-                class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-white p-4">
-                <i class="bi bi-shield-lock fs-1 text-warning mb-2"></i>
-                <h5 class="h6 fw-bold mb-1">Direct Embedding Restricted by Provider</h5>
-                <p class="fs-9 text-slate-400 mb-3" style="max-width: 440px;">
-                  Uptrace security policy restricts cross-origin framing and requires direct session authentication. Click below to see your monitoring live on Uptrace with your active session.
-                </p>
-                <button class="btn btn-primary rounded-pill px-4 py-2 fs-8 fw-semibold shadow-sm"
-                  (click)="openUptrace(m.dashboardUrl, $event)">
-                  <i class="bi bi-box-arrow-up-right me-1.5"></i>See Monitoring on Uptrace ↗
-                </button>
+              <div *ngIf="!viewerSafeUrl" class="d-flex align-items-center justify-content-center h-100 text-slate-400">
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                <span>Connecting to Uptrace Dashboard...</span>
               </div>
             </div>
           </div>

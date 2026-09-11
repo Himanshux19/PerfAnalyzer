@@ -516,11 +516,8 @@
    ════════════════════════════════════════════════════════════════ */
 
 .filter-bar {
-  position: sticky;
-  top: 64px;
-  z-index: 100;
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.95);
+  position: static;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
   box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);

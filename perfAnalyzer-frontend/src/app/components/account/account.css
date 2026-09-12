@@ -805,3 +805,118 @@
   color: #64748b;
   border: 1px solid #e2e8f0;
 }
+
+/* ======================================
+   Subscription Tab – Plan Strip Banner
+   ====================================== */
+.sub-plan-strip {
+  border-radius: 0.9rem;
+  padding: 1rem 1.2rem;
+  border: 1.5px solid transparent;
+}
+.strip-free       { background: linear-gradient(135deg,#f8fafc,#f1f5f9); border-color:#e2e8f0; }
+.strip-starter    { background: linear-gradient(135deg,#f0fdf4,#dcfce7); border-color:#86efac; }
+.strip-pro        { background: linear-gradient(135deg,#eff6ff,#dbeafe); border-color:#93c5fd; }
+.strip-enterprise { background: linear-gradient(135deg,#faf5ff,#ede9fe); border-color:#c4b5fd; }
+
+.strip-icon {
+  width: 44px; height: 44px; border-radius: 0.65rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.75); font-size: 1.3rem;
+}
+.strip-free .strip-icon       { color:#64748b; }
+.strip-starter .strip-icon    { color:#16a34a; }
+.strip-pro .strip-icon        { color:#2563eb; }
+.strip-enterprise .strip-icon { color:#7c3aed; }
+
+.strip-plan-name  { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.strip-desc       { font-size: 0.8rem; }
+.strip-dates      { flex-shrink: 0; }
+
+/* ======================================
+   Subscription Tab – Compact Plan Cards
+   ====================================== */
+.acct-plan-card {
+  border-radius: 0.85rem;
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  padding: 1.1rem 1.1rem 1.1rem;
+  position: relative;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: visible;
+}
+.acct-plan-card:hover { border-color: #d1d5db; box-shadow: 0 8px 20px -8px rgba(15,23,42,.1); }
+
+.acct-plan-card-pro   { border-color: #93c5fd; box-shadow: 0 6px 18px -8px rgba(59,130,246,.2); }
+.acct-plan-card-pro:hover { border-color: #3b82f6; }
+
+.acct-plan-current {
+  border-color: #10b981 !important;
+  box-shadow: 0 8px 20px -8px rgba(16,185,129,.2) !important;
+}
+
+/* Current plan pill (top-right) */
+.acct-current-pill {
+  position: absolute; top: -11px; right: 14px;
+  font-size: 0.68rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px;
+  background: #10b981; color: #fff;
+  display: inline-flex; align-items: center;
+  letter-spacing: 0.03em;
+}
+.acct-current-pill-pro { background: #2563eb; }
+.acct-current-pill-ent { background: #7c3aed; }
+
+/* Popular tag for Pro card */
+.acct-popular-tag {
+  position: absolute; top: -11px; left: 14px;
+  font-size: 0.68rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px;
+  background: #2563eb; color: #fff;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Icon badges */
+.acct-plan-icon {
+  width: 36px; height: 36px; border-radius: 0.55rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.acct-icon-free { background:#f1f5f9; color:#475569; }
+.acct-icon-pro  { background:#eff6ff; color:#2563eb; }
+.acct-icon-ent  { background:#faf5ff; color:#7c3aed; }
+
+/* Text */
+.acct-plan-title      { font-size: 0.92rem; font-weight: 700; color: #0f172a; }
+.acct-plan-title-pro  { color: #2563eb; }
+.acct-plan-price      { font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+.acct-plan-period     { font-size: 0.75rem; font-weight: 500; color: #94a3b8; }
+
+/* Features list */
+.acct-features { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0; }
+.acct-features li { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; color: #374151; }
+.acct-features i  { flex-shrink: 0; font-size: 0.82rem; }
+.af-yes { color: #22c55e; }
+.af-no  { color: #d1d5db; }
+.af-pro { color: #3b82f6; }
+.af-ent { color: #8b5cf6; }
+
+/* Buttons */
+.acct-plan-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.5rem 0.9rem; border-radius: 0.6rem;
+  font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+.acct-plan-btn:disabled { opacity: 0.8; cursor: default; }
+.acct-plan-btn:hover:not(:disabled) { transform: translateY(-1px); }
+
+.acct-plan-btn-current     { background:#f1f5f9; color:#64748b; border:1.5px solid #e2e8f0; }
+.acct-plan-btn-current-pro { background:linear-gradient(135deg,#eff6ff,#dbeafe); color:#1d4ed8; border:1.5px solid #93c5fd; }
+.acct-plan-btn-current-ent { background:linear-gradient(135deg,#faf5ff,#ede9fe); color:#6d28d9; border:1.5px solid #c4b5fd; }
+.acct-plan-btn-outline     { background:transparent; border:1.5px solid #d1d5db; color:#374151; }
+.acct-plan-btn-outline:hover { background:#f8fafc; border-color:#9ca3af; }
+.acct-plan-btn-pro { background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; box-shadow:0 3px 10px rgba(59,130,246,.28); }
+.acct-plan-btn-pro:hover:not(:disabled) { box-shadow:0 5px 16px rgba(59,130,246,.35); }
+.acct-plan-btn-dark { background:#0f172a; color:#fff; }
+.acct-plan-btn-dark:hover:not(:disabled) { background:#1e293b; }

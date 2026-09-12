@@ -1,32 +1,43 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { CommonModule, TitleCasePipe } from '@angular/common';
 import { ApiService, SubscriptionInfo } from '../../api.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-subscribe',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TitleCasePipe],
   templateUrl: './subscribe.html',
   styleUrl: './subscribe.css',
 })
-export class Subscribe implements OnInit {
+export class Subscribe implements OnInit, OnDestroy {
   subscription: SubscriptionInfo | null = null;
   isLoading = false;
   noticeMessage = '';
 
   billingCycle: 'monthly' | 'yearly' = 'monthly';
 
+  private subscriptionSub: Subscription | null = null;
+
   constructor(
     private api: ApiService,
     private cdr: ChangeDetectorRef,
+    private zone: NgZone,
   ) {}
 
   ngOnInit() {
     this.loadSubscription();
 
-    this.api.subscriptionUpdated$.subscribe(() => {
-      this.loadSubscription();
+    this.subscriptionSub = this.api.subscriptionUpdated$.subscribe(() => {
+      this.zone.run(() => {
+        this.loadSubscription();
+      });
     });
+  }
+
+  ngOnDestroy() {
+    this.subscriptionSub?.unsubscribe();
+    this.subscriptionSub = null;
   }
 
   loadSubscription() {

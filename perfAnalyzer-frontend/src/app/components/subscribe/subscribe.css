@@ -1,190 +1,257 @@
+﻿/* ==============================
+   Container
+   ============================== */
 .subscribe-container {
-  max-width: 1140px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
-/* ==============================
-   Header
-   ============================== */
+.max-w-700 { max-width: 700px; }
 
-.max-w-700 {
-  max-width: 700px;
+/* ==============================
+   Current Plan Banner
+   ============================== */
+.current-plan-banner {
+  border-radius: 1rem;
+  padding: 1.1rem 1.4rem;
+  border: 1.5px solid transparent;
+}
+
+.banner-free    { background: linear-gradient(135deg,#f1f5f9 0%,#e2e8f0 100%); border-color:#cbd5e1; }
+.banner-starter { background: linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%); border-color:#86efac; }
+.banner-pro     { background: linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%); border-color:#93c5fd; }
+.banner-enterprise { background: linear-gradient(135deg,#faf5ff 0%,#ede9fe 100%); border-color:#c4b5fd; }
+
+.banner-icon-wrap {
+  width: 48px; height: 48px;
+  border-radius: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.7);
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.banner-free .banner-icon-wrap    { color:#64748b; }
+.banner-starter .banner-icon-wrap { color:#16a34a; }
+.banner-pro .banner-icon-wrap     { color:#2563eb; }
+.banner-enterprise .banner-icon-wrap { color:#7c3aed; }
+
+.banner-plan-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.banner-active-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #10b981;
+  color: #fff;
+  letter-spacing: 0.03em;
+}
+
+.banner-sub-line {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.banner-usage-chips {
+  flex-shrink: 0;
+}
+
+.usage-chip {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #374151;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 0.5rem;
+  padding: 4px 10px;
+  white-space: nowrap;
 }
 
 /* ==============================
-   Pricing Cards
+   Header badges
    ============================== */
+.bg-primary-soft { background-color:#eff6ff!important; color:#2563eb!important; }
 
+/* ==============================
+   Plan Cards
+   ============================== */
 .plan-card {
-  position: relative;
+  background: #fff;
+  border-radius: 1rem;
+  border: 1.5px solid #e5e7eb;
+  padding: 0;
   overflow: visible;
-  border: 1px solid #e5e7eb !important;
-  background: #ffffff;
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
 .plan-card:hover {
-  transform: translateY(-6px);
-  border-color: #d1d5db !important;
-  box-shadow:
-    0 20px 35px -12px rgba(15, 23, 42, 0.15),
-    0 8px 15px -8px rgba(15, 23, 42, 0.08) !important;
+  transform: translateY(-5px);
+  box-shadow: 0 18px 32px -10px rgba(15,23,42,.14), 0 6px 12px -6px rgba(15,23,42,.07);
+  border-color: #d1d5db;
 }
 
-/* ==============================
-   Featured / Professional Plan
-   ============================== */
-
-.featured-plan {
-  border: 2px solid #3b82f6 !important;
-  box-shadow:
-    0 12px 30px -10px rgba(59, 130, 246, 0.25) !important;
+.plan-card-featured {
+  border: 2px solid #3b82f6;
+  box-shadow: 0 10px 28px -8px rgba(59,130,246,.22);
 }
-
-.featured-plan:hover {
-  border-color: #2563eb !important;
-  box-shadow:
-    0 22px 40px -12px rgba(59, 130, 246, 0.30) !important;
+.plan-card-featured:hover {
+  border-color: #2563eb;
+  box-shadow: 0 20px 38px -10px rgba(59,130,246,.28);
 }
-
-/* ==============================
-   Current Plan
-   ============================== */
 
 .current-plan-card {
   border: 2px solid #10b981 !important;
-  box-shadow:
-    0 10px 25px -10px rgba(16, 185, 129, 0.18) !important;
+  box-shadow: 0 10px 24px -8px rgba(16,185,129,.18) !important;
 }
+.current-plan-card:hover { border-color:#059669!important; }
 
-.current-plan-card:hover {
-  border-color: #059669 !important;
-}
-
-/*
-   If Professional is also the current plan,
-   keep the green "current plan" indicator
-   while retaining the blue featured styling.
-*/
-.featured-plan.current-plan-card {
+/* Featured that is also current stays green */
+.plan-card-featured.current-plan-card {
   border-color: #10b981 !important;
-  box-shadow:
-    0 12px 30px -10px rgba(16, 185, 129, 0.20) !important;
+  box-shadow: 0 10px 24px -8px rgba(16,185,129,.18) !important;
 }
 
-/* ==============================
-   Popular Badge
-   ============================== */
-
-.popular-badge {
-  border-radius: 9999px;
-  letter-spacing: 0.05em;
+/* ── Popular ribbon ── */
+.popular-ribbon {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 14px;
+  border-radius: 999px;
   white-space: nowrap;
-  box-shadow:
-    0 4px 10px rgba(59, 130, 246, 0.25) !important;
+  box-shadow: 0 4px 10px rgba(59,130,246,.3);
 }
 
-/* ==============================
-   Soft Primary Badge
-   ============================== */
+/* ── Card sections ── */
+.plan-card-header { padding: 1.4rem 1.4rem 0.6rem; }
+.plan-card-footer { padding: 0.8rem 1.4rem 1.4rem; margin-top: auto; }
 
-.bg-primary-soft {
-  background-color: #eff6ff !important;
-  color: #2563eb !important;
-}
-
-/* ==============================
-   Typography
-   ============================== */
-
-.fs-7 {
-  font-size: 0.95rem;
-}
-
-.fs-8 {
-  font-size: 0.85rem;
-}
-
-.fs-9 {
-  font-size: 0.75rem;
-}
-
-/* ==============================
-   Plan Price
-   ============================== */
-
-.plan-price {
-  line-height: 1;
-}
-
-.plan-price .display-5 {
-  letter-spacing: -0.03em;
-}
-
-/* ==============================
-   Features
-   ============================== */
-
-.plan-features {
-  margin-top: 0.25rem;
-}
-
-.plan-features li {
-  line-height: 1.45;
-}
-
-.plan-features i {
-  flex-shrink: 0;
-  font-size: 0.9rem;
-}
-
-/* ==============================
-   Buttons
-   ============================== */
-
-.plan-card .btn {
+/* ── Icon badge ── */
+.plan-icon-badge {
+  width: 40px; height: 40px;
   border-radius: 0.65rem;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+.plan-icon-free       { background:#f1f5f9; color:#475569; }
+.plan-icon-pro        { background:#eff6ff; color:#2563eb; }
+.plan-icon-enterprise { background:#faf5ff; color:#7c3aed; }
+
+/* ── Current plan pill ── */
+.current-plan-pill {
+  display: inline-flex; align-items: center;
+  font-size: 0.68rem; font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #10b981; color: #fff;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
-.plan-card .btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+/* ── Plan names / prices ── */
+.plan-name { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0; }
+.plan-name-pro { color: #2563eb; }
+
+.plan-price-block { margin: 6px 0 10px; line-height: 1; }
+.plan-price-value { font-size: 2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; }
+.plan-price-period { font-size: 0.8rem; color: #94a3b8; }
+
+.plan-desc { font-size: 0.8rem; color: #64748b; margin: 0 0 0.5rem; line-height: 1.5; }
+
+/* ── Feature list ── */
+.plan-features { padding: 0.5rem 1.4rem; margin: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.plan-features li { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #374151; }
+.plan-features i { flex-shrink: 0; font-size: 0.85rem; }
+.feat-yes     { color: #22c55e; }
+.feat-no      { color: #d1d5db; }
+.feat-pro     { color: #3b82f6; }
+.feat-ent     { color: #8b5cf6; }
+
+/* ── Buttons ── */
+.plan-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 
-.plan-card .btn-primary:hover:not(:disabled) {
-  box-shadow:
-    0 6px 14px rgba(59, 130, 246, 0.25);
+.plan-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.plan-btn:disabled { opacity: 0.75; cursor: default; }
+
+.plan-btn-current {
+  background: #f1f5f9; color: #475569;
+  border: 1.5px solid #e2e8f0;
+}
+.plan-btn-current-pro {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  border: 1.5px solid #93c5fd;
+}
+.plan-btn-current-ent {
+  background: linear-gradient(135deg, #faf5ff, #ede9fe);
+  color: #6d28d9;
+  border: 1.5px solid #c4b5fd;
 }
 
-.plan-card .btn-dark:hover:not(:disabled) {
-  box-shadow:
-    0 6px 14px rgba(15, 23, 42, 0.20);
+.plan-btn-outline {
+  background: transparent;
+  border: 1.5px solid #d1d5db;
+  color: #374151;
 }
+.plan-btn-outline:hover { background: #f8fafc; border-color: #9ca3af; }
+
+.plan-btn-pro {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(59,130,246,.28);
+}
+.plan-btn-pro:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(59,130,246,.35); }
+
+.plan-btn-dark {
+  background: #0f172a; color: #fff;
+}
+.plan-btn-dark:hover:not(:disabled) { background: #1e293b; box-shadow: 0 6px 14px rgba(15,23,42,.2); }
+
+/* ==============================
+   Misc
+   ============================== */
+.fs-7 { font-size: 0.95rem; }
+.fs-8 { font-size: 0.85rem; }
+.fs-9 { font-size: 0.75rem; }
 
 /* ==============================
    Responsive
    ============================== */
-
 @media (max-width: 767.98px) {
-  .subscribe-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .plan-card {
-    padding: 1.5rem !important;
-  }
-
-  .featured-plan {
-    margin-top: 0.75rem;
-  }
-
-  .popular-badge {
-    font-size: 0.7rem;
-  }
+  .subscribe-container { padding-left: 1rem; padding-right: 1rem; }
+  .plan-card-header, .plan-card-footer { padding-left: 1.1rem; padding-right: 1.1rem; }
+  .plan-features { padding-left: 1.1rem; padding-right: 1.1rem; }
+  .banner-usage-chips { width: 100%; }
 }

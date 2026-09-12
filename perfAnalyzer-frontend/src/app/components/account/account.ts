@@ -1,8 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService, UserProfile, SubscriptionInfo } from '../../api.service';
+import { Subscription } from 'rxjs';
 
 // ── Country & Dial-Code Data ──────────────────────────────────────────────────
 export interface CountryOption {
@@ -232,8 +233,9 @@ const STATES_BY_COUNTRY: Record<string, string[]> = {
   templateUrl: './account.html',
   styleUrl: './account.css',
 })
-export class Account implements OnInit {
+export class Account implements OnInit, OnDestroy {
   @Output() navigateSection = new EventEmitter<string>();
+  private subscriptionSub: Subscription | null = null;
 
   activeTab: 'profile' | 'subscription' = 'profile';
 
@@ -304,7 +306,7 @@ export class Account implements OnInit {
     this.loadSubscription();
     this.loadActivities();
 
-    this.api.subscriptionUpdated$.subscribe((sub: any) => {
+    this.subscriptionSub = this.api.subscriptionUpdated$.subscribe((sub: any) => {
       this.zone.run(() => {
         this.loadSubscription();
         this.loadProfile();
@@ -313,6 +315,11 @@ export class Account implements OnInit {
         this.cdr.detectChanges();
       });
     });
+  }
+
+  ngOnDestroy() {
+    this.subscriptionSub?.unsubscribe();
+    this.subscriptionSub = null;
   }
 
   loadActivities() {

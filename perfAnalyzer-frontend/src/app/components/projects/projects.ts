@@ -1,6 +1,7 @@
-import { Component, OnInit, HostListener, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ChangeDetectorRef, NgZone } from '@angular/core';
 import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule, UpperCasePipe } from '@angular/common';
 import { ApiService } from '../../api.service';
@@ -32,7 +33,9 @@ import { Monitoring } from '../monitoring/monitoring';
   templateUrl: './projects.html',
   styleUrl: './projects.css',
 })
-export class Projects implements OnInit {
+export class Projects implements OnInit, OnDestroy {
+  private subscriptionUpdatedSub: Subscription | null = null;
+
   // ── Navigation & Sidebar State ───────────────────────────────
   activeSection:
     | 'dashboard'
@@ -119,7 +122,7 @@ export class Projects implements OnInit {
       this.loadUserProfile();
       this.loadUserSubscription();
 
-      this.api.subscriptionUpdated$.subscribe((sub: any) => {
+      this.subscriptionUpdatedSub = this.api.subscriptionUpdated$.subscribe((sub: any) => {
         this.zone.run(() => {
           if (sub && sub.status === 'active' && sub.plan) {
             const p = sub.plan.toLowerCase();
@@ -180,6 +183,11 @@ export class Projects implements OnInit {
     });
 
     this.loadProjects();
+  }
+
+  ngOnDestroy() {
+    this.subscriptionUpdatedSub?.unsubscribe();
+    this.subscriptionUpdatedSub = null;
   }
 
   resolveSectionFromUrl(url: string) {

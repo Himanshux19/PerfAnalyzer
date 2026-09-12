@@ -1,16 +1,68 @@
-<div class="subscribe-container p-4">
+﻿<div class="subscribe-container p-4">
 
-  <!-- Header -->
+  <!-- ── Current Plan Banner ─────────────────────────────────── -->
+  @if (!isLoading && subscription) {
+  <div class="current-plan-banner mb-5" [ngClass]="'banner-' + getCurrentPlan()">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <div class="banner-icon-wrap">
+        <i class="bi"
+          [ngClass]="getCurrentPlan() === 'enterprise' ? 'bi-building-fill' : getCurrentPlan() === 'pro' ? 'bi-stars' : getCurrentPlan() === 'starter' ? 'bi-gem' : 'bi-person-circle'"></i>
+      </div>
+      <div class="flex-grow-1">
+        <div class="banner-plan-name">
+          {{ getCurrentPlan() === 'free' ? 'Free Tier' : (getCurrentPlan() | titlecase) + ' Plan' }}
+          <span class="banner-active-pill ms-2">
+            <i class="bi bi-check-circle-fill me-1"></i>Active
+          </span>
+        </div>
+        <div class="banner-sub-line">
+          @if (getCurrentPlan() === 'free') {
+            You are on the free tier. Contact your administrator to upgrade.
+          } @else if (subscription?.renewsAt) {
+            Renews on {{ subscription?.renewsAt | date:'mediumDate' }}
+          }
+          @if (subscription?.startedAt && getCurrentPlan() !== 'free') {
+            &nbsp;·&nbsp; Started {{ subscription?.startedAt | date:'mediumDate' }}
+          }
+        </div>
+      </div>
+      @if (subscription?.usage) {
+      <div class="banner-usage-chips d-flex gap-3 flex-wrap">
+        <div class="usage-chip">
+          <i class="bi bi-play-circle me-1"></i>
+          <strong>{{ subscription?.usage?.testRunsUsed }}</strong> / {{ subscription?.usage?.testRunsLimit }} Runs
+        </div>
+        <div class="usage-chip">
+          <i class="bi bi-folder2 me-1"></i>
+          <strong>{{ subscription?.usage?.projectsUsed }}</strong> /
+          {{ subscription?.usage?.projectsLimit !== null ? subscription?.usage?.projectsLimit : '∞' }} Workspaces
+        </div>
+        <div class="usage-chip">
+          <i class="bi bi-hdd me-1"></i>
+          <strong>{{ subscription?.usage?.storedResultsGb }}</strong> / {{ subscription?.usage?.storedResultsLimitGb }} GB
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  @if (isLoading) {
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="text-muted fs-8 mt-3">Loading your subscription details...</p>
+  </div>
+  }
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
   <div class="text-center max-w-700 mx-auto mb-5">
-    <span class="badge bg-primary-soft text-primary px-3 py-1.5 fs-8 fw-bold text-uppercase mb-2">
+    <span class="badge bg-primary-soft text-primary px-3 py-1 fs-9 fw-bold text-uppercase mb-2 d-inline-block">
       Flexible Pricing Plans
     </span>
-    <h2 class="display-6 fw-bold text-slate-800 mb-2">Scale Your Performance Testing</h2>
+    <h2 class="fw-bold text-slate-800 mb-2" style="font-size:1.9rem">Scale Your Performance Testing</h2>
     <p class="text-muted fs-7">
       Choose a plan tailored to your development lifecycle — from solo testers to enterprise QA teams.
     </p>
-
-    <!-- Notice alert -->
     @if (noticeMessage) {
     <div class="alert alert-info alert-dismissible fade show mt-3 text-start fs-8 shadow-sm" role="alert">
       <i class="bi bi-info-circle-fill me-2"></i> {{ noticeMessage }}
@@ -19,209 +71,135 @@
     }
   </div>
 
-  <!-- Plans Grid -->
+  <!-- ── Plans Grid ─────────────────────────────────────────── -->
   <div class="row g-4 justify-content-center">
 
-    <!-- 1. Starter Plan -->
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="card plan-card h-100 border-0 shadow-sm rounded-4 p-4 d-flex flex-column bg-white"
-        [class.current-plan-card]="getCurrentPlan() === 'starter'">
-
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold text-slate-800 m-0">Starter</h4>
-          @if (getCurrentPlan() === 'starter') {
-          <span class="badge bg-secondary text-white px-2.5 py-1 fs-9">
-            Current Plan
-          </span>
-          }
+    <!-- 1. Starter / Free Plan -->
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="plan-card h-100 d-flex flex-column"
+        [class.current-plan-card]="getCurrentPlan() === 'free' || getCurrentPlan() === 'starter'">
+        <div class="plan-card-header">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="plan-icon-badge plan-icon-free"><i class="bi bi-person-circle"></i></div>
+            @if (getCurrentPlan() === 'free' || getCurrentPlan() === 'starter') {
+            <span class="current-plan-pill"><i class="bi bi-check-circle-fill me-1"></i>Current</span>
+            }
+          </div>
+          <h5 class="plan-name mt-2">Starter</h5>
+          <div class="plan-price-block">
+            <span class="plan-price-value">$0</span><span class="plan-price-period"> / mo</span>
+          </div>
+          <p class="plan-desc">Essential tools for individual developers testing small APIs.</p>
         </div>
-
-        <div class="plan-price mb-3">
-          <span class="display-5 fw-bold text-slate-800">$0</span>
-          <span class="text-muted fs-8"> / month</span>
-        </div>
-
-        <p class="text-muted fs-8 mb-4">Essential tools for individual developers testing small APIs and websites.</p>
-
-        <ul class="plan-features list-unstyled fs-8 text-slate-700 d-flex flex-column gap-2.5 mb-4">
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span><strong>10</strong> Test Runs per month</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span>Up to <strong>500</strong> Virtual Users</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span><strong>1 GB</strong> Test Results Storage</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span>Up to <strong>3</strong> Workspaces</span>
-          </li>
-          <li class="d-flex align-items-center gap-2 text-muted">
-            <i class="bi bi-x-circle text-secondary"></i>
-            <span>Scheduled Test Execution</span>
-          </li>
-          <li class="d-flex align-items-center gap-2 text-muted">
-            <i class="bi bi-x-circle text-secondary"></i>
-            <span>PDF / HTML Export</span>
-          </li>
+        <ul class="plan-features list-unstyled flex-grow-1">
+          <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>10</strong> Test Runs / mo</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>500</strong> Virtual Users</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>1 GB</strong> Storage</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>3</strong> Workspaces</span></li>
+          <li><i class="bi bi-x-circle feat-no"></i><span class="text-muted">Scheduled Tests</span></li>
+          <li><i class="bi bi-x-circle feat-no"></i><span class="text-muted">PDF / HTML Export</span></li>
         </ul>
-
-        <div class="mt-auto">
-          @if (getCurrentPlan() === 'starter') {
-          <button type="button" class="btn btn-outline-secondary w-100 py-2.5 fw-semibold" disabled>
-            Active Plan
+        <div class="plan-card-footer">
+          @if (getCurrentPlan() === 'free' || getCurrentPlan() === 'starter') {
+          <button class="plan-btn plan-btn-current" disabled>
+            <i class="bi bi-check2 me-1"></i> Your Current Plan
           </button>
           } @else {
-          <button type="button" class="btn btn-outline-primary w-100 py-2.5 fw-semibold"
-            (click)="onSubscribe('starter')">
+          <button class="plan-btn plan-btn-outline" (click)="onSubscribe('starter')">
             Switch to Starter
           </button>
           }
         </div>
-
       </div>
     </div>
 
-    <!-- 2. Pro Plan (Popular) -->
-    <div class="col-12 col-md-6 col-lg-4">
-      <div
-        class="card plan-card featured-plan h-100 border-0 shadow rounded-4 p-4 d-flex flex-column bg-white position-relative"
+    <!-- 2. Pro Plan -->
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="plan-card plan-card-featured h-100 d-flex flex-column"
         [class.current-plan-card]="getCurrentPlan() === 'pro'">
-
-        <!-- Popular Tag -->
-        <div
-          class="popular-badge position-absolute top-0 start-50 translate-middle badge bg-primary px-3 py-1.5 fs-9 text-uppercase fw-bold shadow-sm">
-          Most Popular
+        <div class="popular-ribbon">Most Popular</div>
+        <div class="plan-card-header">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="plan-icon-badge plan-icon-pro"><i class="bi bi-stars"></i></div>
+            @if (getCurrentPlan() === 'pro') {
+            <span class="current-plan-pill"><i class="bi bi-check-circle-fill me-1"></i>Current</span>
+            }
+          </div>
+          <h5 class="plan-name plan-name-pro mt-2">Professional</h5>
+          <div class="plan-price-block">
+            <span class="plan-price-value">$29</span><span class="plan-price-period"> / mo</span>
+          </div>
+          <p class="plan-desc">Advanced load testing, automated scheduling, and rich reports.</p>
         </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-3 mt-1">
-          <h4 class="fw-bold text-primary m-0">Professional</h4>
-          @if (getCurrentPlan() === 'pro') {
-          <span class="badge bg-primary text-white px-2.5 py-1 fs-9">
-            Current Plan
-          </span>
-          }
-        </div>
-
-        <div class="plan-price mb-3">
-          <span class="display-5 fw-bold text-slate-800">$29</span>
-          <span class="text-muted fs-8"> / month</span>
-        </div>
-
-        <p class="text-muted fs-8 mb-4">Advanced load testing, automated scheduling, and rich performance reports.</p>
-
-        <ul class="plan-features list-unstyled fs-8 text-slate-700 d-flex flex-column gap-2.5 mb-4">
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span><strong>100</strong> Test Runs per month</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span>Up to <strong>10,000</strong> Virtual Users</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span><strong>20 GB</strong> Test Results Storage</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span><strong>Unlimited</strong> Workspaces</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span><strong>Scheduled Tests</strong> (Cron & Intervals)</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span><strong>PDF / HTML</strong> Report Exports</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-primary"></i>
-            <span>Priority Support</span>
-          </li>
+        <ul class="plan-features list-unstyled flex-grow-1">
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>100</strong> Test Runs / mo</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>10,000</strong> Virtual Users</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>20 GB</strong> Storage</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>Unlimited</strong> Workspaces</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>Scheduled</strong> Tests (Cron)</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>PDF / HTML</strong> Exports</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span>Priority Support</span></li>
         </ul>
-
-        <div class="mt-auto">
+        <div class="plan-card-footer">
           @if (getCurrentPlan() === 'pro') {
-          <button type="button" class="btn btn-primary w-100 py-2.5 fw-semibold shadow-sm" disabled>
-            Active Plan
+          <button class="plan-btn plan-btn-current plan-btn-current-pro" disabled>
+            <i class="bi bi-check2 me-1"></i> Your Current Plan
           </button>
           } @else {
-          <button type="button" class="btn btn-primary w-100 py-2.5 fw-semibold shadow-sm" (click)="onSubscribe('pro')">
-            <i class="bi bi-stars me-1"></i> Upgrade to Pro
+          <button class="plan-btn plan-btn-pro" (click)="onSubscribe('pro')">
+            <i class="bi bi-stars me-1"></i>
+            {{ getCurrentPlan() === 'enterprise' ? 'Downgrade to Pro' : 'Upgrade to Pro' }}
           </button>
           }
         </div>
-
       </div>
     </div>
 
     <!-- 3. Enterprise Plan -->
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="card plan-card h-100 border-0 shadow-sm rounded-4 p-4 d-flex flex-column bg-white"
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="plan-card h-100 d-flex flex-column"
         [class.current-plan-card]="getCurrentPlan() === 'enterprise'">
-
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold text-slate-800 m-0">Enterprise</h4>
-          @if (getCurrentPlan() === 'enterprise') {
-          <span class="badge bg-dark text-white px-2.5 py-1 fs-9">
-            Current Plan
-          </span>
-          }
+        <div class="plan-card-header">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="plan-icon-badge plan-icon-enterprise"><i class="bi bi-building-fill"></i></div>
+            @if (getCurrentPlan() === 'enterprise') {
+            <span class="current-plan-pill"><i class="bi bi-check-circle-fill me-1"></i>Current</span>
+            }
+          </div>
+          <h5 class="plan-name mt-2">Enterprise</h5>
+          <div class="plan-price-block">
+            <span class="plan-price-value" style="font-size:1.6rem">Custom</span>
+          </div>
+          <p class="plan-desc">Dedicated high-load infrastructure, custom SLA, and team collaboration.</p>
         </div>
-
-        <div class="plan-price mb-3">
-          <span class="display-5 fw-bold text-slate-800">Custom</span>
-        </div>
-
-        <p class="text-muted fs-8 mb-4">Dedicated high-load infrastructure, custom SLA, and team collaboration.</p>
-
-        <ul class="plan-features list-unstyled fs-8 text-slate-700 d-flex flex-column gap-2.5 mb-4">
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span><strong>Unlimited</strong> Test Runs</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span><strong>50,000+</strong> Concurrent Virtual Users</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span><strong>Custom</strong> Storage Quotas</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span>Dedicated Testing Nodes & Workers</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span>Custom Webhooks & Integrations</span>
-          </li>
-          <li class="d-flex align-items-center gap-2">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            <span>Dedicated Account Manager & 99.9% SLA</span>
-          </li>
+        <ul class="plan-features list-unstyled flex-grow-1">
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span><strong>Unlimited</strong> Test Runs</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span><strong>50,000+</strong> Virtual Users</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span><strong>Custom</strong> Storage Quotas</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span>Dedicated Testing Nodes</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span>Custom Webhooks &amp; Integrations</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span>Dedicated Account Manager</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-ent"></i><span>99.9% SLA Guarantee</span></li>
         </ul>
-
-        <div class="mt-auto">
+        <div class="plan-card-footer">
           @if (getCurrentPlan() === 'enterprise') {
-          <button type="button" class="btn btn-dark w-100 py-2.5 fw-semibold" disabled>
-            Active Plan
+          <button class="plan-btn plan-btn-current plan-btn-current-ent" disabled>
+            <i class="bi bi-check2 me-1"></i> Your Current Plan
           </button>
           } @else {
-          <button type="button" class="btn btn-dark w-100 py-2.5 fw-semibold" (click)="onContactEnterprise()">
-            <i class="bi bi-envelope-fill me-1"></i> Contact Enterprise Sales
+          <button class="plan-btn plan-btn-dark" (click)="onContactEnterprise()">
+            <i class="bi bi-envelope-fill me-1"></i> Contact Sales
           </button>
           }
         </div>
-
       </div>
     </div>
 
   </div>
+
+  <p class="text-center text-muted fs-9 mt-5 pb-2">
+    <i class="bi bi-shield-lock me-1"></i>
+    Plan changes are managed by your administrator. Contact support to upgrade or modify your subscription.
+  </p>
 
 </div>

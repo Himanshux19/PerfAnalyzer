@@ -517,207 +517,228 @@
     </div>
     }
 
-    @if (!isLoadingSubscription) {
+    @if (!isLoadingSubscription && subscription) {
 
-    <!-- Case A: Free / No Subscription -->
-    @if (isFreeTier()) {
-    <div class="account-card p-5 text-center">
-
-      <div class="subscription-gem-badge mx-auto mb-3">
-        <i class="bi bi-gem"></i>
-      </div>
-
-      <h3 class="account-tier-title mb-2">Standard Free Tier</h3>
-      <p class="text-muted fs-8 mx-auto mb-4" style="max-width: 540px;">
-        You are currently on the Free plan. Contact your administrator or upgrade to unlock
-        high-concurrency cloud runs, unlimited workspaces, scheduled regression pipelines, and PDF report exports.
-      </p>
-
-      <button type="button" class="btn-upgrade-gradient px-4 py-2.5 mx-auto mb-5 shadow-sm"
-        (click)="navigateToSubscribe()">
-        <i class="bi bi-stars me-1.5"></i> Upgrade to Pro
-      </button>
-
-      <!-- Resource Usage Grid (Free Tier) -->
-      @if (subscription?.usage) {
-      <div class="row g-3 justify-content-center text-start">
-        <div class="col-md-4">
-          <div class="quota-meter-card p-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="quota-meter-title"><i class="bi bi-play-circle me-1"></i> Test Runs</span>
-              <span class="quota-meter-count">{{ subscription?.usage?.testRunsUsed }} / {{
-                subscription?.usage?.testRunsLimit }}</span>
-            </div>
-            <div class="progress quota-progress">
-              <div class="progress-bar bg-primary"
-                [style.width.%]="getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 10)">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="quota-meter-card p-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="quota-meter-title"><i class="bi bi-folder2 me-1"></i> Workspaces</span>
-              <span class="quota-meter-count">{{ subscription?.usage?.projectsUsed }} / {{
-                subscription?.usage?.projectsLimit }}</span>
-            </div>
-            <div class="progress quota-progress">
-              <div class="progress-bar bg-info"
-                [style.width.%]="getUsagePercent(subscription?.usage?.projectsUsed || 0, subscription?.usage?.projectsLimit || 3)">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="quota-meter-card p-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="quota-meter-title"><i class="bi bi-hdd-network me-1"></i> Storage</span>
-              <span class="quota-meter-count">{{ subscription?.usage?.storedResultsGb }} GB / {{
-                subscription?.usage?.storedResultsLimitGb }} GB</span>
-            </div>
-            <div class="progress quota-progress">
-              <div class="progress-bar bg-warning"
-                [style.width.%]="getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 1)">
-              </div>
-            </div>
-          </div>
+    <!-- ── Current Plan Overview Card ────────────────────────── -->
+    <div class="account-card p-4 mb-4">
+      <div class="d-flex align-items-center gap-2 pb-3 mb-4 border-bottom">
+        <span class="card-title-icon text-primary"><i class="bi bi-gem"></i></span>
+        <div>
+          <h4 class="card-section-title m-0">Your Subscription</h4>
+          <p class="text-muted fs-9 m-0">Active plan details and resource usage</p>
         </div>
       </div>
-      }
 
-    </div>
-    }
-
-    <!-- Case B: Active Paid Subscription (Starter / Pro / Enterprise) -->
-    @if (hasActivePlan()) {
-    <div class="row g-4">
-
-      <!-- Plan Overview Card -->
-      <div class="col-12 col-lg-5">
-        <div class="account-card p-4 h-100 d-flex flex-column">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <span class="plan-active-chip" [ngClass]="getPlanColorClass()">
-              <i class="bi bi-gem me-1"></i> {{ subscription?.plan | uppercase }} PLAN
-            </span>
-            <span class="status-chip status-active">
-              <i class="bi bi-check-circle-fill me-1"></i> ACTIVE
-            </span>
+      <!-- Plan Banner Strip -->
+      <div class="sub-plan-strip mb-4" [ngClass]="'strip-' + (subscription?.plan || 'free').toLowerCase()">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="strip-icon">
+            <i class="bi"
+              [ngClass]="isProOrEnterprise() ? (subscription?.plan?.toLowerCase() === 'enterprise' ? 'bi-building-fill' : 'bi-stars') : 'bi-person-circle'"></i>
           </div>
-
-          <h3 class="account-tier-title mb-1">{{ getPlanLabel() }}</h3>
-          <p class="text-muted fs-8 mb-4">{{ getPlanDescription() }}</p>
-
-          <div class="account-meta-stats py-3 mb-4 border-top border-bottom">
-            <div class="meta-stat-row d-flex justify-content-between py-1.5">
-              <span class="meta-stat-label"><i class="bi bi-calendar-check me-1.5"></i> Started On</span>
-              <span class="meta-stat-value">{{ subscription?.startedAt ? (subscription?.startedAt | date:'mediumDate') :
-                'Active' }}</span>
+          <div class="flex-grow-1">
+            <div class="strip-plan-name">
+              <span class="plan-active-chip me-2" [ngClass]="getPlanColorClass()">
+                <i class="bi bi-gem me-1"></i>{{ (subscription?.plan || 'Free') | uppercase }} PLAN
+              </span>
+              <span class="status-chip status-active">
+                <i class="bi bi-check-circle-fill me-1"></i>ACTIVE
+              </span>
             </div>
-            @if (subscription?.renewsAt) {
-            <div class="meta-stat-row d-flex justify-content-between py-1.5 border-top">
-              <span class="meta-stat-label"><i class="bi bi-arrow-repeat me-1.5"></i> Renewal Date</span>
-              <span class="meta-stat-value">{{ subscription?.renewsAt | date:'mediumDate' }}</span>
-            </div>
+            <div class="strip-desc mt-1 text-muted fs-8">{{ getPlanDescription() }}</div>
+          </div>
+          <div class="strip-dates d-flex flex-column gap-1 text-end">
+            @if (subscription?.startedAt) {
+            <span class="fs-9 text-muted"><i class="bi bi-calendar-check me-1"></i>Started {{ subscription?.startedAt | date:'mediumDate' }}</span>
             }
-            <div class="meta-stat-row d-flex justify-content-between py-1.5 border-top">
-              <span class="meta-stat-label"><i class="bi bi-people-fill me-1.5"></i> Max Virtual Users</span>
-              <span class="meta-stat-value fw-bold text-primary">{{ subscription?.usage?.maxVus?.toLocaleString() || '—'
-                }} VUs</span>
-            </div>
+            @if (subscription?.renewsAt) {
+            <span class="fs-9 text-muted"><i class="bi bi-arrow-repeat me-1"></i>Renews {{ subscription?.renewsAt | date:'mediumDate' }}</span>
+            }
+            <span class="fs-9 fw-semibold text-primary"><i class="bi bi-people-fill me-1"></i>{{ (subscription?.usage?.maxVus || 0).toLocaleString() }} max VUs</span>
           </div>
-
-          @if (isStarter()) {
-          <button type="button"
-            class="btn-upgrade-gradient w-100 py-2.5 mt-auto text-center justify-content-center shadow-sm"
-            (click)="navigateToSubscribe()">
-            <i class="bi bi-stars me-1.5"></i> Upgrade to Pro Plan
-          </button>
-          } @else {
-          <button type="button" class="btn-secondary-modern w-100 py-2.5 mt-auto text-center justify-content-center"
-            (click)="navigateToSubscribe()">
-            <i class="bi bi-sliders me-1.5"></i> Manage / Change Plan
-          </button>
-          }
         </div>
       </div>
 
-      <!-- Resource Usage Quota Card -->
+      <!-- Usage Meters -->
       @if (subscription?.usage) {
-      <div class="col-12 col-lg-7">
-        <div class="account-card p-4">
-          <div class="d-flex align-items-center gap-2 pb-3 mb-3 border-bottom">
-            <span class="card-title-icon text-primary"><i class="bi bi-bar-chart-line-fill"></i></span>
-            <h4 class="card-section-title m-0">Resource Usage &amp; Tier Quota</h4>
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <div class="quota-meter-card p-3">
+            <div class="d-flex justify-content-between fs-8 mb-1.5">
+              <span class="fw-semibold text-slate-700"><i class="bi bi-play-circle me-1 text-primary"></i> Monthly Test Runs</span>
+              <span class="text-slate-600 fw-semibold">{{ subscription?.usage?.testRunsUsed }} / {{ subscription?.usage?.testRunsLimit }}</span>
+            </div>
+            <div class="progress quota-progress">
+              <div class="progress-bar"
+                [style.width.%]="getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 10)"
+                [style.background-color]="getProgressBarColor(getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 10))">
+              </div>
+            </div>
           </div>
-
-          <div class="d-flex flex-column gap-3">
-
-            <!-- Monthly Test Runs -->
-            <div class="quota-meter-card p-3">
-              <div class="d-flex justify-content-between fs-8 mb-1.5">
-                <span class="fw-semibold text-slate-700"><i class="bi bi-play-circle me-1 text-primary"></i> Monthly
-                  Test Runs</span>
-                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.testRunsUsed }} / {{
-                  subscription?.usage?.testRunsLimit }} runs</span>
-              </div>
-              <div class="progress quota-progress">
-                <div class="progress-bar"
-                  [style.width.%]="getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 100)"
-                  [style.background-color]="getProgressBarColor(getUsagePercent(subscription?.usage?.testRunsUsed || 0, subscription?.usage?.testRunsLimit || 100))">
-                </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="quota-meter-card p-3">
+            <div class="d-flex justify-content-between fs-8 mb-1.5">
+              <span class="fw-semibold text-slate-700"><i class="bi bi-folder2-open me-1 text-success"></i> Workspaces</span>
+              @if (subscription?.usage?.projectsLimit) {
+              <span class="text-slate-600 fw-semibold">{{ subscription?.usage?.projectsUsed }} / {{ subscription?.usage?.projectsLimit }}</span>
+              } @else {
+              <span class="text-slate-600 fw-semibold">{{ subscription?.usage?.projectsUsed }} / ∞</span>
+              }
+            </div>
+            <div class="progress quota-progress">
+              <div class="progress-bar bg-success"
+                [style.width.%]="subscription?.usage?.projectsLimit ? getUsagePercent(subscription?.usage?.projectsUsed || 0, subscription?.usage?.projectsLimit || 10) : 15">
               </div>
             </div>
-
-            <!-- Workspaces -->
-            <div class="quota-meter-card p-3">
-              <div class="d-flex justify-content-between fs-8 mb-1.5">
-                <span class="fw-semibold text-slate-700"><i class="bi bi-folder2-open me-1 text-success"></i>
-                  Workspaces</span>
-                @if (subscription?.usage?.projectsLimit) {
-                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.projectsUsed }} / {{
-                  subscription?.usage?.projectsLimit }}</span>
-                } @else {
-                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.projectsUsed }} / Unlimited</span>
-                }
-              </div>
-              <div class="progress quota-progress">
-                <div class="progress-bar bg-success"
-                  [style.width.%]="subscription?.usage?.projectsLimit ? getUsagePercent(subscription?.usage?.projectsUsed || 0, subscription?.usage?.projectsLimit || 10) : 20">
-                </div>
-              </div>
-            </div>
-
-            <!-- Storage Consumption -->
-            <div class="quota-meter-card p-3">
-              <div class="d-flex justify-content-between fs-8 mb-1.5">
-                <span class="fw-semibold text-slate-700"><i class="bi bi-hdd-network me-1 text-info"></i> Storage
-                  Consumption</span>
-                <span class="text-slate-600 font-semibold">{{ subscription?.usage?.storedResultsGb }} GB / {{
-                  subscription?.usage?.storedResultsLimitGb }} GB</span>
-              </div>
-              <div class="progress quota-progress">
-                <div class="progress-bar"
-                  [style.width.%]="getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 20)"
-                  [style.background-color]="getProgressBarColor(getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 20))">
-                </div>
-              </div>
-            </div>
-
           </div>
-
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="quota-meter-card p-3">
+            <div class="d-flex justify-content-between fs-8 mb-1.5">
+              <span class="fw-semibold text-slate-700"><i class="bi bi-hdd-network me-1 text-info"></i> Storage</span>
+              <span class="text-slate-600 fw-semibold">{{ subscription?.usage?.storedResultsGb }} / {{ subscription?.usage?.storedResultsLimitGb }} GB</span>
+            </div>
+            <div class="progress quota-progress">
+              <div class="progress-bar"
+                [style.width.%]="getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 1)"
+                [style.background-color]="getProgressBarColor(getUsagePercent(subscription?.usage?.storedResultsGb || 0, subscription?.usage?.storedResultsLimitGb || 1))">
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       }
-
     </div>
-    }
+
+    <!-- ── All Plans Cards ────────────────────────────────────── -->
+    <div class="account-card p-4">
+      <div class="d-flex align-items-center gap-2 pb-3 mb-4 border-bottom">
+        <span class="card-title-icon text-primary"><i class="bi bi-grid-1x2-fill"></i></span>
+        <div>
+          <h4 class="card-section-title m-0">Available Plans</h4>
+          <p class="text-muted fs-9 m-0">Contact your administrator to change your plan</p>
+        </div>
+      </div>
+
+      <div class="row g-3">
+
+        <!-- Starter / Free -->
+        <div class="col-12 col-md-4">
+          <div class="acct-plan-card d-flex flex-column h-100"
+            [class.acct-plan-current]="isFreeTier()">
+            @if (isFreeTier()) {
+            <span class="acct-current-pill"><i class="bi bi-check-circle-fill me-1"></i>Current Plan</span>
+            }
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="acct-plan-icon acct-icon-free"><i class="bi bi-person-circle"></i></div>
+              <div>
+                <div class="acct-plan-title">Starter</div>
+                <div class="acct-plan-price">$0 <span class="acct-plan-period">/ mo</span></div>
+              </div>
+            </div>
+            <ul class="acct-features list-unstyled flex-grow-1 mt-1">
+              <li><i class="bi bi-check-circle-fill af-yes"></i><span><strong>10</strong> Test Runs</span></li>
+              <li><i class="bi bi-check-circle-fill af-yes"></i><span><strong>500</strong> Virtual Users</span></li>
+              <li><i class="bi bi-check-circle-fill af-yes"></i><span><strong>1 GB</strong> Storage</span></li>
+              <li><i class="bi bi-check-circle-fill af-yes"></i><span><strong>3</strong> Workspaces</span></li>
+              <li><i class="bi bi-x-circle af-no"></i><span class="text-muted">Scheduled Tests</span></li>
+              <li><i class="bi bi-x-circle af-no"></i><span class="text-muted">PDF / HTML Export</span></li>
+            </ul>
+            <div class="mt-3">
+              @if (isFreeTier()) {
+              <button class="acct-plan-btn acct-plan-btn-current w-100" disabled>
+                <i class="bi bi-check2 me-1"></i> Your Current Plan
+              </button>
+              } @else {
+              <button class="acct-plan-btn acct-plan-btn-outline w-100" (click)="navigateToSubscribe()">
+                Switch to Starter
+              </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Pro -->
+        <div class="col-12 col-md-4">
+          <div class="acct-plan-card acct-plan-card-pro d-flex flex-column h-100"
+            [class.acct-plan-current]="isStarter() ? false : isProOrEnterprise() && subscription?.plan?.toLowerCase() === 'pro'">
+            <div class="acct-popular-tag">Most Popular</div>
+            @if (subscription?.plan?.toLowerCase() === 'pro' && hasActivePlan()) {
+            <span class="acct-current-pill acct-current-pill-pro"><i class="bi bi-check-circle-fill me-1"></i>Current Plan</span>
+            }
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="acct-plan-icon acct-icon-pro"><i class="bi bi-stars"></i></div>
+              <div>
+                <div class="acct-plan-title acct-plan-title-pro">Professional</div>
+                <div class="acct-plan-price">$29 <span class="acct-plan-period">/ mo</span></div>
+              </div>
+            </div>
+            <ul class="acct-features list-unstyled flex-grow-1 mt-1">
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span><strong>100</strong> Test Runs</span></li>
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span><strong>10,000</strong> Virtual Users</span></li>
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span><strong>20 GB</strong> Storage</span></li>
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span><strong>Unlimited</strong> Workspaces</span></li>
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span>Scheduled Tests (Cron)</span></li>
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span>PDF / HTML Exports</span></li>
+              <li><i class="bi bi-check-circle-fill af-pro"></i><span>Priority Support</span></li>
+            </ul>
+            <div class="mt-3">
+              @if (subscription?.plan?.toLowerCase() === 'pro' && hasActivePlan()) {
+              <button class="acct-plan-btn acct-plan-btn-current-pro w-100" disabled>
+                <i class="bi bi-check2 me-1"></i> Your Current Plan
+              </button>
+              } @else {
+              <button class="acct-plan-btn acct-plan-btn-pro w-100" (click)="navigateToSubscribe()">
+                <i class="bi bi-stars me-1"></i>
+                {{ isFreeTier() || isStarter() ? 'Upgrade to Pro' : 'Switch to Pro' }}
+              </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Enterprise -->
+        <div class="col-12 col-md-4">
+          <div class="acct-plan-card d-flex flex-column h-100"
+            [class.acct-plan-current]="subscription?.plan?.toLowerCase() === 'enterprise' && hasActivePlan()">
+            @if (subscription?.plan?.toLowerCase() === 'enterprise' && hasActivePlan()) {
+            <span class="acct-current-pill acct-current-pill-ent"><i class="bi bi-check-circle-fill me-1"></i>Current Plan</span>
+            }
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="acct-plan-icon acct-icon-ent"><i class="bi bi-building-fill"></i></div>
+              <div>
+                <div class="acct-plan-title">Enterprise</div>
+                <div class="acct-plan-price" style="font-size:0.95rem;font-weight:700;color:#6d28d9">Custom</div>
+              </div>
+            </div>
+            <ul class="acct-features list-unstyled flex-grow-1 mt-1">
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span><strong>Unlimited</strong> Test Runs</span></li>
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span><strong>50,000+</strong> Virtual Users</span></li>
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span>Custom Storage Quotas</span></li>
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span>Dedicated Nodes</span></li>
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span>Webhooks &amp; Integrations</span></li>
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span>Dedicated Account Manager</span></li>
+              <li><i class="bi bi-check-circle-fill af-ent"></i><span>99.9% SLA</span></li>
+            </ul>
+            <div class="mt-3">
+              @if (subscription?.plan?.toLowerCase() === 'enterprise' && hasActivePlan()) {
+              <button class="acct-plan-btn acct-plan-btn-current-ent w-100" disabled>
+                <i class="bi bi-check2 me-1"></i> Your Current Plan
+              </button>
+              } @else {
+              <button class="acct-plan-btn acct-plan-btn-dark w-100" (click)="navigateToSubscribe()">
+                <i class="bi bi-envelope-fill me-1"></i> Contact Sales
+              </button>
+              }
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
     }
-
-
 
   </div>
   }

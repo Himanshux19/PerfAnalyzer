@@ -823,6 +823,8 @@ export class ApiService {
   subscriptionUpdated$ = new Subject<{ plan: string; status: string }>();
   private sessionSocket: WebSocket | null = null;
   private sessionCheckInterval: any = null;
+  private wsReconnectTimeout: any = null;
+  private wsReconnectDelay = 2000; // ms, doubles on each retry, capped at 30s
   private isLoggingOut = false;
 
   initSessionWatcher() {
@@ -832,6 +834,36 @@ export class ApiService {
     if (!token || role === 'superadmin') return;
 
     this.isLoggingOut = false;
+    this.wsReconnectDelay = 2000; // reset backoff on explicit init
+    this.connectSessionSocket();
+
+    // High-frequency backup heartbeat check every 3 seconds
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+    }
+    this.sessionCheckInterval = setInterval(() => {
+      const currentToken = localStorage.getItem('auth_token');
+      const currentRole = localStorage.getItem('role');
+      if (!currentToken || currentRole === 'superadmin' || this.isLoggingOut) {
+        clearInterval(this.sessionCheckInterval);
+        return;
+      }
+      this.checkSessionStatus().subscribe({
+        error: (err) => {
+          if (err.status === 401 || err.status === 403) {
+            const msg =
+              err.error?.detail || 'Your account has been suspended or deleted by administrator.';
+            this.handleForcedLogout(msg);
+          }
+        },
+      });
+    }, 3000);
+  }
+
+  private connectSessionSocket() {
+    if (typeof window === 'undefined' || this.isLoggingOut) return;
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
 
     // Connect WebSocket for instantaneous 0ms session termination & live subscription sync
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -845,6 +877,10 @@ export class ApiService {
         } catch (_) {}
       }
       this.sessionSocket = new WebSocket(wsUrl);
+
+      this.sessionSocket.onopen = () => {
+        this.wsReconnectDelay = 2000; // reset on successful connection
+      };
 
       this.sessionSocket.onmessage = (event) => {
         try {
@@ -874,33 +910,33 @@ export class ApiService {
               }
             },
           });
+        } else if (!this.isLoggingOut) {
+          if (this.wsReconnectTimeout) {
+            clearTimeout(this.wsReconnectTimeout);
+          }
+          this.wsReconnectTimeout = setTimeout(() => {
+            this.connectSessionSocket();
+          }, this.wsReconnectDelay);
+          this.wsReconnectDelay = Math.min(this.wsReconnectDelay * 2, 30000);
         }
+      };
+
+      this.sessionSocket.onerror = () => {
+        try {
+          this.sessionSocket?.close();
+        } catch (_) {}
       };
     } catch (e) {
       console.warn('Real-time session watcher socket unavailable, falling back to polling.', e);
-    }
-
-    // High-frequency backup heartbeat check every 3 seconds
-    if (this.sessionCheckInterval) {
-      clearInterval(this.sessionCheckInterval);
-    }
-    this.sessionCheckInterval = setInterval(() => {
-      const currentToken = localStorage.getItem('auth_token');
-      const currentRole = localStorage.getItem('role');
-      if (!currentToken || currentRole === 'superadmin' || this.isLoggingOut) {
-        clearInterval(this.sessionCheckInterval);
-        return;
+      // Schedule a reconnect attempt even if we couldn't open the socket
+      if (!this.isLoggingOut) {
+        if (this.wsReconnectTimeout) clearTimeout(this.wsReconnectTimeout);
+        this.wsReconnectTimeout = setTimeout(() => {
+          this.connectSessionSocket();
+        }, this.wsReconnectDelay);
+        this.wsReconnectDelay = Math.min(this.wsReconnectDelay * 2, 30000);
       }
-      this.checkSessionStatus().subscribe({
-        error: (err) => {
-          if (err.status === 401 || err.status === 403) {
-            const msg =
-              err.error?.detail || 'Your account has been suspended or deleted by administrator.';
-            this.handleForcedLogout(msg);
-          }
-        },
-      });
-    }, 3000);
+    }
   }
 
   handleForcedLogout(reason: string) {
@@ -916,6 +952,10 @@ export class ApiService {
     if (this.sessionCheckInterval) {
       clearInterval(this.sessionCheckInterval);
       this.sessionCheckInterval = null;
+    }
+    if (this.wsReconnectTimeout) {
+      clearTimeout(this.wsReconnectTimeout);
+      this.wsReconnectTimeout = null;
     }
 
     localStorage.removeItem('auth_token');

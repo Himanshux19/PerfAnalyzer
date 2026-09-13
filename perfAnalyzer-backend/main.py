@@ -218,7 +218,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS user_subscriptions (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
-                plan VARCHAR(50) DEFAULT 'starter',
+                plan VARCHAR(50) DEFAULT 'free',
                 status VARCHAR(50) DEFAULT 'active',
                 started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 renews_at TIMESTAMP
@@ -331,6 +331,16 @@ def init_db():
 
         conn3 = get_db_connection(DB_NAME)
         ensure_project_files_schema(conn3)
+        with conn3.cursor() as cur3:
+            cur3.execute("UPDATE user_subscriptions SET plan = 'free' WHERE plan = 'starter';")
+            cur3.execute("SELECT COUNT(*) FROM users WHERE username = 'admin';")
+            if cur3.fetchone()[0] == 0:
+                cur3.execute("""
+                    INSERT INTO users (username, password_hash, full_name, role, status, created_at)
+                    VALUES ('admin', %s, 'Super Administrator', 'superadmin', 'active', CURRENT_TIMESTAMP)
+                    ON CONFLICT (username) DO NOTHING;
+                """, (hash_password("admin"),))
+        conn3.commit()
         conn3.close()
         print("PostgreSQL Database initialized successfully.")
     except Exception as e:
@@ -685,9 +695,10 @@ async def session_websocket_endpoint(websocket: WebSocket, token: Optional[str] 
             pass
 
 
-# ── Super Admin Helpers & Endpoints ─────────────────────────
+# ── Super Admin & Admin Helpers & Endpoints ─────────────────
 
 def verify_superadmin_token(authorization: Optional[str] = Header(None)):
+    """Enforces strictly Super Administrator access."""
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header.")
     try:
@@ -696,7 +707,26 @@ def verify_superadmin_token(authorization: Optional[str] = Header(None)):
         token = authorization.split(" ")[1]
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("role") != "superadmin":
-            raise HTTPException(status_code=403, detail="Access denied. Super Admin role required.")
+            raise HTTPException(status_code=403, detail="Access denied. Super Administrator privileges required.")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired.")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token.")
+
+
+def verify_admin_token(authorization: Optional[str] = Header(None)):
+    """Allows access for both Super Administrator and Administrator roles."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header.")
+    try:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid token format.")
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        role = payload.get("role")
+        if role not in ["superadmin", "admin"]:
+            raise HTTPException(status_code=403, detail="Access denied. Administrator privileges required.")
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired.")
@@ -718,10 +748,12 @@ def superadmin_login(username: str = Form(...), password: str = Form(...)):
                     raise HTTPException(status_code=401, detail="Invalid username or password.")
                     
                 pwd_hash, full_name, role, status = row
-                if role != "superadmin":
-                    raise HTTPException(status_code=403, detail="Access denied. User is not a Super Admin.")
+                if role not in ["superadmin", "admin"]:
+                    raise HTTPException(status_code=403, detail="Access denied. Administrator privileges required.")
                 if status == 'suspended':
                     raise HTTPException(status_code=403, detail="Your account is suspended. Please contact the administrator.")
+
+                cur.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE username = %s;", (username,))
         
         payload = {
             "username": username,
@@ -732,7 +764,7 @@ def superadmin_login(username: str = Form(...), password: str = Form(...)):
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
         
         return JSONResponse({
-            "message": "Super Admin login successful.",
+            "message": "Admin login successful.",
             "token": token,
             "username": username,
             "full_name": full_name,
@@ -745,7 +777,7 @@ def superadmin_login(username: str = Form(...), password: str = Form(...)):
 
 
 @app.get("/superadmin/users")
-def list_users(current_user: dict = Depends(verify_superadmin_token)):
+def list_users(current_user: dict = Depends(verify_admin_token)):
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
@@ -773,6 +805,7 @@ def list_users(current_user: dict = Depends(verify_superadmin_token)):
                         (SELECT s.started_at FROM user_subscriptions s WHERE s.username = u.username AND s.status = 'active' LIMIT 1) AS sub_started_at,
                         (SELECT s.renews_at FROM user_subscriptions s WHERE s.username = u.username AND s.status = 'active' LIMIT 1) AS sub_renews_at
                     FROM users u
+                    WHERE u.role NOT IN ('superadmin', 'admin')
                     ORDER BY u.created_at DESC;
                 """)
                 rows = cur.fetchall()
@@ -801,9 +834,9 @@ def list_users(current_user: dict = Depends(verify_superadmin_token)):
                 },
                 "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "",
                 "last_login_at": last_login_at.strftime("%Y-%m-%d %H:%M:%S") if last_login_at else "",
-                "workspace_count": workspace_count or 0,
-                "file_count": file_count or 0,
-                "run_count": run_count or 0,
+                "workspace_count": int(workspace_count or 0),
+                "file_count": int(file_count or 0),
+                "run_count": int(run_count or 0),
                 "subscription": {
                     "plan": (sub_plan or "free").lower(),
                     "status": sub_status or "none",
@@ -817,7 +850,7 @@ def list_users(current_user: dict = Depends(verify_superadmin_token)):
 
 
 @app.delete("/superadmin/users/{user_id}")
-async def delete_user(user_id: int, current_user: dict = Depends(verify_superadmin_token)):
+async def delete_user(user_id: int, current_user: dict = Depends(verify_admin_token)):
     try:
         with db_session() as conn:
             with conn:
@@ -828,8 +861,11 @@ async def delete_user(user_id: int, current_user: dict = Depends(verify_superadm
                         raise HTTPException(status_code=404, detail="User not found.")
                     username, role, full_name = row
                     
-                    if username == current_user.get("username"):
-                        raise HTTPException(status_code=400, detail="Super Admin cannot delete themselves.")
+                    if role in ["superadmin", "admin"]:
+                        raise HTTPException(status_code=400, detail="Administrators cannot be deleted via the user directory. Manage administrators in the Administrators tab.")
+
+                    if username == "admin":
+                        raise HTTPException(status_code=400, detail="The default primary Super Administrator account cannot be deleted.")
                     
                     # Record in deleted_users audit archive table
                     cur.execute("""
@@ -849,7 +885,7 @@ async def delete_user(user_id: int, current_user: dict = Depends(verify_superadm
 
 
 @app.get("/superadmin/deleted-users")
-def list_deleted_users(current_user: dict = Depends(verify_superadmin_token)):
+def list_deleted_users(current_user: dict = Depends(verify_admin_token)):
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
@@ -881,8 +917,8 @@ def list_deleted_users(current_user: dict = Depends(verify_superadmin_token)):
 @app.put("/superadmin/users/{user_id}/role")
 def update_user_role(user_id: int, role: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
     role = role.strip().lower()
-    if role not in ["user", "superadmin"]:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'user' or 'superadmin'.")
+    if role not in ["user", "admin", "superadmin"]:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'user', 'admin', or 'superadmin'.")
         
     try:
         with db_session() as conn:
@@ -896,15 +932,20 @@ def update_user_role(user_id: int, role: str = Form(...), current_user: dict = D
                     
                     if username == current_user.get("username") and role != "superadmin":
                         raise HTTPException(status_code=400, detail="Super Admin cannot demote themselves.")
+
+                    if username == "admin" and role != "superadmin":
+                        raise HTTPException(status_code=400, detail="The primary Super Administrator account role cannot be changed.")
                         
                     cur.execute("UPDATE users SET role = %s WHERE id = %s;", (role, user_id))
-        return JSONResponse({"message": "User role updated successfully."})
+        return JSONResponse({"message": f"User role updated to {role}."})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.put("/superadmin/users/{user_id}/status")
-async def update_user_status(user_id: int, status: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+async def update_user_status(user_id: int, status: str = Form(...), current_user: dict = Depends(verify_admin_token)):
     status = status.strip().lower()
     if status not in ["active", "suspended"]:
         raise HTTPException(status_code=400, detail="Invalid status. Must be 'active' or 'suspended'.")
@@ -913,14 +954,14 @@ async def update_user_status(user_id: int, status: str = Form(...), current_user
         with db_session() as conn:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT username FROM users WHERE id = %s;", (user_id,))
+                    cur.execute("SELECT username, role FROM users WHERE id = %s;", (user_id,))
                     row = cur.fetchone()
                     if not row:
                         raise HTTPException(status_code=404, detail="User not found.")
-                    username = row[0]
+                    username, target_role = row
                     
-                    if username == current_user.get("username") and status != "active":
-                        raise HTTPException(status_code=400, detail="Super Admin cannot suspend themselves.")
+                    if target_role in ["superadmin", "admin"]:
+                        raise HTTPException(status_code=400, detail="Administrators cannot be managed via the regular user directory. Use the Administrators tab.")
                         
                     cur.execute("UPDATE users SET status = %s WHERE id = %s;", (status, user_id))
         
@@ -936,9 +977,9 @@ async def update_user_status(user_id: int, status: str = Form(...), current_user
 
 
 @app.put("/superadmin/users/{user_id}/subscription")
-async def update_user_subscription(user_id: int, plan: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+async def update_user_subscription(user_id: int, plan: str = Form(...), current_user: dict = Depends(verify_admin_token)):
     plan = plan.strip().lower()
-    valid_plans = ["starter", "pro", "enterprise", "free"]
+    valid_plans = ["free", "pro", "enterprise"]
     if plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
 
@@ -946,11 +987,13 @@ async def update_user_subscription(user_id: int, plan: str = Form(...), current_
         with db_session() as conn:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT username FROM users WHERE id = %s;", (user_id,))
+                    cur.execute("SELECT username, role FROM users WHERE id = %s;", (user_id,))
                     row = cur.fetchone()
                     if not row:
                         raise HTTPException(status_code=404, detail="User not found.")
-                    username = row[0]
+                    username, target_role = row
+                    if target_role in ["superadmin", "admin"]:
+                        raise HTTPException(status_code=400, detail="Administrator accounts do not require or hold subscription tiers.")
 
                     if plan == "free":
                         cur.execute("DELETE FROM user_subscriptions WHERE username = %s;", (username,))
@@ -974,31 +1017,28 @@ async def update_user_subscription(user_id: int, plan: str = Form(...), current_
 
 
 @app.get("/superadmin/analytics")
-def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
+def get_analytics(current_user: dict = Depends(verify_admin_token)):
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
-                # Users count
-                cur.execute("SELECT COUNT(*) FROM users;")
+                # Regular users count (excluding administrators)
+                cur.execute("SELECT COUNT(*) FROM users WHERE role NOT IN ('superadmin', 'admin');")
                 total_users = cur.fetchone()[0]
 
-                cur.execute("SELECT COUNT(*) FROM users WHERE status = 'active';")
+                cur.execute("SELECT COUNT(*) FROM users WHERE role NOT IN ('superadmin', 'admin') AND status = 'active';")
                 active_users = cur.fetchone()[0]
 
-                cur.execute("SELECT COUNT(*) FROM users WHERE status = 'suspended';")
+                cur.execute("SELECT COUNT(*) FROM users WHERE role NOT IN ('superadmin', 'admin') AND status = 'suspended';")
                 suspended_users = cur.fetchone()[0]
 
-                # Subscriptions breakdown
-                cur.execute("SELECT COUNT(*) FROM user_subscriptions WHERE plan = 'starter' AND status = 'active';")
-                starter_users = cur.fetchone()[0]
-
+                # Subscriptions breakdown (Free, Pro, Enterprise)
                 cur.execute("SELECT COUNT(*) FROM user_subscriptions WHERE plan = 'pro' AND status = 'active';")
                 pro_users = cur.fetchone()[0]
 
                 cur.execute("SELECT COUNT(*) FROM user_subscriptions WHERE plan = 'enterprise' AND status = 'active';")
                 enterprise_users = cur.fetchone()[0]
 
-                free_users = max(0, total_users - (starter_users + pro_users + enterprise_users))
+                free_users = max(0, total_users - (pro_users + enterprise_users))
 
                 # Workspaces count
                 cur.execute("SELECT COUNT(*) FROM projects;")
@@ -1029,7 +1069,6 @@ def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
             "active_users": active_users,
             "suspended_users": suspended_users,
             "free_users": free_users,
-            "starter_users": starter_users,
             "pro_users": pro_users,
             "enterprise_users": enterprise_users,
             "total_workspaces": total_workspaces,
@@ -1042,6 +1081,200 @@ def get_analytics(current_user: dict = Depends(verify_superadmin_token)):
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error during analytics fetch: {str(e)}")
+
+
+# ── Administrator Management Endpoints (Super Admin Only) ───────
+
+@app.get("/superadmin/admins")
+def list_admins(current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, username, full_name, role, status, phone, created_at, last_login_at
+                    FROM users
+                    WHERE role IN ('superadmin', 'admin')
+                    ORDER BY (role = 'superadmin') DESC, created_at ASC;
+                """)
+                rows = cur.fetchall()
+                admins = []
+                for r in rows:
+                    uid, uname, fname, role, status, phone, cat, lat = r
+                    admins.append({
+                        "id": uid,
+                        "username": uname,
+                        "full_name": fname or "",
+                        "role": role,
+                        "status": status or "active",
+                        "phone": phone or "",
+                        "created_at": cat.strftime("%Y-%m-%d %H:%M:%S") if cat else "",
+                        "last_login_at": lat.strftime("%Y-%m-%d %H:%M:%S") if lat else ""
+                    })
+                return JSONResponse(admins)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/superadmin/admins")
+def create_admin(
+    username: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(""),
+    phone: str = Form(""),
+    role: str = Form("admin"),
+    current_user: dict = Depends(verify_superadmin_token)
+):
+    username = username.strip().lower()
+    role = role.strip().lower()
+    if role not in ["admin", "superadmin"]:
+        role = "admin"
+
+    if not username or len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters long.")
+    if not password or len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT id FROM users WHERE username = %s;", (username,))
+                    if cur.fetchone():
+                        raise HTTPException(status_code=400, detail=f"An account with username '{username}' already exists.")
+
+                    pwd_hash = hash_password(password)
+                    cur.execute("""
+                        INSERT INTO users (username, password_hash, full_name, role, status, phone, created_at)
+                        VALUES (%s, %s, %s, %s, 'active', %s, CURRENT_TIMESTAMP)
+                        RETURNING id, created_at;
+                    """, (username, pwd_hash, full_name.strip(), role, phone.strip()))
+                    row = cur.fetchone()
+                    new_id = row[0]
+                    created_at = row[1]
+
+                    log_user_activity(username, "admin", "Admin Account Created", f"Created by {current_user.get('username')}", "success", "bi-shield-plus")
+
+        return JSONResponse({
+            "message": f"Administrator '{username}' created successfully.",
+            "admin": {
+                "id": new_id,
+                "username": username,
+                "full_name": full_name,
+                "role": role,
+                "status": "active",
+                "phone": phone,
+                "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else ""
+            }
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.put("/superadmin/admins/{admin_id}/status")
+async def toggle_admin_status(admin_id: int, status: str = Form(...), current_user: dict = Depends(verify_superadmin_token)):
+    status = status.strip().lower()
+    if status not in ["active", "suspended"]:
+        raise HTTPException(status_code=400, detail="Status must be 'active' or 'suspended'.")
+
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username, role FROM users WHERE id = %s;", (admin_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="Administrator not found.")
+                    
+                    target_username, target_role = row
+                    if target_role not in ["superadmin", "admin"]:
+                        raise HTTPException(status_code=400, detail="Target user is not an administrator.")
+
+                    if target_username == current_user.get("username"):
+                        raise HTTPException(status_code=400, detail="You cannot suspend your own administrator account.")
+
+                    if target_username == "admin":
+                        raise HTTPException(status_code=400, detail="The primary Super Administrator cannot be suspended.")
+
+                    cur.execute("UPDATE users SET status = %s WHERE id = %s;", (status, admin_id))
+
+        if status == "suspended":
+            await session_manager.terminate_user_sessions(target_username, "suspended")
+
+        return JSONResponse({"message": f"Administrator '{target_username}' is now {status.upper()}."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.delete("/superadmin/admins/{admin_id}")
+def delete_admin(admin_id: int, current_user: dict = Depends(verify_superadmin_token)):
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT username, role, full_name FROM users WHERE id = %s;", (admin_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="Administrator not found.")
+                    
+                    target_username, target_role, full_name = row
+                    if target_role not in ["superadmin", "admin"]:
+                        raise HTTPException(status_code=400, detail="Target user is not an administrator.")
+
+                    if target_username == current_user.get("username"):
+                        raise HTTPException(status_code=400, detail="You cannot delete your own administrator account.")
+
+                    if target_username == "admin":
+                        raise HTTPException(status_code=400, detail="The default primary Super Administrator account cannot be deleted.")
+
+                    # Delete admin
+                    cur.execute("DELETE FROM users WHERE id = %s;", (admin_id,))
+                    # Archive in deleted_users
+                    cur.execute("""
+                        INSERT INTO deleted_users (user_id, username, full_name, role, deleted_reason, deleted_by, deleted_at)
+                        VALUES (%s, %s, %s, %s, 'Administrator Account Terminated', %s, CURRENT_TIMESTAMP);
+                    """, (admin_id, target_username, full_name or "", target_role, current_user.get("username", "superadmin")))
+
+        return JSONResponse({"message": f"Administrator '{target_username}' deleted successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/admin/change-password")
+def admin_change_password(
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    current_user: dict = Depends(verify_admin_token)
+):
+    username = current_user.get("username")
+    if not new_password or len(new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters long.")
+
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT password_hash FROM users WHERE username = %s;", (username,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="Administrator account not found.")
+
+                    if row[0] != hash_password(old_password):
+                        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+                    cur.execute("UPDATE users SET password_hash = %s WHERE username = %s;", (hash_password(new_password), username))
+                    log_user_activity(username, "security", "Password Changed", "Administrator updated their login password", "success", "bi-key")
+
+        return JSONResponse({"message": "Password changed successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 # ── User Account Management Endpoints ────────────────────────
@@ -1201,12 +1434,20 @@ async def upload_avatar(file: UploadFile = File(...), current_user: dict = Depen
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
+@app.get("/api/users/me/avatar")
+def get_my_avatar(current_user: dict = Depends(verify_user_token)):
+    username = current_user.get("username", "")
+    return get_user_avatar(username)
+
+
 @app.get("/api/users/avatar/{username}")
 def get_user_avatar(username: str):
     try:
+        import urllib.parse
+        cleaned_username = urllib.parse.unquote(username).strip().lower()
         with db_session() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT avatar_filename FROM users WHERE username = %s;", (username.strip().lower(),))
+                cur.execute("SELECT avatar_filename FROM users WHERE LOWER(username) = %s;", (cleaned_username,))
                 row = cur.fetchone()
                 if not row or not row[0]:
                     raise HTTPException(status_code=404, detail="Avatar not found.")
@@ -1319,7 +1560,7 @@ def get_my_deletion_request(current_user: dict = Depends(verify_user_token)):
 
 @app.get("/api/users/me/subscription")
 def get_user_subscription(current_user: dict = Depends(verify_user_token)):
-    username = current_user.get("username")
+    username = (current_user.get("username") or "").strip().lower()
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
@@ -1332,10 +1573,12 @@ def get_user_subscription(current_user: dict = Depends(verify_user_token)):
                 
                 # Compute usage stats
                 cur.execute("SELECT COUNT(*) FROM test_results WHERE username = %s;", (username,))
-                test_runs_used = cur.fetchone()[0]
+                test_runs_row = cur.fetchone()
+                test_runs_used = int(test_runs_row[0]) if test_runs_row and test_runs_row[0] is not None else 0
                 
                 cur.execute("SELECT COUNT(*) FROM projects WHERE owner = %s;", (username,))
-                projects_used = cur.fetchone()[0]
+                projects_row = cur.fetchone()
+                projects_used = int(projects_row[0]) if projects_row and projects_row[0] is not None else 0
                 
                 cur.execute("""
                     SELECT COALESCE(SUM(pf.file_size), 0)
@@ -1343,14 +1586,17 @@ def get_user_subscription(current_user: dict = Depends(verify_user_token)):
                     JOIN projects p ON pf.project_id = p.id
                     WHERE p.owner = %s;
                 """, (username,))
-                stored_bytes = cur.fetchone()[0]
-                stored_gb = round(stored_bytes / (1024 * 1024 * 1024), 2)
+                stored_bytes_row = cur.fetchone()
+                stored_bytes = float(stored_bytes_row[0]) if stored_bytes_row and stored_bytes_row[0] is not None else 0.0
+                stored_gb = round(stored_bytes / (1024.0 * 1024.0 * 1024.0), 2)
 
                 if not row:
                     # Unsubscribed / Free user
                     return JSONResponse({
                         "plan": "free",
                         "status": "none",
+                        "startedAt": None,
+                        "renewsAt": None,
                         "usage": {
                             "testRunsUsed": test_runs_used,
                             "testRunsLimit": 10,
@@ -1370,14 +1616,14 @@ def get_user_subscription(current_user: dict = Depends(verify_user_token)):
                 
                 # Plan limits
                 limits = {
-                    "starter": {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 500},
+                    "free": {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 100},
                     "pro": {"runs": 100, "gb": 20.0, "projects": 999, "scheduled": 5, "exports": 20, "vus": 10000},
                     "enterprise": {"runs": 9999, "gb": 100.0, "projects": 999, "scheduled": 999, "exports": 999, "vus": 50000}
-                }.get(plan.lower(), {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 100})
+                }.get((plan or "free").lower(), {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 100})
 
                 return JSONResponse({
-                    "plan": plan.lower(),
-                    "status": status.lower(),
+                    "plan": (plan or "free").lower(),
+                    "status": (status or "active").lower(),
                     "startedAt": started_at.isoformat() if started_at else None,
                     "renewsAt": renews_at.isoformat() if renews_at else None,
                     "usage": {

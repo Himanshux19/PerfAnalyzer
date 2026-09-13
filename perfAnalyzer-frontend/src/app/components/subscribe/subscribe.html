@@ -1,4 +1,4 @@
-﻿<div class="subscribe-container p-4">
+<div class="subscribe-container p-4">
 
   <!-- ── Current Plan Banner ─────────────────────────────────── -->
   @if (!isLoading && subscription) {
@@ -6,7 +6,7 @@
     <div class="d-flex align-items-center gap-3 flex-wrap">
       <div class="banner-icon-wrap">
         <i class="bi"
-          [ngClass]="getCurrentPlan() === 'enterprise' ? 'bi-building-fill' : getCurrentPlan() === 'pro' ? 'bi-stars' : getCurrentPlan() === 'starter' ? 'bi-gem' : 'bi-person-circle'"></i>
+          [ngClass]="getCurrentPlan() === 'enterprise' ? 'bi-building-fill' : getCurrentPlan() === 'pro' ? 'bi-stars' : 'bi-person-circle'"></i>
       </div>
       <div class="flex-grow-1">
         <div class="banner-plan-name">
@@ -71,21 +71,21 @@
     }
   </div>
 
-  <!-- ── Plans Grid ─────────────────────────────────────────── -->
+  <!-- ── Plans Grid (3 Tiers: Free, Pro, Enterprise) ───────────── -->
   <div class="row g-4 justify-content-center">
 
-    <!-- 1. Starter / Free Plan -->
-    <div class="col-12 col-md-6 col-lg-3">
+    <!-- 1. Free Tier -->
+    <div class="col-12 col-md-4">
       <div class="plan-card h-100 d-flex flex-column"
-        [class.current-plan-card]="getCurrentPlan() === 'free' || getCurrentPlan() === 'starter'">
+        [class.current-plan-card]="getCurrentPlan() === 'free'">
         <div class="plan-card-header">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <div class="plan-icon-badge plan-icon-free"><i class="bi bi-person-circle"></i></div>
-            @if (getCurrentPlan() === 'free' || getCurrentPlan() === 'starter') {
+            @if (getCurrentPlan() === 'free') {
             <span class="current-plan-pill"><i class="bi bi-check-circle-fill me-1"></i>Current</span>
             }
           </div>
-          <h5 class="plan-name mt-2">Starter</h5>
+          <h5 class="plan-name mt-2">Free Tier</h5>
           <div class="plan-price-block">
             <span class="plan-price-value">$0</span><span class="plan-price-period"> / mo</span>
           </div>
@@ -100,13 +100,13 @@
           <li><i class="bi bi-x-circle feat-no"></i><span class="text-muted">PDF / HTML Export</span></li>
         </ul>
         <div class="plan-card-footer">
-          @if (getCurrentPlan() === 'free' || getCurrentPlan() === 'starter') {
+          @if (getCurrentPlan() === 'free') {
           <button class="plan-btn plan-btn-current" disabled>
             <i class="bi bi-check2 me-1"></i> Your Current Plan
           </button>
           } @else {
-          <button class="plan-btn plan-btn-outline" (click)="onSubscribe('starter')">
-            Switch to Starter
+          <button class="plan-btn plan-btn-outline" (click)="onSubscribe('free')">
+            Switch to Free
           </button>
           }
         </div>
@@ -114,7 +114,7 @@
     </div>
 
     <!-- 2. Pro Plan -->
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-4">
       <div class="plan-card plan-card-featured h-100 d-flex flex-column"
         [class.current-plan-card]="getCurrentPlan() === 'pro'">
         <div class="popular-ribbon">Most Popular</div>
@@ -156,7 +156,7 @@
     </div>
 
     <!-- 3. Enterprise Plan -->
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-4">
       <div class="plan-card h-100 d-flex flex-column"
         [class.current-plan-card]="getCurrentPlan() === 'enterprise'">
         <div class="plan-card-header">

@@ -49,8 +49,8 @@ export class AdminAuth {
         localStorage.setItem('admin_auth_token', res.token);
         localStorage.setItem('username', res.username);
         localStorage.setItem('full_name', res.full_name || '');
-        localStorage.setItem('role', 'superadmin');
-        this.successMessage = 'Super Admin login successful! Redirecting...';
+        localStorage.setItem('role', res.role || 'admin');
+        this.successMessage = `${res.role === 'superadmin' ? 'Super Admin' : 'Admin'} login successful! Redirecting...`;
         this.cdr.detectChanges();
         setTimeout(() => {
           this.router.navigate(['/admin/dashboard']);

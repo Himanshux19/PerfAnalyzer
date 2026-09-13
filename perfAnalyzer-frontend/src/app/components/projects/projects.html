@@ -191,7 +191,7 @@
         style="transition: background 0.15s ease;">
         <div class="d-flex align-items-center gap-2">
           <div class="avatar-sidebar-wrap position-relative flex-shrink-0" style="width: 32px; height: 32px;">
-            <img *ngIf="hasAvatar" [src]="getAvatarUrl()" alt="Avatar"
+            <img *ngIf="hasAvatar" [src]="getAvatarUrl()" (error)="onAvatarError()" alt=""
               class="w-100 h-100 rounded-circle object-fit-cover shadow-sm" />
             <div *ngIf="!hasAvatar"
               class="avatar bg-primary text-white font-bold d-flex align-items-center justify-content-center w-100 h-100 rounded-circle"
@@ -219,7 +219,7 @@
     <div class="sidebar-footer-collapsed text-center py-3 border-top mt-auto" *ngIf="sidebarCollapsed">
       <div class="avatar-collapsed-wrap mx-auto mb-2 cursor-pointer position-relative" (click)="setSection('account')"
         [title]="'Account Settings (' + (getFullName() || getUsername()) + ')'" style="width: 30px; height: 30px;">
-        <img *ngIf="hasAvatar" [src]="getAvatarUrl()" alt="Avatar"
+        <img *ngIf="hasAvatar" [src]="getAvatarUrl()" (error)="onAvatarError()" alt="Avatar"
           class="w-100 h-100 rounded-circle object-fit-cover shadow-sm" />
         <div *ngIf="!hasAvatar"
           class="avatar bg-primary text-white font-bold d-flex align-items-center justify-content-center w-100 h-100 rounded-circle"

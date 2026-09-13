@@ -582,6 +582,60 @@ export class ApiService {
     return this.http.get<any>(`${this.baseUrl}/superadmin/analytics`, this.getAdminHeaders());
   }
 
+  // ── Administrator Management Methods ───────────────────────
+
+  superadminListAdmins(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/superadmin/admins`, this.getAdminHeaders());
+  }
+
+  superadminCreateAdmin(adminData: {
+    username: string;
+    password: string;
+    full_name?: string;
+    phone?: string;
+    role?: string;
+  }): Observable<any> {
+    const formData = new FormData();
+    formData.append('username', adminData.username);
+    formData.append('password', adminData.password);
+    if (adminData.full_name) formData.append('full_name', adminData.full_name);
+    if (adminData.phone) formData.append('phone', adminData.phone);
+    if (adminData.role) formData.append('role', adminData.role);
+    return this.http.post<any>(
+      `${this.baseUrl}/superadmin/admins`,
+      formData,
+      this.getAdminHeaders(),
+    );
+  }
+
+  superadminToggleAdminStatus(adminId: number, status: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('status', status);
+    return this.http.put<any>(
+      `${this.baseUrl}/superadmin/admins/${adminId}/status`,
+      formData,
+      this.getAdminHeaders(),
+    );
+  }
+
+  superadminDeleteAdmin(adminId: number): Observable<any> {
+    return this.http.delete<any>(
+      `${this.baseUrl}/superadmin/admins/${adminId}`,
+      this.getAdminHeaders(),
+    );
+  }
+
+  adminChangePassword(oldPassword: string, newPassword: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('old_password', oldPassword);
+    formData.append('new_password', newPassword);
+    return this.http.post<any>(
+      `${this.baseUrl}/admin/change-password`,
+      formData,
+      this.getAdminHeaders(),
+    );
+  }
+
   // ── Unified Queue & Jenkins REST API ───────────────────────
 
   getTestQueue(username?: string, statusFilter?: string): Observable<TestQueueItem[]> {
@@ -821,6 +875,7 @@ export class ApiService {
 
 
   subscriptionUpdated$ = new Subject<{ plan: string; status: string }>();
+  avatarUpdated$ = new Subject<{ hasAvatar: boolean; timestamp: number }>();
   private sessionSocket: WebSocket | null = null;
   private sessionCheckInterval: any = null;
   private wsReconnectTimeout: any = null;

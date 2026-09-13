@@ -35,6 +35,7 @@ import { Monitoring } from '../monitoring/monitoring';
 })
 export class Projects implements OnInit, OnDestroy {
   private subscriptionUpdatedSub: Subscription | null = null;
+  private avatarUpdatedSub: Subscription | null = null;
 
   // ── Navigation & Sidebar State ───────────────────────────────
   activeSection:
@@ -139,6 +140,17 @@ export class Projects implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         });
       });
+
+      this.avatarUpdatedSub = this.api.avatarUpdated$.subscribe((ev: any) => {
+        this.zone.run(() => {
+          this.hasAvatar = !!ev.hasAvatar;
+          if (ev.timestamp) {
+            this.avatarCacheBuster = ev.timestamp;
+          }
+          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+        });
+      });
     }
 
     // Resolve initial URL section
@@ -188,6 +200,8 @@ export class Projects implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.subscriptionUpdatedSub?.unsubscribe();
     this.subscriptionUpdatedSub = null;
+    this.avatarUpdatedSub?.unsubscribe();
+    this.avatarUpdatedSub = null;
   }
 
   resolveSectionFromUrl(url: string) {
@@ -901,7 +915,14 @@ export class Projects implements OnInit, OnDestroy {
   }
 
   getAvatarUrl(): string {
-    return `http://127.0.0.1:8000/api/users/me/avatar?t=${this.avatarCacheBuster}`;
+    const user = this.getUsername();
+    if (!user || user === 'Guest') return '';
+    return `${this.api.getAvatarUrl(user)}?t=${this.avatarCacheBuster}`;
+  }
+
+  onAvatarError() {
+    this.hasAvatar = false;
+    this.cdr.detectChanges();
   }
 
   getInitials(): string {

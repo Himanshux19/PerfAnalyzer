@@ -14,17 +14,21 @@ export class AdminDashboard implements OnInit {
   users: any[] = [];
   deletedUsers: any[] = [];
   deletionRequests: any[] = [];
-  activeAdminTab: 'users' | 'deleted-users' | 'deletion-requests' = 'users';
+  admins: any[] = [];
+  activeAdminTab: 'users' | 'deleted-users' | 'deletion-requests' | 'admins' = 'users';
   searchQuery: string = '';
-  tierFilter: 'all' | 'free' | 'starter' | 'pro' | 'enterprise' = 'all';
+  tierFilter: 'all' | 'free' | 'pro' | 'enterprise' = 'all';
   statusFilter: 'all' | 'active' | 'suspended' = 'all';
 
   isLoading: boolean = false;
   isLoadingDeletedUsers: boolean = false;
   isLoadingDeletionRequests: boolean = false;
+  isLoadingAdmins: boolean = false;
   isUpdating: number | null = null;
   isChangingPlan: number | null = null;
   isProcessingDeletion: number | null = null;
+  isUpdatingAdminStatus: number | null = null;
+  isDeletingAdmin: number | null = null;
   errorMessage: string | null = null;
   successMessage: string | null = null;
 
@@ -32,12 +36,30 @@ export class AdminDashboard implements OnInit {
   showUserModal: boolean = false;
   selectedUser: any = null;
 
+  // Create Admin Modal
+  showCreateAdminModal: boolean = false;
+  isCreatingAdmin: boolean = false;
+  createAdminError: string | null = null;
+  newAdminUsername = '';
+  newAdminPassword = '';
+  newAdminFullName = '';
+  newAdminPhone = '';
+  newAdminRole: 'admin' | 'superadmin' = 'admin';
+
+  // Change Password Modal
+  showChangePasswordModal: boolean = false;
+  isChangingPassword: boolean = false;
+  changePasswordError: string | null = null;
+  changePasswordSuccess: string | null = null;
+  oldPassword = '';
+  newPassword = '';
+  confirmPassword = '';
+
   analytics: any = {
     total_users: 0,
     active_users: 0,
     suspended_users: 0,
     free_users: 0,
-    starter_users: 0,
     pro_users: 0,
     enterprise_users: 0,
     total_workspaces: 0,
@@ -70,6 +92,9 @@ export class AdminDashboard implements OnInit {
       this.loadDeletedUsers();
       this.loadAnalytics();
       this.loadDeletionRequests();
+      if (this.isSuperAdmin) {
+        this.loadAdmins();
+      }
     }
   }
 
@@ -78,6 +103,17 @@ export class AdminDashboard implements OnInit {
       return localStorage.getItem('username') || 'admin';
     }
     return 'admin';
+  }
+
+  get currentAdminRole(): string {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('role') || 'admin';
+    }
+    return 'admin';
+  }
+
+  get isSuperAdmin(): boolean {
+    return this.currentAdminRole === 'superadmin';
   }
 
   loadAnalytics() {
@@ -122,6 +158,24 @@ export class AdminDashboard implements OnInit {
   onFilterChange() {
     this.page = 1;
     this.cdr.detectChanges();
+  }
+
+  hasActiveFilters(): boolean {
+    return Boolean(this.searchQuery.trim() || this.tierFilter !== 'all' || this.statusFilter !== 'all');
+  }
+
+  resetFilters() {
+    this.searchQuery = '';
+    this.tierFilter = 'all';
+    this.statusFilter = 'all';
+    this.page = 1;
+    this.cdr.detectChanges();
+  }
+
+  getPlanPercentage(count: number): number {
+    const total = this.analytics?.total_users || 0;
+    if (!total || !count) return 0;
+    return Math.round((count / total) * 100);
   }
 
   filteredUsers() {
@@ -455,6 +509,211 @@ export class AdminDashboard implements OnInit {
       error: (err) => {
         this.isLoadingDeletedUsers = false;
         console.error('Failed to load deleted users:', err);
+      },
+    });
+  }
+
+  // ── Administrator Management (Super Admin Only) ─────────────────
+
+  loadAdmins() {
+    if (!this.isSuperAdmin) return;
+    this.isLoadingAdmins = true;
+    this.api.superadminListAdmins().subscribe({
+      next: (data) => {
+        this.admins = data;
+        this.isLoadingAdmins = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.isLoadingAdmins = false;
+        console.error('Failed to load administrators:', err);
+      },
+    });
+  }
+
+  openCreateAdminModal() {
+    this.newAdminUsername = '';
+    this.newAdminPassword = '';
+    this.newAdminFullName = '';
+    this.newAdminPhone = '';
+    this.newAdminRole = 'admin';
+    this.createAdminError = null;
+    this.showCreateAdminModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closeCreateAdminModal() {
+    this.showCreateAdminModal = false;
+    this.createAdminError = null;
+    this.cdr.detectChanges();
+  }
+
+  submitCreateAdmin() {
+    if (!this.newAdminUsername.trim() || !this.newAdminPassword.trim()) {
+      this.createAdminError = 'Username and password are required.';
+      return;
+    }
+    if (this.newAdminPassword.length < 4) {
+      this.createAdminError = 'Password must be at least 4 characters.';
+      return;
+    }
+
+    this.isCreatingAdmin = true;
+    this.createAdminError = null;
+
+    const payload = {
+      username: this.newAdminUsername.trim(),
+      password: this.newAdminPassword,
+      full_name: this.newAdminFullName.trim() || undefined,
+      phone: this.newAdminPhone.trim() || undefined,
+      role: this.newAdminRole,
+    };
+
+    this.api.superadminCreateAdmin(payload).subscribe({
+      next: (res) => {
+        this.isCreatingAdmin = false;
+        this.showCreateAdminModal = false;
+        this.successMessage = `Administrator "${payload.username}" created successfully.`;
+        this.loadAdmins();
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.successMessage = null;
+          this.cdr.detectChanges();
+        }, 4000);
+      },
+      error: (err) => {
+        this.isCreatingAdmin = false;
+        this.createAdminError = err.error?.detail || 'Failed to create administrator account.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onToggleAdminStatus(admin: any) {
+    if (admin.username === this.currentAdminUsername) {
+      alert('You cannot suspend your own account.');
+      return;
+    }
+
+    const newStatus = admin.status === 'active' ? 'suspended' : 'active';
+    const actionLabel = newStatus === 'active' ? 'activate' : 'suspend';
+
+    if (!confirm(`Are you sure you want to ${actionLabel} administrator "${admin.username}"?`)) {
+      return;
+    }
+
+    this.isUpdatingAdminStatus = admin.id;
+    this.api.superadminToggleAdminStatus(admin.id, newStatus).subscribe({
+      next: (res) => {
+        admin.status = newStatus;
+        this.isUpdatingAdminStatus = null;
+        this.successMessage = `Admin "${admin.username}" is now ${newStatus}.`;
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.successMessage = null;
+          this.cdr.detectChanges();
+        }, 4000);
+      },
+      error: (err) => {
+        this.isUpdatingAdminStatus = null;
+        this.errorMessage = err.error?.detail || 'Failed to update administrator status.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onDeleteAdmin(admin: any) {
+    if (admin.username === this.currentAdminUsername) {
+      alert('You cannot delete your own account.');
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete administrator "${admin.username}"? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    this.isDeletingAdmin = admin.id;
+    this.api.superadminDeleteAdmin(admin.id).subscribe({
+      next: (res) => {
+        this.isDeletingAdmin = null;
+        this.admins = this.admins.filter((a) => a.id !== admin.id);
+        this.successMessage = `Administrator "${admin.username}" deleted.`;
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.successMessage = null;
+          this.cdr.detectChanges();
+        }, 4000);
+      },
+      error: (err) => {
+        this.isDeletingAdmin = null;
+        this.errorMessage = err.error?.detail || 'Failed to delete administrator.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  // ── Self Password Change (Any Admin) ────────────────────────────
+
+  openChangePasswordModal() {
+    this.oldPassword = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.changePasswordError = null;
+    this.changePasswordSuccess = null;
+    this.showChangePasswordModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closeChangePasswordModal() {
+    this.showChangePasswordModal = false;
+    this.changePasswordError = null;
+    this.changePasswordSuccess = null;
+    this.cdr.detectChanges();
+  }
+
+  submitChangePassword() {
+    if (!this.oldPassword.trim() || !this.newPassword.trim() || !this.confirmPassword.trim()) {
+      this.changePasswordError = 'Please fill out all password fields.';
+      return;
+    }
+
+    if (this.newPassword !== this.confirmPassword) {
+      this.changePasswordError = 'New password and confirmation do not match.';
+      return;
+    }
+
+    if (this.newPassword.length < 4) {
+      this.changePasswordError = 'New password must be at least 4 characters.';
+      return;
+    }
+
+    this.isChangingPassword = true;
+    this.changePasswordError = null;
+    this.changePasswordSuccess = null;
+
+    this.api.adminChangePassword(this.oldPassword, this.newPassword).subscribe({
+      next: (res) => {
+        this.isChangingPassword = false;
+        this.changePasswordSuccess = 'Password changed successfully!';
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.closeChangePasswordModal();
+          this.successMessage = 'Your password was updated successfully.';
+          this.cdr.detectChanges();
+          setTimeout(() => {
+            this.successMessage = null;
+            this.cdr.detectChanges();
+          }, 4000);
+        }, 1500);
+      },
+      error: (err) => {
+        this.isChangingPassword = false;
+        this.changePasswordError = err.error?.detail || 'Failed to change password. Verify your current password.';
+        this.cdr.detectChanges();
       },
     });
   }

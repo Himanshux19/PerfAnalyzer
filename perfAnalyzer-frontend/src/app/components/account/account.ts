@@ -520,6 +520,7 @@ export class Account implements OnInit, OnDestroy {
           this.profile.hasAvatar = true;
           this.profile.avatarUrl = `/api/users/avatar/${this.profile.username}`;
         }
+        this.api.avatarUpdated$.next({ hasAvatar: true, timestamp: this.avatarCacheBuster });
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -544,6 +545,7 @@ export class Account implements OnInit, OnDestroy {
           this.profile.hasAvatar = false;
           this.profile.avatarUrl = null;
         }
+        this.api.avatarUpdated$.next({ hasAvatar: false, timestamp: Date.now() });
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -552,6 +554,13 @@ export class Account implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  onAvatarError() {
+    if (this.profile) {
+      this.profile.hasAvatar = false;
+      this.cdr.detectChanges();
+    }
   }
 
   getAvatarUrl(): string {
@@ -699,22 +708,17 @@ export class Account implements OnInit, OnDestroy {
     });
   }
 
-  /** Returns true for any paid active plan: starter, pro, enterprise */
+  /** Returns true for any paid active plan: pro, enterprise */
   hasActivePlan(): boolean {
     if (!this.subscription) return false;
     const plan = (this.subscription.plan || '').toLowerCase();
     const status = (this.subscription.status || '').toLowerCase();
-    return (plan === 'starter' || plan === 'pro' || plan === 'enterprise') && status === 'active';
+    return (plan === 'pro' || plan === 'enterprise') && status === 'active';
   }
 
   /** Returns true only for FREE / no subscription */
   isFreeTier(): boolean {
     return !this.hasActivePlan();
-  }
-
-  isStarter(): boolean {
-    if (!this.subscription || this.subscription.status !== 'active') return false;
-    return (this.subscription.plan || '').toLowerCase() === 'starter';
   }
 
   isProOrEnterprise(): boolean {
@@ -727,7 +731,6 @@ export class Account implements OnInit, OnDestroy {
     const plan = (this.subscription?.plan || '').toLowerCase();
     if (plan === 'pro') return 'Professional Tier';
     if (plan === 'enterprise') return 'Enterprise Tier';
-    if (plan === 'starter') return 'Starter Tier';
     return 'Standard Free Tier';
   }
 
@@ -737,8 +740,6 @@ export class Account implements OnInit, OnDestroy {
       return 'High-capacity cloud load runner with scheduled test executions and automated alerting.';
     if (plan === 'enterprise')
       return 'Unlimited enterprise-grade infrastructure with priority support and dedicated SLA.';
-    if (plan === 'starter')
-      return 'Entry-level plan with expanded test quotas, additional workspaces, and basic storage.';
     return 'Community plan with basic test limits. Upgrade to unlock full platform capabilities.';
   }
 
@@ -746,7 +747,6 @@ export class Account implements OnInit, OnDestroy {
     const plan = (this.subscription?.plan || '').toLowerCase();
     if (plan === 'enterprise') return 'plan-enterprise';
     if (plan === 'pro') return 'plan-pro';
-    if (plan === 'starter') return 'plan-starter';
     return 'plan-free';
   }
 

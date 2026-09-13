@@ -84,7 +84,7 @@
               (change)="onAvatarFileSelected($event)">
 
             @if (profile.hasAvatar) {
-            <img [src]="getAvatarUrl()" alt="Avatar" class="avatar-image-frame shadow-sm" />
+            <img [src]="getAvatarUrl()" (error)="onAvatarError()" alt="Avatar" class="avatar-image-frame shadow-sm" />
             } @else {
             <div class="avatar-initials-frame shadow-sm" [style.background-color]="getAvatarBgColor()">
               {{ getInitials() }}
@@ -623,7 +623,7 @@
 
       <div class="row g-3">
 
-        <!-- Starter / Free -->
+        <!-- Free Tier -->
         <div class="col-12 col-md-4">
           <div class="acct-plan-card d-flex flex-column h-100"
             [class.acct-plan-current]="isFreeTier()">
@@ -633,7 +633,7 @@
             <div class="d-flex align-items-center gap-2 mb-2">
               <div class="acct-plan-icon acct-icon-free"><i class="bi bi-person-circle"></i></div>
               <div>
-                <div class="acct-plan-title">Starter</div>
+                <div class="acct-plan-title">Free Tier</div>
                 <div class="acct-plan-price">$0 <span class="acct-plan-period">/ mo</span></div>
               </div>
             </div>
@@ -652,7 +652,7 @@
               </button>
               } @else {
               <button class="acct-plan-btn acct-plan-btn-outline w-100" (click)="navigateToSubscribe()">
-                Switch to Starter
+                Switch to Free
               </button>
               }
             </div>
@@ -662,7 +662,7 @@
         <!-- Pro -->
         <div class="col-12 col-md-4">
           <div class="acct-plan-card acct-plan-card-pro d-flex flex-column h-100"
-            [class.acct-plan-current]="isStarter() ? false : isProOrEnterprise() && subscription?.plan?.toLowerCase() === 'pro'">
+            [class.acct-plan-current]="isProOrEnterprise() && subscription?.plan?.toLowerCase() === 'pro'">
             <div class="acct-popular-tag">Most Popular</div>
             @if (subscription?.plan?.toLowerCase() === 'pro' && hasActivePlan()) {
             <span class="acct-current-pill acct-current-pill-pro"><i class="bi bi-check-circle-fill me-1"></i>Current Plan</span>
@@ -691,7 +691,7 @@
               } @else {
               <button class="acct-plan-btn acct-plan-btn-pro w-100" (click)="navigateToSubscribe()">
                 <i class="bi bi-stars me-1"></i>
-                {{ isFreeTier() || isStarter() ? 'Upgrade to Pro' : 'Switch to Pro' }}
+                {{ isFreeTier() ? 'Upgrade to Pro' : 'Switch to Pro' }}
               </button>
               }
             </div>

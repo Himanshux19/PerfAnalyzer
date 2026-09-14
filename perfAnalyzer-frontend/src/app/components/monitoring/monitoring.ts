@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
+import { Router, ActivatedRoute } from '@angular/router';
 import {
   ApiService,
   MonitoringCatalogEntry,
@@ -217,8 +218,8 @@ export const FALLBACK_SVGS: Record<string, string> = {
   styleUrl: './monitoring.css',
 })
 export class Monitoring implements OnInit {
-  // Navigation & View State
-  activeView: 'catalog' | 'detail' = 'catalog';
+  // Navigation & View State ('monitors' = My Configured Monitors, 'catalog' = Setup Configuration Guide, 'detail' = Guided setup for integration)
+  activeView: 'monitors' | 'catalog' | 'detail' = 'monitors';
   activeCategory: string = 'all';
   searchQuery = '';
 
@@ -287,6 +288,8 @@ export class Monitoring implements OnInit {
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
     private sanitizer: DomSanitizer,
+    private router: Router,
+    private route: ActivatedRoute,
   ) {}
 
   ngOnInit(): void {
@@ -294,6 +297,15 @@ export class Monitoring implements OnInit {
     this.loadEnvironmentDefaults();
     this.loadCatalog();
     this.loadMonitors();
+
+    this.route.queryParams.subscribe((params) => {
+      if (params['tab'] === 'setup' || params['tab'] === 'guide') {
+        this.activeView = 'catalog';
+      } else if (!params['tab'] && this.activeView !== 'detail') {
+        this.activeView = 'monitors';
+      }
+      this.cdr.detectChanges();
+    });
   }
 
   loadEnvironmentDefaults(): void {
@@ -509,10 +521,48 @@ export class Monitoring implements OnInit {
     this.cdr.detectChanges();
   }
 
+  goToSetupGuide(): void {
+    this.activeView = 'catalog';
+    this.selectedCatalogEntry = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: 'guide' },
+      queryParamsHandling: 'merge',
+    });
+    this.cdr.detectChanges();
+  }
+
+  goToConfiguredMonitors(): void {
+    this.activeView = 'monitors';
+    this.selectedCatalogEntry = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: null },
+      queryParamsHandling: 'merge',
+    });
+    this.cdr.detectChanges();
+  }
+
   backToCatalog(): void {
     this.activeView = 'catalog';
     this.selectedCatalogEntry = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: 'guide' },
+      queryParamsHandling: 'merge',
+    });
     this.cdr.detectChanges();
+  }
+
+  get enabledMonitorsCount(): number {
+    return this.monitors.filter((m) => m.enabled).length;
+  }
+
+  get disabledMonitorsCount(): number {
+    return this.monitors.filter((m) => !m.enabled).length;
   }
 
   // ── Saved Monitors Management ────────────────────────────────
@@ -765,6 +815,7 @@ export class Monitoring implements OnInit {
             this.monitors = [newMonitor, ...this.monitors];
             this.formSaving = false;
             this.showConfigureModal = false;
+            this.goToConfiguredMonitors();
             this.openTelemetryGuide(newMonitor);
             this.cdr.detectChanges();
           });

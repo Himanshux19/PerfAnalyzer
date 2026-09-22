@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventE
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ApiService, UserProfile, SubscriptionInfo } from '../../api.service';
+import { ApiService, UserProfile, SubscriptionInfo, PaymentRecord } from '../../api.service';
 import { Subscription } from 'rxjs';
 
 // ── Country & Dial-Code Data ──────────────────────────────────────────────────
@@ -237,7 +237,7 @@ export class Account implements OnInit, OnDestroy {
   @Output() navigateSection = new EventEmitter<string>();
   private subscriptionSub: Subscription | null = null;
 
-  activeTab: 'profile' | 'subscription' = 'profile';
+  activeTab: 'profile' | 'subscription' | 'transactions' = 'profile';
 
   // ── Country / Dial-Code Data ───────────────────────────────────
   readonly countries: CountryOption[] = COUNTRIES;
@@ -294,6 +294,15 @@ export class Account implements OnInit, OnDestroy {
   activities: any[] = [];
   isLoadingActivities = false;
 
+  // ── Billing & Transactions State ──────────────────────────────
+  transactions: PaymentRecord[] = [];
+  isLoadingTransactions = false;
+  transactionFilter: 'all' | 'success' | 'failed' = 'all';
+  searchQuery = '';
+  selectedTransaction: PaymentRecord | null = null;
+  showReceiptModal = false;
+  copySuccessMsg = '';
+
   constructor(
     private api: ApiService,
     private router: Router,
@@ -337,11 +346,14 @@ export class Account implements OnInit, OnDestroy {
     });
   }
 
-  setTab(tab: 'profile' | 'subscription') {
+  setTab(tab: 'profile' | 'subscription' | 'transactions') {
     this.activeTab = tab;
     this.clearAlerts();
     if (tab === 'subscription' && !this.subscription) {
       this.loadSubscription();
+    }
+    if (tab === 'transactions') {
+      this.loadTransactions();
     }
   }
 
@@ -765,5 +777,78 @@ export class Account implements OnInit, OnDestroy {
   navigateToSubscribe() {
     this.navigateSection.emit('subscribe');
     this.router.navigate(['/subscribe']);
+  }
+
+  // ── Transaction History Methods ───────────────────────────────
+
+  loadTransactions() {
+    this.isLoadingTransactions = true;
+    this.api.getPaymentHistory().subscribe({
+      next: (data) => {
+        this.transactions = data || [];
+        this.isLoadingTransactions = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingTransactions = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  getFilteredTransactions(): PaymentRecord[] {
+    return this.transactions.filter((tx) => {
+      // Status filter
+      if (this.transactionFilter === 'success' && tx.status !== 'success') {
+        return false;
+      }
+      if (this.transactionFilter === 'failed' && tx.status !== 'failed') {
+        return false;
+      }
+      // Search filter
+      if (this.searchQuery) {
+        const query = this.searchQuery.toLowerCase().trim();
+        const matchesOrder = tx.orderId?.toLowerCase().includes(query);
+        const matchesPay = tx.paymentId?.toLowerCase().includes(query);
+        const matchesPlan = tx.plan?.toLowerCase().includes(query);
+        return matchesOrder || matchesPay || matchesPlan;
+      }
+      return true;
+    });
+  }
+
+  getTotalSpent(): number {
+    return this.transactions
+      .filter((t) => t.status === 'success')
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+  }
+
+  getSuccessCount(): number {
+    return this.transactions.filter((t) => t.status === 'success').length;
+  }
+
+  viewReceipt(tx: PaymentRecord) {
+    this.selectedTransaction = tx;
+    this.showReceiptModal = true;
+  }
+
+  closeReceiptModal() {
+    this.showReceiptModal = false;
+    this.selectedTransaction = null;
+  }
+
+  printReceipt() {
+    window.print();
+  }
+
+  copyToClipboard(text: string) {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      this.copySuccessMsg = 'Copied to clipboard!';
+      setTimeout(() => {
+        this.copySuccessMsg = '';
+        this.cdr.detectChanges();
+      }, 2000);
+    }
   }
 }

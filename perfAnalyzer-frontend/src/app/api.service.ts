@@ -141,6 +141,55 @@ export interface SubscriptionInfo {
   usage: SubscriptionUsage;
 }
 
+// ── Razorpay Payment Gateway Interfaces ─────────────────────────
+export interface PaymentConfig {
+  key_id: string;
+  currency: string;
+}
+
+export interface PaymentOrderResponse {
+  order_id: string;
+  amount: number;
+  currency: string;
+  key_id: string;
+  plan: string;
+}
+
+export interface PaymentVerifyRequest {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+  plan: string;
+}
+
+export interface PaymentVerifyResponse {
+  success: boolean;
+  message: string;
+  plan: string;
+  order_id: string;
+  payment_id: string;
+}
+
+export interface PaymentFailureReport {
+  order_id?: string;
+  payment_id?: string;
+  code?: string;
+  description?: string;
+  reason?: string;
+}
+
+export interface PaymentRecord {
+  id: number;
+  orderId: string;
+  paymentId: string | null;
+  plan: string;
+  amount: number;
+  currency: string;
+  status: string;
+  error?: string | null;
+  createdAt: string;
+}
+
 // ── Monitoring Module Interfaces (Uptrace Setup Catalog) ───────────────
 export interface MonitoringStepVariable {
   name: string;
@@ -761,6 +810,47 @@ export class ApiService {
     );
   }
 
+  // ── Razorpay Gateway API Methods ─────────────────────────────
+
+  getPaymentConfig(): Observable<PaymentConfig> {
+    return this.http.get<PaymentConfig>(
+      `${this.baseUrl}/api/payments/config`,
+      this.getUserHeaders(),
+    );
+  }
+
+  createPaymentOrder(plan: string = 'pro', billingCycle: string = 'monthly'): Observable<PaymentOrderResponse> {
+    return this.http.post<PaymentOrderResponse>(
+      `${this.baseUrl}/api/payments/create-order`,
+      { plan, billingCycle },
+      this.getUserHeaders(),
+    );
+  }
+
+  verifyPayment(payload: PaymentVerifyRequest): Observable<PaymentVerifyResponse> {
+    return this.http.post<PaymentVerifyResponse>(
+      `${this.baseUrl}/api/payments/verify-payment`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  reportPaymentFailure(payload: PaymentFailureReport): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/api/payments/report-failure`,
+      payload,
+      this.getUserHeaders(),
+    );
+  }
+
+  getPaymentHistory(): Observable<PaymentRecord[]> {
+    return this.http.get<PaymentRecord[]>(
+      `${this.baseUrl}/api/payments/history`,
+      this.getUserHeaders(),
+    );
+  }
+
+
   // ── Super Admin Deletion Request Methods ──────────────────────
 
   superadminGetDeletionRequests(): Observable<DeletionRequestItem[]> {
@@ -876,6 +966,10 @@ export class ApiService {
 
   subscriptionUpdated$ = new Subject<{ plan: string; status: string }>();
   avatarUpdated$ = new Subject<{ hasAvatar: boolean; timestamp: number }>();
+
+  notifySubscriptionUpdated(plan: string = 'pro', status: string = 'active') {
+    this.subscriptionUpdated$.next({ plan, status });
+  }
   private sessionSocket: WebSocket | null = null;
   private sessionCheckInterval: any = null;
   private wsReconnectTimeout: any = null;

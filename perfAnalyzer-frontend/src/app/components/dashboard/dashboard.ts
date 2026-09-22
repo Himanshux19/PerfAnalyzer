@@ -21,6 +21,9 @@ export class Dashboard implements OnInit, OnDestroy {
   jenkinsTestName: string | null = null;
   jenkinsQueueId: string | null = null;
 
+  // Quota & Plan limitations error banner
+  quotaErrorMessage = '';
+
   constructor(
     protected api: ApiService,
     private router: Router,
@@ -38,6 +41,7 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   onRunTest() {
+    this.quotaErrorMessage = '';
     const jmxServer = this.api.jmxServerName();
     const csvServer = this.api.csvServerName();
 
@@ -147,6 +151,15 @@ export class Dashboard implements OnInit, OnDestroy {
         this.api.testStatus.set('error');
         const errorMsg = err.error?.detail || err.message || 'Connection error';
         this.api.addLog(`Execution initialization failed: ${errorMsg}`, 'error');
+        if (
+          err.status === 403 ||
+          errorMsg.toLowerCase().includes('limit') ||
+          errorMsg.toLowerCase().includes('quota') ||
+          errorMsg.toLowerCase().includes('plan') ||
+          errorMsg.toLowerCase().includes('upgrade')
+        ) {
+          this.quotaErrorMessage = errorMsg;
+        }
         this.cdr.detectChanges();
       },
     });

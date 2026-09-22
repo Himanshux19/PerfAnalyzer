@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 import re
 import uuid
+import hmac
 from jmx_builder import build_jmx
 from models import (
     CreateTestRequest,
@@ -29,6 +30,9 @@ from models import (
     MonitoringIntegrationCreate,
     MonitoringIntegrationUpdate,
     MonitoringIntegrationStatusUpdate,
+    CreatePaymentOrderRequest,
+    VerifyPaymentRequest,
+    PaymentFailureReport,
 )
 from monitoring_crypto import encrypt_dsn, decrypt_dsn
 
@@ -98,6 +102,11 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
 _UPTRACE_APP_BASE = "https://app.uptrace.dev"
 _UPTRACE_AUTH_TOKEN = os.getenv("UPTRACE_AUTH_TOKEN", "").strip()
 _UPTRACE_PROJECT_ID = os.getenv("UPTRACE_PROJECT_ID", "").strip()
+
+# Razorpay Payment Gateway Credentials
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "").strip()
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+RAZORPAY_CURRENCY = os.getenv("RAZORPAY_CURRENCY", "INR").strip()
 
 logger = logging.getLogger("perfanalyzer")
 logging.basicConfig(level=logging.INFO)
@@ -248,6 +257,24 @@ def init_db():
                 status VARCHAR(50) DEFAULT 'success',
                 icon VARCHAR(100) DEFAULT 'bi-activity',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                order_id VARCHAR(255) NOT NULL,
+                payment_id VARCHAR(255),
+                signature VARCHAR(255),
+                plan VARCHAR(50) NOT NULL,
+                amount NUMERIC(10, 2) NOT NULL,
+                currency VARCHAR(10) DEFAULT 'INR',
+                status VARCHAR(50) NOT NULL,
+                error_code VARCHAR(100),
+                error_description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
 
@@ -1558,88 +1585,419 @@ def get_my_deletion_request(current_user: dict = Depends(verify_user_token)):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
+# ═══════════════════════════════════════════════════════════════
+# SUBSCRIPTION PLANS & LIMITATIONS CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
+
+PLAN_LIMITS = {
+    "free": {
+        "name": "Free",
+        "runs": 30,
+        "vus": 500,
+        "gb": 1.0,
+        "projects": 3,
+        "scheduled": 0,
+        "exports": 0,
+    },
+    "pro": {
+        "name": "Pro",
+        "runs": 100,
+        "vus": 10000,
+        "gb": 10.0,
+        "projects": 999,
+        "scheduled": 5,
+        "exports": 20,
+    },
+    "enterprise": {
+        "name": "Enterprise",
+        "runs": 9999,
+        "vus": 50000,
+        "gb": 100.0,
+        "projects": 999,
+        "scheduled": 999,
+        "exports": 999,
+    },
+}
+
+def get_user_plan_info(username: str) -> dict:
+    """Returns the active plan and quota limits for the user."""
+    clean_username = (username or "").strip().lower()
+    if not clean_username or clean_username == "guest":
+        return {"plan": "free", **PLAN_LIMITS["free"]}
+
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT plan, status
+                    FROM user_subscriptions
+                    WHERE LOWER(username) = %s AND status = 'active';
+                """, (clean_username,))
+                row = cur.fetchone()
+                if row and row[0]:
+                    plan = row[0].strip().lower()
+                    if plan in PLAN_LIMITS:
+                        return {"plan": plan, **PLAN_LIMITS[plan]}
+    except Exception as e:
+        logger.error(f"Error reading subscription for {username}: {e}")
+
+    return {"plan": "free", **PLAN_LIMITS["free"]}
+
+def get_user_monthly_test_runs(username: str) -> int:
+    """Returns the number of test runs executed by the user in the current calendar month."""
+    clean_username = (username or "").strip().lower()
+    if not clean_username or clean_username == "guest":
+        return 0
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM test_results
+                    WHERE LOWER(username) = %s
+                      AND created_at >= date_trunc('month', CURRENT_TIMESTAMP);
+                """, (clean_username,))
+                row = cur.fetchone()
+                return int(row[0]) if row and row[0] is not None else 0
+    except Exception as e:
+        logger.error(f"Error fetching monthly test runs for {username}: {e}")
+        return 0
+
+def get_user_workspace_count(username: str) -> int:
+    """Returns the number of workspaces/projects owned by the user."""
+    clean_username = (username or "").strip().lower()
+    if not clean_username or clean_username == "guest":
+        return 0
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM projects WHERE LOWER(owner) = %s;", (clean_username,))
+                row = cur.fetchone()
+                return int(row[0]) if row and row[0] is not None else 0
+    except Exception as e:
+        logger.error(f"Error counting projects for {username}: {e}")
+        return 0
+
+def get_user_storage_bytes(username: str) -> int:
+    """Returns total bytes stored across all workspaces owned by the user."""
+    clean_username = (username or "").strip().lower()
+    if not clean_username or clean_username == "guest":
+        return 0
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COALESCE(SUM(pf.file_size), 0)
+                    FROM project_files pf
+                    JOIN projects p ON pf.project_id = p.id
+                    WHERE LOWER(p.owner) = %s;
+                """, (clean_username,))
+                row = cur.fetchone()
+                return int(row[0]) if row and row[0] is not None else 0
+    except Exception as e:
+        logger.error(f"Error calculating storage for {username}: {e}")
+        return 0
+
+
 @app.get("/api/users/me/subscription")
 def get_user_subscription(current_user: dict = Depends(verify_user_token)):
+    username = (current_user.get("username") or "").strip().lower()
+    try:
+        plan_info = get_user_plan_info(username)
+        plan = plan_info["plan"]
+
+        test_runs_used = get_user_monthly_test_runs(username)
+        projects_used = get_user_workspace_count(username)
+        stored_bytes = get_user_storage_bytes(username)
+        stored_gb = round(stored_bytes / (1024.0 * 1024.0 * 1024.0), 2)
+
+        status = "none" if plan == "free" else "active"
+        started_at = None
+        renews_at = None
+
+        if plan != "free":
+            with db_session() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT status, started_at, renews_at
+                        FROM user_subscriptions
+                        WHERE LOWER(username) = %s AND status = 'active';
+                    """, (username,))
+                    sub_row = cur.fetchone()
+                    if sub_row:
+                        status, started_at, renews_at = sub_row
+
+        return JSONResponse({
+            "plan": plan,
+            "status": status,
+            "startedAt": started_at.isoformat() if started_at else None,
+            "renewsAt": renews_at.isoformat() if renews_at else None,
+            "usage": {
+                "testRunsUsed": test_runs_used,
+                "testRunsLimit": plan_info["runs"],
+                "storedResultsGb": stored_gb,
+                "storedResultsLimitGb": plan_info["gb"],
+                "projectsUsed": projects_used,
+                "projectsLimit": plan_info["projects"] if plan_info["projects"] < 999 else None,
+                "scheduledTestsUsed": 0,
+                "scheduledTestsLimit": plan_info["scheduled"],
+                "exportsUsed": 0,
+                "exportsLimit": plan_info["exports"],
+                "maxVus": plan_info["vus"]
+            }
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+
+# ═══════════════════════════════════════════════════════════════
+# RAZORPAY PAYMENT GATEWAY ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/api/payments/config")
+def get_payment_config(current_user: dict = Depends(verify_user_token)):
+    return JSONResponse({
+        "key_id": RAZORPAY_KEY_ID or "",
+        "currency": RAZORPAY_CURRENCY or "INR",
+    })
+
+
+@app.post("/api/payments/create-order")
+def create_payment_order(req: CreatePaymentOrderRequest, current_user: dict = Depends(verify_user_token)):
+    username = (current_user.get("username") or "").strip().lower()
+    if not username:
+        raise HTTPException(status_code=401, detail="User authentication required")
+
+    if not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET:
+        raise HTTPException(
+            status_code=503,
+            detail="Razorpay payment gateway credentials are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env."
+        )
+
+    plan = (req.plan or "pro").strip().lower()
+    # Plan pricing configuration:
+    # Pro: ₹2,499 INR / $29 USD per month
+    # Enterprise: ₹9,999 INR / $99 USD per month
+    currency = (RAZORPAY_CURRENCY or "INR").upper()
+    plan_prices = {
+        "pro": 2499.0 if currency == "INR" else 29.0,
+        "enterprise": 9999.0 if currency == "INR" else 99.0,
+    }
+    amount = plan_prices.get(plan, 2499.0 if currency == "INR" else 29.0)
+    amount_subunits = int(amount * 100)  # Subunits (paise or cents)
+
+    receipt_id = f"rcpt_{uuid.uuid4().hex[:10]}"
+
+    try:
+        auth_str = base64.b64encode(f"{RAZORPAY_KEY_ID}:{RAZORPAY_KEY_SECRET}".encode()).decode()
+        headers = {
+            "Authorization": f"Basic {auth_str}",
+            "Content-Type": "application/json",
+        }
+        order_payload = {
+            "amount": amount_subunits,
+            "currency": currency,
+            "receipt": receipt_id,
+            "notes": {
+                "username": username,
+                "plan": plan,
+                "billingCycle": req.billingCycle or "monthly"
+            }
+        }
+        with httpx.Client(timeout=15.0) as client:
+            res = client.post("https://api.razorpay.com/v1/orders", json=order_payload, headers=headers)
+            if res.status_code not in (200, 201):
+                logger.error(f"Razorpay order creation failed: {res.text}")
+                error_detail = res.text
+                try:
+                    err_json = res.json()
+                    error_detail = err_json.get("error", {}).get("description") or res.text
+                except Exception:
+                    pass
+                raise HTTPException(status_code=502, detail=f"Razorpay order creation failed: {error_detail}")
+            data = res.json()
+            order_id = data.get("id")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calling Razorpay API: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to connect to Razorpay payment gateway: {str(e)}")
+
+    # Save transaction record in payments table
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO payments (username, order_id, plan, amount, currency, status)
+                    VALUES (%s, %s, %s, %s, %s, 'created');
+                """, (username, order_id, plan, amount, currency))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to write payment record: {e}")
+
+    return JSONResponse({
+        "order_id": order_id,
+        "amount": amount_subunits,
+        "currency": currency,
+        "key_id": RAZORPAY_KEY_ID,
+        "plan": plan,
+    })
+
+
+@app.post("/api/payments/verify-payment")
+def verify_payment(req: VerifyPaymentRequest, current_user: dict = Depends(verify_user_token)):
+    username = (current_user.get("username") or "").strip().lower()
+    if not username:
+        raise HTTPException(status_code=401, detail="User authentication required")
+
+    if not RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=503, detail="Razorpay secret key is not configured on the server.")
+
+    plan = (req.plan or "pro").strip().lower()
+
+    # Compute HMAC SHA-256 signature
+    msg = f"{req.razorpay_order_id}|{req.razorpay_payment_id}".encode("utf-8")
+    expected_signature = hmac.new(
+        RAZORPAY_KEY_SECRET.encode("utf-8"),
+        msg,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_signature, req.razorpay_signature):
+        try:
+            with db_session() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE payments
+                        SET status = 'failed',
+                            payment_id = %s,
+                            signature = %s,
+                            error_code = 'BAD_SIGNATURE',
+                            error_description = 'Payment signature verification failed',
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = %s;
+                    """, (req.razorpay_payment_id, req.razorpay_signature, req.razorpay_order_id))
+                conn.commit()
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail="Invalid Razorpay payment signature. Verification failed.")
+
+    # Payment verified! Update status, user_subscriptions, and user_activity_logs
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                # 1. Update payments table
+                cur.execute("""
+                    UPDATE payments
+                    SET status = 'success',
+                        payment_id = %s,
+                        signature = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE order_id = %s;
+                """, (req.razorpay_payment_id, req.razorpay_signature, req.razorpay_order_id))
+
+                # 2. Update user_subscriptions table (Upgrade the user's plan)
+                cur.execute("""
+                    INSERT INTO user_subscriptions (username, plan, status, started_at, renews_at)
+                    VALUES (%s, %s, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days')
+                    ON CONFLICT (username) DO UPDATE
+                    SET plan = EXCLUDED.plan,
+                        status = 'active',
+                        started_at = CURRENT_TIMESTAMP,
+                        renews_at = CURRENT_TIMESTAMP + INTERVAL '30 days';
+                """, (username, plan))
+
+                # 3. Log user activity
+                plan_title = plan.upper()
+                cur.execute("""
+                    INSERT INTO user_activity_logs (username, activity_type, title, description, status, icon)
+                    VALUES (%s, 'subscription', %s, %s, 'success', 'bi-stars');
+                """, (
+                    username,
+                    f"Upgraded to {plan_title} Plan",
+                    f"Payment ({req.razorpay_payment_id}) verified successfully for {plan_title} subscription."
+                ))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error finalizing subscription: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error updating subscription: {str(e)}")
+
+    return JSONResponse({
+        "success": True,
+        "message": f"Payment verified successfully! Your account has been upgraded to the {plan.upper()} plan.",
+        "plan": plan,
+        "order_id": req.razorpay_order_id,
+        "payment_id": req.razorpay_payment_id,
+    })
+
+
+@app.post("/api/payments/report-failure")
+def report_payment_failure(req: PaymentFailureReport, current_user: dict = Depends(verify_user_token)):
+    username = (current_user.get("username") or "").strip().lower()
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                if req.order_id:
+                    cur.execute("""
+                        UPDATE payments
+                        SET status = 'failed',
+                            payment_id = COALESCE(%s, payment_id),
+                            error_code = %s,
+                            error_description = %s,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = %s;
+                    """, (
+                        req.payment_id,
+                        req.code or "PAYMENT_FAILED",
+                        req.description or req.reason or "Payment was declined or cancelled",
+                        req.order_id
+                    ))
+
+                cur.execute("""
+                    INSERT INTO user_activity_logs (username, activity_type, title, description, status, icon)
+                    VALUES (%s, 'subscription', %s, %s, 'failed', 'bi-x-circle-fill');
+                """, (
+                    username,
+                    "Subscription Payment Failed",
+                    req.description or req.reason or "Payment transaction was declined or dismissed."
+                ))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to record payment failure: {e}")
+
+    return JSONResponse({"success": True})
+
+
+@app.get("/api/payments/history")
+def get_payment_history(current_user: dict = Depends(verify_user_token)):
     username = (current_user.get("username") or "").strip().lower()
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT plan, status, started_at, renews_at
-                    FROM user_subscriptions
-                    WHERE username = %s AND status = 'active';
+                    SELECT id, order_id, payment_id, plan, amount, currency, status, error_description, created_at
+                    FROM payments
+                    WHERE username = %s
+                    ORDER BY created_at DESC
+                    LIMIT 20;
                 """, (username,))
-                row = cur.fetchone()
-                
-                # Compute usage stats
-                cur.execute("SELECT COUNT(*) FROM test_results WHERE username = %s;", (username,))
-                test_runs_row = cur.fetchone()
-                test_runs_used = int(test_runs_row[0]) if test_runs_row and test_runs_row[0] is not None else 0
-                
-                cur.execute("SELECT COUNT(*) FROM projects WHERE owner = %s;", (username,))
-                projects_row = cur.fetchone()
-                projects_used = int(projects_row[0]) if projects_row and projects_row[0] is not None else 0
-                
-                cur.execute("""
-                    SELECT COALESCE(SUM(pf.file_size), 0)
-                    FROM project_files pf
-                    JOIN projects p ON pf.project_id = p.id
-                    WHERE p.owner = %s;
-                """, (username,))
-                stored_bytes_row = cur.fetchone()
-                stored_bytes = float(stored_bytes_row[0]) if stored_bytes_row and stored_bytes_row[0] is not None else 0.0
-                stored_gb = round(stored_bytes / (1024.0 * 1024.0 * 1024.0), 2)
-
-                if not row:
-                    # Unsubscribed / Free user
-                    return JSONResponse({
-                        "plan": "free",
-                        "status": "none",
-                        "startedAt": None,
-                        "renewsAt": None,
-                        "usage": {
-                            "testRunsUsed": test_runs_used,
-                            "testRunsLimit": 10,
-                            "storedResultsGb": stored_gb,
-                            "storedResultsLimitGb": 1.0,
-                            "projectsUsed": projects_used,
-                            "projectsLimit": 3,
-                            "scheduledTestsUsed": 0,
-                            "scheduledTestsLimit": 0,
-                            "exportsUsed": 0,
-                            "exportsLimit": 0,
-                            "maxVus": 100
-                        }
+                rows = cur.fetchall()
+                records = []
+                for row in rows:
+                    pid, oid, pmid, plan, amount, currency, status, err_desc, cat = row
+                    records.append({
+                        "id": pid,
+                        "orderId": oid,
+                        "paymentId": pmid,
+                        "plan": plan,
+                        "amount": float(amount) if amount is not None else 0.0,
+                        "currency": currency,
+                        "status": status,
+                        "error": err_desc,
+                        "createdAt": cat.isoformat() if cat else None
                     })
-                
-                plan, status, started_at, renews_at = row
-                
-                # Plan limits
-                limits = {
-                    "free": {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 100},
-                    "pro": {"runs": 100, "gb": 20.0, "projects": 999, "scheduled": 5, "exports": 20, "vus": 10000},
-                    "enterprise": {"runs": 9999, "gb": 100.0, "projects": 999, "scheduled": 999, "exports": 999, "vus": 50000}
-                }.get((plan or "free").lower(), {"runs": 10, "gb": 1.0, "projects": 3, "scheduled": 0, "exports": 0, "vus": 100})
-
-                return JSONResponse({
-                    "plan": (plan or "free").lower(),
-                    "status": (status or "active").lower(),
-                    "startedAt": started_at.isoformat() if started_at else None,
-                    "renewsAt": renews_at.isoformat() if renews_at else None,
-                    "usage": {
-                        "testRunsUsed": test_runs_used,
-                        "testRunsLimit": limits["runs"],
-                        "storedResultsGb": stored_gb,
-                        "storedResultsLimitGb": limits["gb"],
-                        "projectsUsed": projects_used,
-                        "projectsLimit": limits["projects"] if limits["projects"] < 999 else None,
-                        "scheduledTestsUsed": 0,
-                        "scheduledTestsLimit": limits["scheduled"],
-                        "exportsUsed": 0,
-                        "exportsLimit": limits["exports"],
-                        "maxVus": limits["vus"]
-                    }
-                })
+                return JSONResponse(records)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -2326,6 +2684,26 @@ def run_test(
     project_id: Optional[int] = Form(None),
     project_file_id: Optional[int] = Form(None),
 ):
+    # ── Plan Limitations Enforcement ────────────────────────────
+    plan_info = get_user_plan_info(username)
+
+    # 1. Virtual Users (Concurrency / Threads)
+    max_vus = plan_info["vus"]
+    if threads > max_vus:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Virtual user limit exceeded. Your {plan_info['name']} plan allows up to {max_vus:,} Virtual Users (requested: {threads:,}). Please upgrade to Pro on the Subscribe page for up to 10,000 VUs."
+        )
+
+    # 2. Monthly Test Runs
+    max_runs = plan_info["runs"]
+    runs_used = get_user_monthly_test_runs(username)
+    if runs_used >= max_runs:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Monthly test run quota reached ({runs_used}/{max_runs} runs used this month). Please upgrade your plan on the Subscribe page to continue running tests."
+        )
+
     try:
         # If a workspace file is specified, copy it to the execution folder
         if project_id is not None and project_file_id is not None:
@@ -3624,8 +4002,26 @@ def create_project(
     username: str = Form(""),
 ):
     """Create a new project workspace."""
-    if not name.strip():
+    name_str = (name if isinstance(name, str) else str(getattr(name, "default", "") or "")).strip()
+    desc_str = (description if isinstance(description, str) else str(getattr(description, "default", "") or "")).strip()
+    tags_str = (tags if isinstance(tags, str) else str(getattr(tags, "default", "") or "")).strip()
+    user_str = (username if isinstance(username, str) else str(getattr(username, "default", "") or "")).strip()
+
+    if not name_str:
         raise HTTPException(status_code=400, detail="Project name must not be empty.")
+
+    # ── Plan Limitations Enforcement ────────────────────────────
+    if user_str:
+        plan_info = get_user_plan_info(user_str)
+        max_projects = plan_info["projects"]
+        if max_projects < 999:
+            current_count = get_user_workspace_count(user_str)
+            if current_count >= max_projects:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Workspace limit reached ({current_count}/{max_projects}). The {plan_info['name']} plan allows up to {max_projects} workspaces. Please upgrade to Pro for unlimited workspaces."
+                )
+
     try:
         with db_session() as conn:
             with conn:
@@ -3634,10 +4030,10 @@ def create_project(
                         INSERT INTO projects (name, description, tags, owner)
                         VALUES (%s, %s, %s, %s)
                         RETURNING id, name, description, tags, owner, created_at, updated_at;
-                    """, (name.strip(), description.strip(), tags.strip(), username))
+                    """, (name_str, desc_str, tags_str, user_str))
                     row = cur.fetchone()
-        if username:
-            log_user_activity(username, "workspace", "Workspace Created", f"New workspace '{name.strip()}' created", "info", "bi-folder-plus")
+        if user_str:
+            log_user_activity(user_str, "workspace", "Workspace Created", f"New workspace '{name_str}' created", "info", "bi-folder-plus")
         return JSONResponse({
             "id": row[0],
             "name": row[1],
@@ -3733,17 +4129,36 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
     else:
         file_type = "other"
 
-    # Verify project exists
+    # Verify project exists and get owner for storage quota check
+    owner = ""
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT id FROM projects WHERE id = %s;", (project_id,))
-                if not cur.fetchone():
+                cur.execute("SELECT id, owner FROM projects WHERE id = %s;", (project_id,))
+                proj_row = cur.fetchone()
+                if not proj_row:
                     raise HTTPException(status_code=404, detail="Project not found.")
+                owner = (proj_row[1] or "").strip()
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error during project verification: {str(e)}")
+
+    content = await file.read()
+    file_size = len(content)
+
+    # Check storage quota limitation
+    if owner:
+        plan_info = get_user_plan_info(owner)
+        storage_limit_bytes = int(plan_info["gb"] * 1024 * 1024 * 1024)
+        current_storage = get_user_storage_bytes(owner)
+        if current_storage + file_size > storage_limit_bytes:
+            current_gb = round(current_storage / (1024**3), 2)
+            limit_gb = plan_info["gb"]
+            raise HTTPException(
+                status_code=403,
+                detail=f"Storage quota exceeded. Your {plan_info['name']} plan allows up to {limit_gb} GB (currently using {current_gb} GB). Please upgrade to Pro on the Subscribe page for 20 GB storage."
+            )
 
     # Save file to disk
     proj_dir = PROJECT_FILES_DIR / str(project_id)
@@ -3759,10 +4174,8 @@ async def upload_project_file(project_id: int, file: UploadFile = File(...)):
             break
         n += 1
 
-    content = await file.read()
     with open(dest, "wb") as f_out:
         f_out.write(content)
-    file_size = len(content)
 
     # Register in DB
     try:

@@ -1,14 +1,14 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { UpperCasePipe } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { CommonModule, UpperCasePipe, TitleCasePipe, DecimalPipe } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-test-config',
   templateUrl: './test-config.html',
   styleUrls: ['./test-config.css'],
-  imports: [FormsModule, UpperCasePipe],
+  imports: [CommonModule, FormsModule, UpperCasePipe, TitleCasePipe, DecimalPipe, RouterLink],
 })
 export class TestConfig implements OnInit {
   // Modes: 'workspace' or 'direct'
@@ -21,6 +21,10 @@ export class TestConfig implements OnInit {
   selectedFileId: number | null = null;
   isLoadingWorkspaces = false;
   isLoadingFiles = false;
+
+  // Plan limits
+  userPlan: string = 'free';
+  maxVus: number = 500;
 
   constructor(
     protected api: ApiService,
@@ -38,6 +42,7 @@ export class TestConfig implements OnInit {
   }
 
   ngOnInit() {
+    this.loadSubscriptionPlan();
     this.loadWorkspaces();
     const activeId =
       this.api.selectedProjectId() ||
@@ -238,4 +243,20 @@ export class TestConfig implements OnInit {
     }
     return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
   }
+
+  loadSubscriptionPlan() {
+    this.api.getSubscription().subscribe({
+      next: (sub) => {
+        this.userPlan = (sub.plan || 'free').toLowerCase();
+        this.maxVus = sub.usage?.maxVus || (this.userPlan === 'pro' ? 10000 : 500);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.userPlan = 'free';
+        this.maxVus = 500;
+        this.cdr.detectChanges();
+      },
+    });
+  }
 }
+

@@ -18,28 +18,28 @@
         <div class="banner-sub-line">
           @if (getCurrentPlan() === 'free') {
             You are on the free tier. Contact your administrator to upgrade.
-          } @else if (subscription?.renewsAt) {
-            Renews on {{ subscription?.renewsAt | date:'mediumDate' }}
+          } @else if (subscription.renewsAt) {
+            Renews on {{ subscription.renewsAt | date:'mediumDate' }}
           }
-          @if (subscription?.startedAt && getCurrentPlan() !== 'free') {
-            &nbsp;·&nbsp; Started {{ subscription?.startedAt | date:'mediumDate' }}
+          @if (subscription.startedAt && getCurrentPlan() !== 'free') {
+            &nbsp;·&nbsp; Started {{ subscription.startedAt | date:'mediumDate' }}
           }
         </div>
       </div>
-      @if (subscription?.usage) {
+      @if (subscription.usage) {
       <div class="banner-usage-chips d-flex gap-3 flex-wrap">
         <div class="usage-chip">
           <i class="bi bi-play-circle me-1"></i>
-          <strong>{{ subscription?.usage?.testRunsUsed }}</strong> / {{ subscription?.usage?.testRunsLimit }} Runs
+          <strong>{{ subscription.usage.testRunsUsed }}</strong> / {{ subscription.usage.testRunsLimit }} Runs
         </div>
         <div class="usage-chip">
           <i class="bi bi-folder2 me-1"></i>
-          <strong>{{ subscription?.usage?.projectsUsed }}</strong> /
-          {{ subscription?.usage?.projectsLimit !== null ? subscription?.usage?.projectsLimit : '∞' }} Workspaces
+          <strong>{{ subscription.usage.projectsUsed }}</strong> /
+          {{ subscription.usage.projectsLimit !== null ? subscription.usage.projectsLimit : '∞' }} Workspaces
         </div>
         <div class="usage-chip">
           <i class="bi bi-hdd me-1"></i>
-          <strong>{{ subscription?.usage?.storedResultsGb }}</strong> / {{ subscription?.usage?.storedResultsLimitGb }} GB
+          <strong>{{ subscription.usage.storedResultsGb }}</strong> / {{ subscription.usage.storedResultsLimitGb }} GB
         </div>
       </div>
       }
@@ -69,6 +69,12 @@
       <button type="button" class="btn-close" (click)="noticeMessage = ''"></button>
     </div>
     }
+    @if (errorMessage) {
+    <div class="alert alert-danger alert-dismissible fade show mt-3 text-start fs-8 shadow-sm" role="alert">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
+    </div>
+    }
   </div>
 
   <!-- ── Plans Grid (3 Tiers: Free, Pro, Enterprise) ───────────── -->
@@ -92,7 +98,7 @@
           <p class="plan-desc">Essential tools for individual developers testing small APIs.</p>
         </div>
         <ul class="plan-features list-unstyled flex-grow-1">
-          <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>10</strong> Test Runs / mo</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>30</strong> Test Runs / mo</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>500</strong> Virtual Users</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>1 GB</strong> Storage</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes"></i><span><strong>3</strong> Workspaces</span></li>
@@ -134,7 +140,7 @@
         <ul class="plan-features list-unstyled flex-grow-1">
           <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>100</strong> Test Runs / mo</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>10,000</strong> Virtual Users</span></li>
-          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>20 GB</strong> Storage</span></li>
+          <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>10 GB</strong> Storage</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>Unlimited</strong> Workspaces</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>Scheduled</strong> Tests (Cron)</span></li>
           <li><i class="bi bi-check-circle-fill feat-yes feat-pro"></i><span><strong>PDF / HTML</strong> Exports</span></li>
@@ -146,9 +152,15 @@
             <i class="bi bi-check2 me-1"></i> Your Current Plan
           </button>
           } @else {
-          <button class="plan-btn plan-btn-pro" (click)="onSubscribe('pro')">
-            <i class="bi bi-stars me-1"></i>
-            {{ getCurrentPlan() === 'enterprise' ? 'Downgrade to Pro' : 'Upgrade to Pro' }}
+          <button class="plan-btn plan-btn-pro d-flex align-items-center justify-content-center gap-2"
+            (click)="onSubscribe('pro')" [disabled]="isProcessingPayment">
+            @if (isProcessingPayment) {
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+              <span>Initializing Razorpay...</span>
+            } @else {
+              <i class="bi bi-credit-card-2-front-fill"></i>
+              <span>{{ getCurrentPlan() === 'enterprise' ? 'Downgrade to Pro' : 'Pay & Upgrade to Pro' }}</span>
+            }
           </button>
           }
         </div>
@@ -199,7 +211,6 @@
 
   <p class="text-center text-muted fs-9 mt-5 pb-2">
     <i class="bi bi-shield-lock me-1"></i>
-    Plan changes are managed by your administrator. Contact support to upgrade or modify your subscription.
+    Secured by 256-bit SSL encryption. All transactions are securely processed via Razorpay.
   </p>
-
 </div>

@@ -328,6 +328,10 @@ export class Projects implements OnInit, OnDestroy {
 
   // ── Create / Edit ────────────────────────────────────────────
 
+  isWorkspaceLimitReached(): boolean {
+    return this.userSubscriptionPlan === 'free' && this.projects.length >= 3;
+  }
+
   openCreateModal() {
     this.isEditMode = false;
     this.editingProject = null;

@@ -1,0 +1,111 @@
+<div class="payment-result-page py-5 px-3">
+  <div class="result-card mx-auto">
+
+    <!-- Header / Success Animation -->
+    <div class="result-header text-center pt-4 pb-3">
+      <div class="success-icon-wrap mb-3 mx-auto">
+        <i class="bi bi-check-lg"></i>
+      </div>
+      <span class="badge bg-success-soft text-success px-3 py-1 fs-9 fw-bold text-uppercase mb-2 d-inline-block">
+        Payment Verified & Active
+      </span>
+      <h2 class="fw-bold text-slate-800 mb-1" style="font-size: 1.85rem;">Payment Successful!</h2>
+      <p class="text-muted fs-7 mb-0">
+        Thank you for your purchase. Your account has been upgraded to the
+        <strong class="text-primary">{{ plan | uppercase }}</strong> plan.
+      </p>
+    </div>
+
+    <!-- Receipt Details Card -->
+    <div class="receipt-box p-4 mx-4 my-3 rounded-3 border">
+      <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+        <div>
+          <span class="text-muted fs-8 text-uppercase fw-semibold">Subscribed Plan</span>
+          <h5 class="m-0 fw-bold text-slate-800">{{ plan | titlecase }} Tier</h5>
+        </div>
+        <div class="text-end">
+          <span class="text-muted fs-8 text-uppercase fw-semibold">Amount Paid</span>
+          <h4 class="m-0 fw-bold text-success">
+            {{ currency === 'INR' ? '₹' : '$' }}{{ amount | number:'1.2-2' }}
+          </h4>
+        </div>
+      </div>
+
+      <div class="row g-3 fs-8">
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Payment ID</span>
+          <span class="fw-semibold text-slate-700 font-monospace">{{ paymentId }}</span>
+        </div>
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Order ID</span>
+          <span class="fw-semibold text-slate-700 font-monospace">{{ orderId }}</span>
+        </div>
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Transaction Date</span>
+          <span class="fw-semibold text-slate-700">{{ paymentDate | date:'medium' }}</span>
+        </div>
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Next Renewal Date</span>
+          <span class="fw-semibold text-slate-700">{{ renewalDate | date:'mediumDate' }}</span>
+        </div>
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Payment Gateway</span>
+          <span class="fw-semibold text-slate-700 d-flex align-items-center gap-1">
+            <i class="bi bi-shield-check text-primary"></i> Razorpay
+          </span>
+        </div>
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Status</span>
+          <span class="badge bg-success-soft text-success px-2 py-0.5">
+            <i class="bi bi-patch-check-fill me-1"></i>Completed
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Perks Highlight -->
+    <div class="perks-box px-4 py-3 mx-4 mb-4 rounded-3 bg-light">
+      <h6 class="fw-bold text-slate-800 fs-8 mb-2 text-uppercase letter-spacing-1">
+        <i class="bi bi-stars text-warning me-1.5"></i>Unlocked Pro Features:
+      </h6>
+      <div class="row g-2 fs-8 text-slate-700">
+        <div class="col-6 d-flex align-items-center gap-2">
+          <i class="bi bi-check-circle-fill text-success fs-9"></i>
+          <span>100 Test Runs / month</span>
+        </div>
+        <div class="col-6 d-flex align-items-center gap-2">
+          <i class="bi bi-check-circle-fill text-success fs-9"></i>
+          <span>10,000 Virtual Users</span>
+        </div>
+        <div class="col-6 d-flex align-items-center gap-2">
+          <i class="bi bi-check-circle-fill text-success fs-9"></i>
+          <span>10 GB Storage Quota</span>
+        </div>
+        <div class="col-6 d-flex align-items-center gap-2">
+          <i class="bi bi-check-circle-fill text-success fs-9"></i>
+          <span>Unlimited Workspaces</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="result-actions px-4 pb-4 d-flex flex-column flex-sm-row gap-2 justify-content-center">
+      <button type="button" class="btn btn-light border px-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+        (click)="goToDashboard()">
+        <i class="bi bi-speedometer2"></i>
+        <span>Go to Dashboard</span>
+      </button>
+      <button type="button" class="btn btn-light border px-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+        (click)="goToWorkspaces()">
+        <i class="bi bi-grid-fill"></i>
+        <span>View Workspaces</span>
+      </button>
+      <button type="button" class="btn btn-light border px-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+        (click)="goToAccount()">
+        <i class="bi bi-person-gear"></i>
+        <span>Account &amp; Billing</span>
+      </button>
+    </div>
+
+  </div>
+</div>

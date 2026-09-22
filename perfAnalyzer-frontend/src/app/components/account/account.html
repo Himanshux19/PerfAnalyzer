@@ -27,6 +27,13 @@
         <span class="active-dot-badge ms-2">Active</span>
         }
       </button>
+      <button type="button" class="account-pill-btn" [class.active]="activeTab === 'transactions'"
+        (click)="setTab('transactions')">
+        <i class="bi bi-receipt me-2"></i> Billing & Transactions
+        @if (transactions.length > 0) {
+        <span class="active-dot-badge ms-2 bg-primary">{{ transactions.length }}</span>
+        }
+      </button>
     </div>
   </div>
 
@@ -740,10 +747,329 @@
 
     }
 
+    <!-- Shortcut to Transaction History -->
+    <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <span class="fs-8 text-muted">Need official invoices or Payment receipts?</span>
+      <button type="button" class="btn btn-outline-primary btn-sm fs-8 d-flex align-items-center gap-1.5 rounded-3"
+        (click)="setTab('transactions')">
+        <!-- <i class="bi bi-receipt"></i> -->
+        <span>View Transaction History</span>
+      </button>
+    </div>
+
+  </div>
+  }
+
+  <!-- ============================================================
+       TAB 3: BILLING & TRANSACTION HISTORY
+       ============================================================ -->
+  @if (activeTab === 'transactions') {
+  <div class="account-tab-content">
+
+    <!-- KPI Summary Row -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4 col-12">
+        <div class="dashboard-stat-card p-3 rounded-3 border bg-white shadow-xs h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="fs-8 text-muted text-uppercase fw-semibold">Current Plan</span>
+            <span class="badge" [ngClass]="hasActivePlan() ? 'bg-success-soft text-success' : 'bg-light text-slate-700'">
+              {{ (subscription?.plan || 'Free') | uppercase }}
+            </span>
+          </div>
+          <h4 class="fw-bold text-slate-800 m-0">{{ getPlanLabel() }}</h4>
+          <span class="fs-9 text-muted mt-1 d-block">
+            {{ subscription?.renewsAt ? ('Renews ' + (subscription?.renewsAt | date:'mediumDate')) : 'No auto-renewal active' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-12">
+        <div class="dashboard-stat-card p-3 rounded-3 border bg-white shadow-xs h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="fs-8 text-muted text-uppercase fw-semibold">Total Paid</span>
+            <div class="stat-icon-wrap text-success bg-success-soft">
+              <i class="bi bi-cash-stack"></i>
+            </div>
+          </div>
+          <h4 class="fw-bold text-success m-0">
+            ₹{{ getTotalSpent() | number:'1.2-2' }}
+          </h4>
+          <span class="fs-9 text-muted mt-1 d-block">{{ getSuccessCount() }} successful transaction{{ getSuccessCount() !== 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table Container Card -->
+    <div class="settings-card p-4 rounded-3 border bg-white shadow-xs mb-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3 pb-3 border-bottom">
+        <div>
+          <h5 class="fw-bold text-slate-800 m-0 d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-primary"></i> Payment &amp; Invoice Records
+          </h5>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <!-- Search Input -->
+          <div class="input-group input-group-sm" style="max-width: 200px;">
+            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control form-control-sm border-start-0 bg-light"
+              placeholder="Filter by ID..." [(ngModel)]="searchQuery" />
+          </div>
+
+          <!-- Status Filter -->
+          <select class="form-select form-select-sm bg-light" style="width: auto;" [(ngModel)]="transactionFilter">
+            <option value="all">All Statuses</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed / Declined</option>
+          </select>
+
+          <!-- Refresh Button -->
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadTransactions()" title="Refresh Transactions"
+            [disabled]="isLoadingTransactions">
+            <i class="bi bi-arrow-clockwise" [class.spin-animate]="isLoadingTransactions"></i>
+          </button>
+
+          <!-- Upgrade CTA -->
+          <button type="button" class="btn btn-primary btn-sm fw-semibold d-flex align-items-center gap-1.5"
+            (click)="navigateToSubscribe()">
+            <i class="bi bi-stars"></i>
+            <span>Upgrade Tier</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      @if (isLoadingTransactions) {
+      <div class="text-center py-5">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <p class="text-muted fs-8 mt-2 mb-0">Retrieving transaction history...</p>
+      </div>
+      }
+
+      <!-- Empty State -->
+      @else if (getFilteredTransactions().length === 0) {
+      <div class="empty-state text-center py-5">
+        <div class="empty-icon-wrap mx-auto mb-3" style="width: 56px; height: 56px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+          <i class="bi bi-receipt text-muted"></i>
+        </div>
+        <h6 class="fw-bold text-slate-800 mb-1">No Transactions Found</h6>
+        <p class="text-muted fs-8 mx-auto mb-3" style="max-width: 420px;">
+          @if (searchQuery || transactionFilter !== 'all') {
+            No transactions match the selected filters. Try clearing your search query.
+          } @else {
+            You have not made any payments yet. When you upgrade to a Pro or Enterprise plan, your invoices and receipts will appear here.
+          }
+        </p>
+        @if (!searchQuery && transactionFilter === 'all') {
+        <button type="button" class="btn btn-primary btn-sm fw-semibold" (click)="navigateToSubscribe()">
+          <i class="bi bi-gem me-1"></i> Explore Plans &amp; Pricing
+        </button>
+        }
+      </div>
+      }
+
+      <!-- Transactions Table -->
+      @else {
+      <div class="table-responsive">
+        <table class="table align-middle table-hover m-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5 ps-3">Date &amp; Time</th>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5">Plan</th>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5">Amount</th>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5">Status</th>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5">Order ID</th>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5">Payment ID</th>
+              <th class="fs-9 fw-bold text-uppercase text-muted border-0 py-2.5 text-end pe-3">Receipt</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tx of getFilteredTransactions(); track tx.id) {
+            <tr>
+              <td class="ps-3 fs-8 text-slate-700">
+                <div class="fw-semibold">{{ tx.createdAt | date:'mediumDate' }}</div>
+                <div class="text-muted fs-9">{{ tx.createdAt | date:'shortTime' }}</div>
+              </td>
+              <td>
+                <span class="badge text-uppercase fw-semibold"
+                  [ngClass]="tx.plan === 'pro' ? 'bg-primary-soft text-primary' : tx.plan === 'enterprise' ? 'bg-purple-soft text-purple' : 'bg-light text-slate-700'">
+                  {{ tx.plan }}
+                </span>
+              </td>
+              <td class="fs-8 fw-bold" [ngClass]="tx.status === 'success' ? 'text-success' : 'text-slate-700'">
+                {{ tx.currency === 'INR' ? '₹' : '$' }}{{ tx.amount | number:'1.2-2' }}
+              </td>
+              <td>
+                @if (tx.status === 'success') {
+                <span class="badge bg-success-soft text-success px-2 py-1 fs-9 fw-semibold">
+                  <i class="bi bi-check-circle-fill me-1"></i>Completed
+                </span>
+                } @else if (tx.status === 'failed') {
+                <span class="badge bg-danger-soft text-danger px-2 py-1 fs-9 fw-semibold" [title]="tx.error || 'Failed'">
+                  <i class="bi bi-x-circle-fill me-1"></i>Failed
+                </span>
+                } @else {
+                <span class="badge bg-warning-soft text-warning px-2 py-1 fs-9 fw-semibold">
+                  <i class="bi bi-hourglass-split me-1"></i>{{ tx.status | titlecase }}
+                </span>
+                }
+              </td>
+              <td class="fs-9 font-monospace text-muted">
+                <span class="cursor-pointer" (click)="copyToClipboard(tx.orderId)" title="Click to copy">
+                  {{ tx.orderId }}
+                  <i class="bi bi-clipboard ms-1 text-primary"></i>
+                </span>
+              </td>
+              <td class="fs-9 font-monospace text-muted">
+                @if (tx.paymentId) {
+                <span class="cursor-pointer" (click)="copyToClipboard(tx.paymentId)" title="Click to copy">
+                  {{ tx.paymentId }}
+                  <i class="bi bi-clipboard ms-1 text-primary"></i>
+                </span>
+                } @else {
+                <span class="text-muted fst-italic">—</span>
+                }
+              </td>
+              <td class="text-end pe-3">
+                <button type="button" class="btn btn-light btn-sm border fs-9 fw-semibold d-inline-flex align-items-center gap-1"
+                  (click)="viewReceipt(tx)" title="View Detailed Receipt">
+                  <i class="bi bi-receipt text-primary"></i>
+                  <span>Receipt</span>
+                </button>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+
+    </div>
+
   </div>
   }
 
 </div>
+
+<!-- ============================================================
+     MODAL: TRANSACTION RECEIPT / INVOICE
+     ============================================================ -->
+@if (showReceiptModal && selectedTransaction) {
+<div class="modal-backdrop fade show" (click)="closeReceiptModal()"></div>
+<div class="modal fade show d-block" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered modal-md" role="document" (click)="$event.stopPropagation()">
+    <div class="modal-content modal-content-modern shadow-lg printable-receipt">
+
+      <div class="modal-header border-bottom px-4 py-3 bg-light d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <!-- <i class="bi bi-receipt-cutoff text-primary fs-5"></i> -->
+          <h5 class="modal-title fw-bold text-slate-800 m-0">Payment Receipt</h5>
+        </div>
+        <button type="button" class="btn-close" (click)="closeReceiptModal()"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <!-- Receipt Header Branding -->
+        <div class="d-flex justify-content-between align-items-start pb-3 mb-3 border-bottom">
+          <div>
+            <h5 class="fw-bold text-slate-900 m-0">PerfAnalyzer</h5>
+            <span class="fs-9 text-muted d-block">Automated Load &amp; Performance Testing</span>
+          </div>
+          <div class="text-end">
+            <span class="badge text-uppercase px-2.5 py-1"
+              [ngClass]="selectedTransaction.status === 'success' ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'">
+              {{ selectedTransaction.status === 'success' ? 'PAID & VERIFIED' : 'PAYMENT FAILED' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Receipt Metadata -->
+        <div class="row g-2 fs-8 mb-4">
+          <div class="col-6">
+            <span class="text-muted d-block fs-9">Date &amp; Time</span>
+            <span class="fw-semibold text-slate-800">{{ selectedTransaction.createdAt | date:'medium' }}</span>
+          </div>
+          <div class="col-6">
+            <span class="text-muted d-block fs-9">Order Reference</span>
+            <span class="font-monospace text-slate-700">{{ selectedTransaction.orderId }}</span>
+          </div>
+          <div class="col-6 text-end">
+            <span class="text-muted d-block fs-9">Payment Reference</span>
+            <span class="font-monospace text-slate-700">{{ selectedTransaction.paymentId || 'N/A' }}</span>
+          </div>
+        </div>
+
+        <!-- Itemized Table -->
+        <div class="table-responsive mb-3">
+          <table class="table table-sm border-top border-bottom m-0 fs-8">
+            <thead class="bg-light">
+              <tr>
+                <th class="py-2 text-muted fw-bold">Description</th>
+                <th class="py-2 text-muted fw-bold text-center">Qty</th>
+                <th class="py-2 text-muted fw-bold text-end">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="py-2.5 fw-semibold text-slate-800">
+                  PerfAnalyzer {{ selectedTransaction.plan | titlecase }} Plan Subscription
+                  <div class="text-muted fs-9 fw-normal">1 Month Access (Full Platform Cloud Runner)</div>
+                </td>
+                <td class="py-2.5 text-center text-muted">1</td>
+                <td class="py-2.5 text-end fw-bold text-slate-800">
+                  {{ selectedTransaction.currency === 'INR' ? '₹' : '$' }}{{ selectedTransaction.amount | number:'1.2-2' }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="pt-2 text-end text-muted">Subtotal:</td>
+                <td class="pt-2 text-end fw-semibold">
+                  {{ selectedTransaction.currency === 'INR' ? '₹' : '$' }}{{ selectedTransaction.amount | number:'1.2-2' }}
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" class="text-end text-muted">Tax / GST (Inclusive):</td>
+                <td class="text-end fw-semibold">₹0.00</td>
+              </tr>
+              <tr class="border-top">
+                <td colspan="2" class="pt-2 text-end fw-bold text-slate-900 fs-7">Total Paid:</td>
+                <td class="pt-2 text-end fw-bold text-success fs-6">
+                  {{ selectedTransaction.currency === 'INR' ? '₹' : '$' }}{{ selectedTransaction.amount | number:'1.2-2' }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        @if (selectedTransaction.error) {
+        <div class="alert alert-danger-modern p-2.5 fs-8 mb-0">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          <strong>Error Details:</strong> {{ selectedTransaction.error }}
+        </div>
+        }
+      </div>
+
+      <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1.5" (click)="printReceipt()">
+          <i class="bi bi-printer"></i>
+          <span>Print / PDF</span>
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="closeReceiptModal()">Close</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+}
+
+@if (copySuccessMsg) {
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+  <div class="toast show bg-dark text-white px-3 py-2 rounded-3 shadow">
+    <i class="bi bi-check2-circle text-success me-1"></i> {{ copySuccessMsg }}
+  </div>
+</div>
+}
 
 <!-- ============================================================
      MODAL: ACCOUNT DELETION REQUEST

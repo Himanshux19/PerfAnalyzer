@@ -50,6 +50,30 @@
 
   <!-- Main Container -->
   <div class="container-fluid py-4 px-lg-5">
+    <!-- Plan Limitation / Quota Error Alert -->
+    @if (quotaErrorMessage) {
+    <div class="alert alert-warning border-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 shadow-sm">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-warning text-dark rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px;">
+          <i class="bi bi-shield-exclamation fs-5"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold text-dark m-0 mb-0.5">Plan Quota Exceeded</h6>
+          <p class="m-0 fs-8 text-slate-800">{{ quotaErrorMessage }}</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <a routerLink="/subscribe" class="btn btn-warning fw-semibold btn-sm d-flex align-items-center gap-1 px-3">
+          <i class="bi bi-gem"></i>
+          <span>Upgrade to Pro</span>
+        </a>
+        <button type="button" class="btn btn-light btn-sm text-muted" (click)="quotaErrorMessage = ''">
+          Dismiss
+        </button>
+      </div>
+    </div>
+    }
+
     <!-- Upper Section Grid (Test Setup, Run Control, logs console) -->
     <div class="row g-4 mb-4">
       <div class="col-lg-4 col-md-6 col-12">

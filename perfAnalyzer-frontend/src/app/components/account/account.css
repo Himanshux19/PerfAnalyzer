@@ -917,6 +917,62 @@
 .acct-plan-btn-outline     { background:transparent; border:1.5px solid #d1d5db; color:#374151; }
 .acct-plan-btn-outline:hover { background:#f8fafc; border-color:#9ca3af; }
 .acct-plan-btn-pro { background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; box-shadow:0 3px 10px rgba(59,130,246,.28); }
-.acct-plan-btn-pro:hover:not(:disabled) { box-shadow:0 5px 16px rgba(59,130,246,.35); }
 .acct-plan-btn-dark { background:#0f172a; color:#fff; }
 .acct-plan-btn-dark:hover:not(:disabled) { background:#1e293b; }
+
+/* ==============================
+   Billing & Transaction History
+   ============================== */
+.dashboard-stat-card {
+  transition: all 0.2s ease;
+}
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.bg-purple-soft {
+  background-color: #f3e8ff !important;
+}
+
+.text-purple {
+  color: #7e22ce !important;
+}
+
+.spin-animate {
+  animation: spinIcon 0.8s linear infinite;
+}
+
+@keyframes spinIcon {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.printable-receipt {
+  max-width: 520px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-receipt, .printable-receipt * {
+    visibility: visible;
+  }
+  .printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

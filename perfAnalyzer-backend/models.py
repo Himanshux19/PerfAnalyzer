@@ -120,4 +120,26 @@ class MonitoringIntegrationUpdate(BaseModel):
 class MonitoringIntegrationStatusUpdate(BaseModel):
     enabled: Optional[bool] = Field(default=None)
     status: Optional[str] = Field(default=None, max_length=50)
+
+
+class CreatePaymentOrderRequest(BaseModel):
+    plan: str = Field(default="pro", description="Subscription plan to purchase (e.g. 'pro', 'enterprise')")
+    billingCycle: Optional[str] = Field(default="monthly", description="Billing cycle: 'monthly' or 'yearly'")
+
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_order_id: str = Field(..., description="Razorpay Order ID")
+    razorpay_payment_id: str = Field(..., description="Razorpay Payment ID")
+    razorpay_signature: str = Field(..., description="Razorpay HMAC SHA256 Signature")
+    plan: str = Field(default="pro", description="Target plan name")
+
+
+class PaymentFailureReport(BaseModel):
+    order_id: Optional[str] = Field(default=None, description="Order ID if available")
+    payment_id: Optional[str] = Field(default=None, description="Payment ID if available")
+    code: Optional[str] = Field(default=None, description="Error code from Razorpay")
+    description: Optional[str] = Field(default=None, description="Error description")
+    source: Optional[str] = Field(default=None, description="Error source")
+    step: Optional[str] = Field(default=None, description="Error step")
+    reason: Optional[str] = Field(default=None, description="Error reason")
 

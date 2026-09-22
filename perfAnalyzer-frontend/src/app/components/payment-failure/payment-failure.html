@@ -1,0 +1,89 @@
+<div class="payment-result-page py-5 px-3">
+  <div class="result-card mx-auto">
+
+    <!-- Header / Failure Icon -->
+    <div class="result-header text-center pt-4 pb-3">
+      <div class="failure-icon-wrap mb-3 mx-auto">
+        <i class="bi bi-x-lg"></i>
+      </div>
+      <span class="badge bg-danger-soft text-danger px-3 py-1 fs-9 fw-bold text-uppercase mb-2 d-inline-block">
+        Payment Failed or Cancelled
+      </span>
+      <h2 class="fw-bold text-slate-800 mb-1" style="font-size: 1.85rem;">Payment Unsuccessful</h2>
+      <p class="text-muted fs-7 mb-0">
+        We were unable to charge your account for the <strong class="text-dark">{{ plan | uppercase }}</strong> plan.
+      </p>
+    </div>
+
+    <!-- Error Details Alert -->
+    <div class="error-box p-3 mx-4 my-2 rounded-3 border border-danger-subtle bg-danger-subtle d-flex align-items-start gap-3">
+      <i class="bi bi-exclamation-triangle-fill text-danger fs-5 flex-shrink-0 mt-0.5"></i>
+      <div class="fs-8 text-danger-emphasis">
+        <strong class="d-block mb-1">Reason for Failure:</strong>
+        <span>{{ errorMessage }}</span>
+      </div>
+    </div>
+
+    <!-- Transaction Metadata Box -->
+    <div class="receipt-box p-4 mx-4 my-3 rounded-3 border">
+      <div class="row g-3 fs-8">
+        @if (orderId) {
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Order ID</span>
+          <span class="fw-semibold text-slate-700 font-monospace">{{ orderId }}</span>
+        </div>
+        }
+        @if (paymentId) {
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Payment ID</span>
+          <span class="fw-semibold text-slate-700 font-monospace">{{ paymentId }}</span>
+        </div>
+        }
+        <!-- @if (errorCode) {
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Gateway Error Code</span>
+          <span class="badge bg-secondary text-white">{{ errorCode }}</span>
+        </div>
+        } -->
+        <div class="col-sm-6">
+          <span class="text-muted d-block mb-0.5">Deduction Status</span>
+          <span class="fw-semibold text-success d-flex align-items-center gap-1">
+          No funds were charged to your account
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Troubleshooting Tips Box
+    <div class="tips-box px-4 py-3 mx-4 mb-4 rounded-3 bg-light">
+      <h6 class="fw-bold text-slate-800 fs-8 mb-2 text-uppercase letter-spacing-1">
+        <i class="bi bi-lightbulb-fill text-warning me-1.5"></i>Recommended Next Steps:
+      </h6>
+      <ul class="mb-0 ps-3 fs-8 text-slate-700 space-y-1">
+        <li>Check with your bank to verify online and international transactions are enabled.</li>
+        <li>Ensure sufficient account balance or credit limit.</li>
+        <li>Try alternative payment methods on Razorpay (UPI, NetBanking, or a different card).</li>
+      </ul>
+    </div> -->
+
+    <!-- Action Buttons -->
+    <div class="result-actions px-4 pb-4 d-flex flex-column flex-sm-row gap-2 justify-content-center">
+      <button type="button" class="btn btn-light border px-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+        (click)="retryPayment()">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Try Again</span>
+      </button>
+      <button type="button" class="btn btn-light border px-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+        (click)="goToDashboard()">
+        <i class="bi bi-speedometer2"></i>
+        <span>Return to Dashboard</span>
+      </button>
+      <button type="button" class="btn btn-light border px-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+        (click)="contactSupport()">
+        <i class="bi bi-headset"></i>
+        <span>Contact Support</span>
+      </button>
+    </div>
+
+  </div>
+</div>

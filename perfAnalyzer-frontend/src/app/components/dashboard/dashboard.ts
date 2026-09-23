@@ -23,6 +23,8 @@ export class Dashboard implements OnInit, OnDestroy {
 
   // Quota & Plan limitations error banner
   quotaErrorMessage = '';
+  userPlan: string = 'free';
+  maxVus: number = 500;
 
   constructor(
     protected api: ApiService,
@@ -31,6 +33,8 @@ export class Dashboard implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    this.loadSubscriptionPlan();
+
     // Session Guard check (Browser only)
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
@@ -38,6 +42,35 @@ export class Dashboard implements OnInit, OnDestroy {
         this.router.navigate(['/login']);
       }
     }
+  }
+
+  loadSubscriptionPlan() {
+    this.api.getSubscription().subscribe({
+      next: (sub) => {
+        this.userPlan = (sub.plan || 'free').toLowerCase();
+        this.maxVus = sub.usage?.maxVus || (this.userPlan === 'pro' ? 10000 : 500);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.userPlan = 'free';
+        this.maxVus = 500;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  isRunDisabled(): boolean {
+    if (this.api.testStatus() === 'running') return true;
+    const hasTarget = !!(this.api.jmxServerName() || this.api.csvServerName());
+    if (!hasTarget) return true;
+    if (this.api.csvServerName()) return false;
+
+    const threads = this.api.concurrency() || 0;
+    const duration = this.api.duration() || 0;
+    if (threads <= 0 || threads > this.maxVus || duration < 0) {
+      return true;
+    }
+    return false;
   }
 
   onRunTest() {
@@ -63,6 +96,11 @@ export class Dashboard implements OnInit, OnDestroy {
           'Error: Thread count must be greater than 0, and duration must be 0 or greater.',
           'error',
         );
+        return;
+      }
+      if (threads > this.maxVus) {
+        this.quotaErrorMessage = `Configured Virtual Users (${threads}) exceeds your ${this.userPlan.toUpperCase()} plan limit of ${this.maxVus} VUs. Please reduce thread count or upgrade your plan.`;
+        this.api.addLog(`Execution blocked: ${this.quotaErrorMessage}`, 'error');
         return;
       }
     }

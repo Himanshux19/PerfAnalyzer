@@ -390,7 +390,7 @@ export class ApiService {
   elapsedSeconds = signal<number>(0);
 
   // Execution state & console output logs
-  testStatus = signal<'idle' | 'running' | 'success' | 'error'>('idle');
+  testStatus = signal<'idle' | 'running' | 'queued' | 'success' | 'error'>('idle');
   terminalLogs = signal<any[]>([]);
 
   activeTestName = signal<string | null>(null);

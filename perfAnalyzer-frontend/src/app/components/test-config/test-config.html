@@ -1,170 +1,276 @@
-<div class="card-premium h-100">
-  <div class="card-title-premium-runner mb-3">TEST SETUP</div>
+<div class="card-premium h-100 test-setup-card">
+  <div class="card-title-premium-runner mb-3 d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-gear-wide-connected text-primary"></i>
+      <span>TEST SETUP</span>
+    </div>
+    @if (isWorkspaceLocked()) {
+    <span class="badge bg-light text-muted border fs-9 fw-semibold d-flex align-items-center gap-1">
+      <i class="bi bi-lock-fill text-secondary"></i> Project Mode
+    </span>
+    }
+  </div>
 
-  <!-- Mode Selector Pills -->
-  <!-- <div class="mode-selector-pills d-flex mb-4 p-1 bg-light rounded" style="border: 1px solid var(--border-color);">
-    <button type="button" class="btn btn-sm w-50 font-semibold"
+  <!-- Mode Selector Pills (Available when not locked to a workspace) -->
+  @if (!isWorkspaceLocked()) {
+  <div class="mode-selector-pills d-flex mb-3 p-1 bg-light rounded-2 border">
+    <button type="button" class="btn btn-sm w-50 fw-semibold d-flex align-items-center justify-content-center gap-1.5"
             [class.btn-primary]="configMode === 'workspace'"
             [class.btn-light]="configMode !== 'workspace'"
+            [class.text-dark]="configMode !== 'workspace'"
             (click)="setMode('workspace')">
-      Workspace File
+      <i class="bi bi-folder2"></i>
+      <span>Workspace File</span>
     </button>
-    <button type="button" class="btn btn-sm w-50 font-semibold"
+    <button type="button" class="btn btn-sm w-50 fw-semibold d-flex align-items-center justify-content-center gap-1.5"
             [class.btn-primary]="configMode === 'direct'"
             [class.btn-light]="configMode !== 'direct'"
+            [class.text-dark]="configMode !== 'direct'"
             (click)="setMode('direct')">
-      Direct Upload
+      <i class="bi bi-cloud-arrow-up"></i>
+      <span>Direct Upload</span>
     </button>
-  </div> -->
+  </div>
+  }
 
   <!-- 1. Select Workspace / Upload File -->
-  <div class="setup-section mb-4">
-
+  <div class="setup-section mb-3">
     @if (configMode === 'workspace') {
     <div class="workspace-selection-fields">
-      <div class="mb-3">
-        <div class="d-flex align-items-center justify-content-between mb-1">
-          <label class="form-label-premium m-0" for="workspace-select">1. Select Project Workspace</label>
-          <!-- @if (isWorkspaceLocked()) { -->
-          <!-- <span class="badge bg-light text-muted border font-semibold fs-9 d-flex align-items-center gap-1">
-                <i class="bi bi-lock-fill text-secondary"></i> Locked
-              </span> -->
-          <!-- } -->
-        </div>
+      <div class="mb-2.5">
+        <label class="form-label-premium m-0 mb-1" for="workspace-select">1. Select Project Workspace</label>
         <div class="d-flex gap-2">
           <select id="workspace-select" class="form-select form-input-premium" [(ngModel)]="selectedWorkspaceId"
-            (change)="onWorkspaceChange()" [disabled]="isWorkspaceLocked()">
+            (change)="onWorkspaceChange()" [disabled]="isWorkspaceLocked() || api.testStatus() === 'running'">
             <option [value]="null">Select Workspace</option>
             @for (ws of workspaces; track ws.id) {
-            <option [value]="ws.id">{{ ws.name }} ({{ ws.file_count }} file{{ ws.file_count !== 1 ? 's' : '' }})
-            </option>
+            <option [value]="ws.id">{{ ws.name }} ({{ ws.file_count }} file{{ ws.file_count !== 1 ? 's' : '' }})</option>
             }
           </select>
           <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadWorkspaces()"
-            title="Refresh Workspaces" [disabled]="isWorkspaceLocked()">
-            <i class="bi bi-arrow-clockwise"></i>
+            title="Refresh Workspaces" [disabled]="isWorkspaceLocked() || api.testStatus() === 'running'">
+            <i class="bi bi-arrow-clockwise" [class.spin-animate]="isLoadingWorkspaces"></i>
           </button>
         </div>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label-premium" for="file-select">2. Select Test File</label>
+      <div class="mb-2.5">
+        <label class="form-label-premium m-0 mb-1" for="file-select">2. Select Test Script / Dataset</label>
         <select id="file-select" class="form-select form-input-premium" [(ngModel)]="selectedFileId"
-          (change)="onFileChange()" [disabled]="!selectedWorkspaceId">
+          (change)="onFileChange()" [disabled]="!selectedWorkspaceId || api.testStatus() === 'running'">
           <option [value]="null">Select File</option>
           @for (file of workspaceFiles; track file.id) {
           <option [value]="file.id">{{ file.filename }} ({{ file.file_type | uppercase }})</option>
           }
         </select>
         @if (selectedWorkspaceId && workspaceFiles.length === 0 && !isLoadingFiles) {
-        <div class="text-muted fs-8 mt-1">No files in this workspace. Upload files in the Project Workspace tab first.
-        </div>
+        <div class="text-muted fs-9 mt-1">No files found in workspace. Upload scripts in the Workspace tab.</div>
         }
       </div>
     </div>
     } @else {
-    <div class="setup-section-title">Upload Script or Dataset (.jmx / .csv / .yaml)</div>
-    <div class="drag-drop-zone p-4 text-center d-flex flex-column align-items-center justify-content-center mb-3">
-      <span class="text-muted fs-7 mb-2">Drag and drop JMX/YAML script or CSV results here</span>
-      <label for="fileUploadInput" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-2 font-semibold">
-        <i class="bi bi-cloud-upload"></i> Upload File
+    <div class="drag-drop-zone p-3 text-center d-flex flex-column align-items-center justify-content-center mb-2.5">
+      <i class="bi bi-cloud-arrow-up text-primary fs-3 mb-1"></i>
+      <span class="text-slate-700 fw-semibold fs-8 mb-0.5">Upload Performance Test Script</span>
+      <span class="text-muted fs-9 mb-2">Supports .jmx, .csv, .yaml, or .yml</span>
+      <label for="fileUploadInput" class="btn btn-primary btn-sm px-3 py-1 d-inline-flex align-items-center gap-1.5 fw-semibold" style="cursor: pointer;">
+        <i class="bi bi-folder2-open"></i> Browse File
       </label>
       <input type="file" id="fileUploadInput" accept=".jmx,.csv,.yaml,.yml" class="d-none"
-        (change)="onFileSelected($event)" />
+        (change)="onFileSelected($event)" [disabled]="api.testStatus() === 'running'" />
     </div>
     }
 
     <!-- Active JMX Script Display -->
     @if (api.jmxFileName()) {
-    <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
-      <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-file-earmark-code fs-4 text-secondary"></i>
-        <div>
-          <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160"
-            [title]="api.jmxFileName()">{{ api.jmxFileName() }}</div>
-          <div class="uploaded-file-size text-muted fs-8">{{ api.jmxFileSize() }} (Active {{ api.jmxFileName() &&
-            (api.jmxFileName()!.toLowerCase().endsWith('.yaml') || api.jmxFileName()!.toLowerCase().endsWith('.yml')) ?
-            'YAML' : 'JMX' }} Script)</div>
+    <div class="uploaded-file-row p-2.5 px-3 d-flex align-items-center justify-content-between mb-2">
+      <div class="d-flex align-items-center gap-2 text-truncate">
+        <i class="bi bi-file-earmark-code fs-4 text-primary flex-shrink-0"></i>
+        <div class="text-truncate">
+          <div class="uploaded-file-name fw-bold text-slate-900 text-truncate" [title]="api.jmxFileName()">
+            {{ api.jmxFileName() }}
+          </div>
+          <div class="uploaded-file-size text-muted fs-9">
+            {{ api.jmxFileSize() }} &bull; Active {{ api.jmxFileName() && (api.jmxFileName()!.toLowerCase().endsWith('.yaml') || api.jmxFileName()!.toLowerCase().endsWith('.yml')) ? 'YAML' : 'JMX' }} Test Script
+          </div>
         </div>
       </div>
 
-      @if (api.jmxUploadStatus() === 'uploading') {
-      <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
-        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"
-          style="width: 10px; height: 10px;"></span>
-        Uploading
-      </span>
-      } @else if (api.jmxUploadStatus() === 'success') {
-      <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
-      } @else if (api.jmxUploadStatus() === 'error') {
-      <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
-      }
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        @if (api.jmxUploadStatus() === 'uploading') {
+        <span class="badge bg-warning text-dark fw-semibold px-2 py-1 d-flex align-items-center gap-1">
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
+          Uploading
+        </span>
+        } @else if (api.jmxUploadStatus() === 'success') {
+        <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold px-2 py-1">Ready</span>
+        } @else if (api.jmxUploadStatus() === 'error') {
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold px-2 py-1">Failed</span>
+        }
+        <button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none hover-danger"
+          (click)="clearFileStates()" title="Deselect script" [disabled]="api.testStatus() === 'running'">
+          <i class="bi bi-x-circle-fill fs-6"></i>
+        </button>
+      </div>
     </div>
     }
 
     <!-- Active CSV Dataset Display -->
     @if (api.csvFileName()) {
-    <div class="uploaded-file-row p-3 d-flex align-items-center justify-content-between">
-      <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-file-earmark-spreadsheet fs-4 text-secondary"></i>
-        <div>
-          <div class="uploaded-file-name font-semibold text-primary text-truncate max-w-160"
-            [title]="api.csvFileName()">{{ api.csvFileName() }}</div>
-          <div class="uploaded-file-size text-muted fs-8">{{ api.csvFileSize() }} (Active CSV Dataset)</div>
+    <div class="uploaded-file-row p-2.5 px-3 d-flex align-items-center justify-content-between mb-2">
+      <div class="d-flex align-items-center gap-2 text-truncate">
+        <i class="bi bi-file-earmark-spreadsheet fs-4 text-success flex-shrink-0"></i>
+        <div class="text-truncate">
+          <div class="uploaded-file-name fw-bold text-slate-900 text-truncate" [title]="api.csvFileName()">
+            {{ api.csvFileName() }}
+          </div>
+          <div class="uploaded-file-size text-muted fs-9">{{ api.csvFileSize() }} &bull; Results Dataset</div>
         </div>
       </div>
 
-      @if (api.csvUploadStatus() === 'uploading') {
-      <span class="badge bg-warning text-dark font-semibold px-2 py-1 d-flex align-items-center gap-1">
-        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"
-          style="width: 10px; height: 10px;"></span>
-        Uploading
-      </span>
-      } @else if (api.csvUploadStatus() === 'success') {
-      <span class="badge bg-success-light text-success font-semibold px-2 py-1">Active</span>
-      } @else if (api.csvUploadStatus() === 'error') {
-      <span class="badge bg-danger-light text-danger font-semibold px-2 py-1">Failed</span>
-      }
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        @if (api.csvUploadStatus() === 'uploading') {
+        <span class="badge bg-warning text-dark fw-semibold px-2 py-1 d-flex align-items-center gap-1">
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 10px; height: 10px;"></span>
+          Uploading
+        </span>
+        } @else if (api.csvUploadStatus() === 'success') {
+        <span class="badge bg-info-subtle text-info border border-info-subtle fw-semibold px-2 py-1">CSV Report</span>
+        } @else if (api.csvUploadStatus() === 'error') {
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold px-2 py-1">Failed</span>
+        }
+        <button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none hover-danger"
+          (click)="clearFileStates()" title="Deselect dataset" [disabled]="api.testStatus() === 'running'">
+          <i class="bi bi-x-circle-fill fs-6"></i>
+        </button>
+      </div>
     </div>
     }
   </div>
-  <br>
-  <!-- 2. JMeter Configuration -->
-  <div class="setup-section">
-    <div class="setup-section-title">Load Configuration</div>
 
-    <div class="row g-3">
+  <!-- 2. Load Configuration -->
+  <div class="setup-section border-top pt-3">
+    <!-- Header with Plan Badge (Properly placed at the top right of the section) -->
+    <div class="d-flex align-items-center justify-content-between mb-2.5">
+      <div class="setup-section-title m-0 d-flex align-items-center gap-1.5">
+        <i class="bi bi-sliders text-primary"></i>
+        <span>Load Configuration</span>
+      </div>
+      <span class="badge" [ngClass]="userPlan === 'free' ? 'bg-light text-slate-700 border' : 'bg-primary-subtle text-primary border border-primary-subtle'" style="font-size: 0.675rem; font-weight: 600; padding: 4px 8px;">
+        <i class="bi bi-shield-check me-1"></i>Max: {{ maxVus | number }} VUs ({{ userPlan | titlecase }})
+      </span>
+    </div>
+
+    <!-- Notice when CSV mode is active -->
+    @if (api.csvFileName()) {
+    <div class="alert alert-info py-2 px-2.5 fs-9 mb-3 d-flex align-items-center gap-2 rounded-2 border border-info-subtle">
+      <i class="bi bi-info-circle-fill text-info flex-shrink-0 fs-6"></i>
+      <span>CSV Report Mode active. Load parameters are not applicable for pre-existing result datasets.</span>
+    </div>
+    }
+
+    <!-- 2x2 Grid of Load Configuration Fields (Clean single-line labels and matched heights) -->
+    <div class="row g-2.5">
+      <!-- 1. Thread Count -->
       <div class="col-sm-6 col-12">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <label class="form-label-premium m-0">Thread Count (Users)</label>
-          <span class="fs-9 badge" [ngClass]="userPlan === 'free' ? 'bg-light text-slate-700 border' : 'bg-primary-subtle text-primary border border-primary-subtle'">
-            Max: {{ maxVus | number }} VUs ({{ userPlan | titlecase }})
-          </span>
+        <label class="form-label-premium m-0 mb-1 d-flex align-items-center gap-1 text-truncate">
+          <i class="bi bi-people-fill text-primary"></i>
+          <span>Thread Count (Users)</span>
+        </label>
+        <div class="input-group input-group-sm">
+          <input type="number" class="form-control form-input-premium"
+            [class.border-danger]="(api.concurrency() || 0) > maxVus || ((api.concurrency() || 0) < 1 && api.concurrency() !== null)"
+            min="1" [max]="maxVus" placeholder="10"
+            [ngModel]="api.concurrency()"
+            (ngModelChange)="onConcurrencyChange($event)"
+            [disabled]="!!api.csvFileName() || api.testStatus() === 'running'" />
+          <span class="input-group-text bg-light text-muted fs-9 px-2">VUs</span>
         </div>
-        <input type="number" class="form-input-premium" [class.border-danger]="(api.concurrency() || 0) > maxVus" [ngModel]="api.concurrency()"
-          (ngModelChange)="api.concurrency.set($event)" [disabled]="!!api.csvFileName()" />
-        @if ((api.concurrency() || 0) > maxVus) {
-        <div class="text-danger fs-9 mt-1 d-flex align-items-center gap-1">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          <span>Exceeds {{ userPlan | titlecase }} limit ({{ maxVus | number }} VUs). <a routerLink="/subscribe" class="text-danger fw-bold text-decoration-underline">Upgrade to Pro</a></span>
+      </div>
+
+      <!-- 2. Ramp-up -->
+      <div class="col-sm-6 col-12">
+        <label class="form-label-premium m-0 mb-1 d-flex align-items-center gap-1 text-truncate">
+          <i class="bi bi-speedometer2 text-info"></i>
+          <span>Ramp-up (Seconds)</span>
+        </label>
+        <div class="input-group input-group-sm">
+          <input type="number" class="form-control form-input-premium"
+            min="0" placeholder="10"
+            [ngModel]="api.rampUp()"
+            (ngModelChange)="onRampUpChange($event)"
+            [disabled]="!!api.csvFileName() || api.testStatus() === 'running'" />
+          <span class="input-group-text bg-light text-muted fs-9 px-2">sec</span>
         </div>
-        }
       </div>
+
+      <!-- 3. Loop Count -->
       <div class="col-sm-6 col-12">
-        <label class="form-label-premium">Ramp-up (Seconds)</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.rampUp()"
-          (ngModelChange)="api.rampUp.set($event)" [disabled]="!!api.csvFileName()" />
+        <label class="form-label-premium m-0 mb-1 d-flex align-items-center gap-1 text-truncate">
+          <i class="bi bi-arrow-repeat text-success"></i>
+          <span>Loop Count</span>
+        </label>
+        <div class="input-group input-group-sm">
+          <input type="number" class="form-control form-input-premium"
+            min="-1" placeholder="-1"
+            [ngModel]="api.loopCount()"
+            (ngModelChange)="onLoopCountChange($event)"
+            [disabled]="!!api.csvFileName() || api.testStatus() === 'running'" />
+          <span class="input-group-text bg-light text-muted fs-9 px-2">iter</span>
+        </div>
       </div>
+
+      <!-- 4. Duration -->
       <div class="col-sm-6 col-12">
-        <label class="form-label-premium">Loop Count</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.loopCount()"
-          (ngModelChange)="api.loopCount.set($event)" [disabled]="!!api.csvFileName()" />
+        <label class="form-label-premium m-0 mb-1 d-flex align-items-center gap-1 text-truncate">
+          <i class="bi bi-stopwatch text-warning"></i>
+          <span>Duration (Seconds)</span>
+        </label>
+        <div class="input-group input-group-sm">
+          <input type="number" class="form-control form-input-premium"
+            min="1" placeholder="60"
+            [ngModel]="api.duration()"
+            (ngModelChange)="onDurationChange($event)"
+            [disabled]="!!api.csvFileName() || api.testStatus() === 'running'" />
+          <span class="input-group-text bg-light text-muted fs-9 px-2">sec</span>
+        </div>
       </div>
-      <div class="col-sm-6 col-12">
-        <label class="form-label-premium">Duration (Seconds)</label>
-        <input type="number" class="form-input-premium" [ngModel]="api.duration()"
-          (ngModelChange)="api.duration.set($event)" [disabled]="!!api.csvFileName()" />
+    </div>
+
+    <!-- Concurrency Plan Warning Banner (Spanning full width under the inputs) -->
+    @if ((api.concurrency() || 0) > maxVus) {
+    <div class="alert alert-danger py-1.5 px-2.5 fs-9 mt-2.5 mb-0 d-flex align-items-center justify-content-between rounded-2 border border-danger-subtle">
+      <div class="d-flex align-items-center gap-1.5 text-truncate">
+        <i class="bi bi-exclamation-triangle-fill text-danger flex-shrink-0"></i>
+        <span class="text-truncate">Exceeds {{ userPlan | titlecase }} limit ({{ maxVus | number }} VUs).</span>
       </div>
+      <a routerLink="/subscribe" class="text-danger fw-bold text-decoration-underline ms-2 flex-shrink-0">Upgrade to Pro</a>
+    </div>
+    } @else if ((api.concurrency() || 0) < 1 && api.concurrency() !== null) {
+    <div class="text-danger fs-9 mt-2">Thread count must be at least 1.</div>
+    }
+
+    <!-- Quick Load Testing Presets -->
+    <div class="d-flex align-items-center gap-1.5 flex-wrap mt-3 pt-2.5 border-top">
+      <span class="fs-9 text-muted fw-semibold me-1 d-flex align-items-center gap-1">
+        <i class="bi bi-lightning-charge-fill text-warning"></i> Presets:
+      </span>
+      <button type="button" class="btn btn-preset" (click)="applyPreset(1, 0, 10)"
+        [disabled]="!!api.csvFileName() || api.testStatus() === 'running'" title="1 User, 0s Ramp, 10s Duration">
+        Smoke (1)
+      </button>
+      <button type="button" class="btn btn-preset" (click)="applyPreset(10, 10, 60)"
+        [disabled]="!!api.csvFileName() || api.testStatus() === 'running'" title="10 Users, 10s Ramp, 60s Duration">
+        Light (10)
+      </button>
+      <button type="button" class="btn btn-preset" (click)="applyPreset(50, 15, 120)"
+        [disabled]="!!api.csvFileName() || api.testStatus() === 'running' || maxVus < 50" title="50 Users, 15s Ramp, 120s Duration">
+        Moderate (50)
+      </button>
+      <button type="button" class="btn btn-preset" (click)="applyPreset(100, 30, 300)"
+        [disabled]="!!api.csvFileName() || api.testStatus() === 'running' || maxVus < 100" title="100 Users, 30s Ramp, 300s Duration">
+        Heavy (100)
+      </button>
     </div>
   </div>
 </div>

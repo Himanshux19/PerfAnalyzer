@@ -161,12 +161,56 @@ export class TestConfig implements OnInit {
   }
 
   clearFileStates() {
+    this.selectedFileId = null;
+    this.api.selectedProjectFileId.set(null);
     this.api.jmxFileName.set(null);
     this.api.jmxServerName.set(null);
     this.api.jmxUploadStatus.set('idle');
     this.api.csvFileName.set(null);
     this.api.csvServerName.set(null);
     this.api.csvUploadStatus.set('idle');
+  }
+
+  applyPreset(threads: number, rampUp: number, duration: number, loops: number = -1) {
+    if (this.api.csvFileName() || this.api.testStatus() === 'running') return;
+    const cappedThreads = Math.min(threads, this.maxVus);
+    this.api.concurrency.set(cappedThreads);
+    this.api.rampUp.set(rampUp);
+    this.api.duration.set(duration);
+    this.api.loopCount.set(loops);
+    this.cdr.detectChanges();
+  }
+
+  onConcurrencyChange(val: any) {
+    if (val === '' || val === null || val === undefined) {
+      this.api.concurrency.set(null);
+    } else {
+      this.api.concurrency.set(Number(val));
+    }
+  }
+
+  onRampUpChange(val: any) {
+    if (val === '' || val === null || val === undefined) {
+      this.api.rampUp.set(0);
+    } else {
+      this.api.rampUp.set(Math.max(0, Number(val)));
+    }
+  }
+
+  onDurationChange(val: any) {
+    if (val === '' || val === null || val === undefined) {
+      this.api.duration.set(null);
+    } else {
+      this.api.duration.set(Math.max(1, Number(val)));
+    }
+  }
+
+  onLoopCountChange(val: any) {
+    if (val === '' || val === null || val === undefined) {
+      this.api.loopCount.set(-1);
+    } else {
+      this.api.loopCount.set(Number(val));
+    }
   }
 
   onFileSelected(event: any) {

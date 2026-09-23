@@ -83,55 +83,117 @@
       <!-- 2. Central Run Test Trigger Card (Reduced to col-lg-3: 25%) -->
       <div class="col-lg-3 col-md-6 col-12">
         <div
-          class="card-premium d-flex flex-column align-items-center justify-content-center p-4 h-100 text-center run-test-container-card">
-          <!-- Play Button (Decreased padding) -->
-          <button type="button" class="btn-run-massive py-2.5 px-4 mb-3" (click)="onRunTest()"
-            [disabled]="api.testStatus() === 'running'">
+          class="card-premium d-flex flex-column align-items-center justify-content-between p-3.5 h-100 text-center run-test-container-card">
+
+          <!-- Card Header / Runner Status Indicator -->
+          <div class="w-100 d-flex align-items-center justify-content-between mb-3">
+            <span class="card-title-premium-runner m-0">EXECUTION TRIGGER</span>
             @if (api.testStatus() === 'running') {
-            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"
-              style="width: 1rem; height: 1rem;"></span>
-            @if (api.csvFileName()) {
-            GENERATING...
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1 px-2 py-0.5" style="font-size: 0.7rem;">
+              <span class="spinner-grow spinner-grow-sm" style="width: 7px; height: 7px;"></span> Active
+            </span>
+            } @else if (api.testStatus() === 'queued') {
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-inline-flex align-items-center gap-1 px-2 py-0.5" style="font-size: 0.7rem;">
+              <i class="bi bi-hourglass-split"></i> Queued
+            </span>
+            } @else if (api.testStatus() === 'success') {
+            <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 px-2 py-0.5" style="font-size: 0.7rem;">
+              <i class="bi bi-check-circle-fill"></i> Succeeded
+            </span>
+            } @else if (api.testStatus() === 'error') {
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-inline-flex align-items-center gap-1 px-2 py-0.5" style="font-size: 0.7rem;">
+              <i class="bi bi-x-circle-fill"></i> Failed
+            </span>
             } @else {
-            RUNNING...
+            <span class="badge bg-light text-muted border d-inline-flex align-items-center gap-1 px-2 py-0.5" style="font-size: 0.7rem;">
+              <i class="bi bi-circle-fill text-success" style="font-size: 6px;"></i> Ready
+            </span>
             }
-            } @else {
-            @if (api.csvFileName()) {
-            <i class="bi bi-file-earmark-bar-graph me-2 fs-5"></i> GENERATE REPORT
-            } @else {
-            <i class="bi bi-play-fill me-2 fs-5"></i> RUN TEST
-            }
-            }
-          </button>
-          <div class="run-test-status-info">
-            <div class="status-desc text-muted mb-1 font-normal fs-status">Currently Running:</div>
-            <div class="status-details font-bold text-truncate max-w-160">
+          </div>
+
+          <!-- Big Run / Action Button -->
+          <div class="my-auto w-100 py-2">
+            <button type="button" class="btn-run-massive w-100 py-2.5 px-3" (click)="onRunTest()"
+              [disabled]="isRunDisabled()"
+              [title]="isRunDisabled() ? ((api.concurrency() || 0) > maxVus ? 'Virtual Users exceeds plan limit' : (!api.jmxServerName() && !api.csvServerName() ? 'Please select a test script or dataset' : 'Runner not ready')) : 'Start performance load test'">
               @if (api.testStatus() === 'running') {
-              <span class="text-primary fs-status">{{ api.jmxFileName() }}</span>
-              } @else if (api.testStatus() === 'success') {
-              <span class="text-success fs-status">Idle (Succeeded)</span>
-              } @else if (api.testStatus() === 'error') {
-              <span class="text-danger fs-status">Idle (Failed)</span>
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"
+                style="width: 1rem; height: 1rem;"></span>
+              @if (api.csvFileName()) {
+              GENERATING...
               } @else {
-              <span class="text-muted fs-status">No test running</span>
+              RUNNING...
               }
+              } @else {
+              @if (api.csvFileName()) {
+              <i class="bi bi-file-earmark-bar-graph me-1.5 fs-5"></i> GENERATE REPORT
+              } @else {
+              <i class="bi bi-play-fill me-1.5 fs-5"></i> RUN LOAD TEST
+              }
+              }
+            </button>
+
+            <!-- Warnings / Helper Context Under Button -->
+            @if ((api.concurrency() || 0) > maxVus) {
+            <div class="text-danger fs-9 mt-1.5 fw-semibold d-flex align-items-center justify-content-center gap-1">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <span>VUs exceed {{ userPlan | uppercase }} plan limit</span>
             </div>
+            } @else if (!api.jmxServerName() && !api.csvServerName()) {
+            <div class="text-muted fs-9 mt-1.5">
+              Select or upload a test script to start
+            </div>
+            }
+          </div>
+
+          <!-- Configuration Preview Card -->
+          <div class="test-config-preview w-100 p-2.5 rounded-3 bg-light border text-start mt-2">
+            @if (api.jmxFileName()) {
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fs-9 text-muted fw-bold text-uppercase">Target Script</span>
+              <span class="badge bg-white text-primary border" style="font-size: 0.65rem;">
+                {{ userPlan | uppercase }}
+              </span>
+            </div>
+            <div class="fw-semibold text-slate-800 fs-8 text-truncate mb-2" [title]="api.jmxFileName()">
+              <i class="bi bi-file-earmark-code text-primary me-1"></i>{{ api.jmxFileName() }}
+            </div>
+            <div class="d-flex align-items-center justify-content-between text-muted fs-9 pt-1.5 border-top">
+              <span><strong>{{ api.concurrency() || 0 }}</strong> VUs</span>
+              <span>&bull;</span>
+              <span><strong>{{ api.rampUp() || 0 }}s</strong> ramp</span>
+              <span>&bull;</span>
+              <span><strong>{{ api.duration() || 0 }}s</strong> dur</span>
+            </div>
+            } @else if (api.csvFileName()) {
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fs-9 text-muted fw-bold text-uppercase">CSV Dataset</span>
+              <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.65rem;">Report Mode</span>
+            </div>
+            <div class="fw-semibold text-slate-800 fs-8 text-truncate" [title]="api.csvFileName()">
+              <i class="bi bi-file-earmark-spreadsheet text-success me-1"></i>{{ api.csvFileName() }}
+            </div>
+            } @else {
+            <div class="text-muted fs-9 text-center py-1">
+              <i class="bi bi-sliders text-secondary me-1"></i> No script configured
+            </div>
+            }
           </div>
 
           <!-- Conditional Download Section -->
           @if (api.testStatus() === 'success' && api.activeTestName()) {
-          <div class="w-100 border-top mt-3 pt-3 download-results-section">
-            <div class="status-desc text-muted mb-2 font-normal fs-status">Test Execution Complete:</div>
+          <div class="w-100 border-top mt-3 pt-2.5 download-results-section">
+            <div class="status-desc text-muted mb-1.5 font-normal fs-status">Test Execution Complete:</div>
             <div class="d-flex gap-2 w-100">
               <a [href]="api.getResultsDownloadUrl(api.activeTestName()!)"
-                class="btn btn-success btn-sm flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1.5 font-bold py-2"
+                class="btn btn-success btn-sm flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1 font-bold py-1.5"
                 download style="border-radius: 6px; font-size: 0.725rem;">
-                <i class="bi bi-cloud-arrow-down-fill fs-6"></i> DOWNLOAD REPORT
+                <i class="bi bi-cloud-arrow-down-fill"></i> Download
               </a>
               <a [href]="api.getReportViewUrl(api.activeTestName()!)" target="_blank"
-                class="btn btn-primary btn-sm flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1.5 font-bold py-2"
+                class="btn btn-primary btn-sm flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1 font-bold py-1.5"
                 style="border-radius: 6px; font-size: 0.725rem;">
-                <i class="bi bi-eye-fill fs-6"></i> SHOW REPORT
+                <i class="bi bi-eye-fill"></i> View Report
               </a>
             </div>
           </div>

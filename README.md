@@ -11,7 +11,6 @@
 
 **PerfAnalyzer** is an enterprise-ready, web-based performance testing, load automation, and APM observability platform. It automates test creation, execution, queue orchestration, and telemetry analytics using **Apache JMeter** and **Taurus**, coupled with deep distributed tracing via **OpenTelemetry** and **Uptrace**, and bi-directional **Jenkins CI/CD** automation.
 
----
 
 ## 📑 Table of Contents
 
@@ -30,7 +29,6 @@
 - [API Overview](#-api-overview)
 - [License](#-license)
 
----
 
 ## 🌟 Key Features
 
@@ -64,7 +62,6 @@
 - **JWT Authentication**: Secure role-based access control with token verification and profile management.
 - **Superadmin Portal**: System-wide analytics, user management, subscription tiers (Free, Pro, Enterprise), and account deletion workflows.
 
----
 
 ## 🏛️ System Architecture & Workflow
 
@@ -120,7 +117,6 @@ flowchart TD
     API -->|Telemetry Traces| OTel --> Uptrace
 ```
 
----
 
 ## 💻 Tech Stack
 
@@ -135,7 +131,6 @@ flowchart TD
 | **Security & Crypto** | PyJWT (HMAC/RSA), Cryptography (Fernet) |
 | **CI/CD** | Jenkins Declarative Pipeline, Webhook Callbacks |
 
----
 
 ## 📁 Project Structure
 
@@ -195,7 +190,6 @@ PerfAnalyzer/
     │           └── navbar/          ← Global navigation header
 ```
 
----
 
 ## ⚙️ Prerequisites
 
@@ -208,7 +202,6 @@ Ensure you have the following installed on your host system:
 - **Taurus (bzt)**: Install globally or within your virtual environment (`pip install bzt`).
 - *(Optional)* **Jenkins**: With Pipeline and Lockable Resources plugins installed (if using distributed execution).
 
----
 
 ## 🚀 Installation & Getting Started
 
@@ -224,7 +217,6 @@ GRANT ALL PRIVILEGES ON DATABASE perfanalyzer TO perfuser;
 
 *(Note: PerfAnalyzer automatically initializes and migrates required tables upon backend startup).*
 
----
 
 ### 2. Backend Configuration
 
@@ -265,7 +257,6 @@ GRANT ALL PRIVILEGES ON DATABASE perfanalyzer TO perfuser;
    - **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
    - **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
----
 
 ### 3. Frontend Setup
 
@@ -288,7 +279,6 @@ GRANT ALL PRIVILEGES ON DATABASE perfanalyzer TO perfuser;
 
 4. Open your browser and access the application at [http://localhost:4200](http://localhost:4200).
 
----
 
 ## 🔑 Environment Variables
 
@@ -324,7 +314,6 @@ UPTRACE_PROJECT_ID=your_project_id
 OTEL_SERVICE_NAME=perfanalyzer-backend
 ```
 
----
 
 ## 🔄 Jenkins CI/CD Integration
 
@@ -340,7 +329,6 @@ PerfAnalyzer includes first-class Jenkins integration:
    - Configure credentials in PerfAnalyzer under **Settings > Jenkins Configuration**.
    - Test connectivity with a single click via `/api/jenkins/test-connection`.
 
----
 
 ## 🔭 APM & Observability (OpenTelemetry & Uptrace)
 
@@ -349,7 +337,6 @@ PerfAnalyzer bridges load generation with deep application observability:
 - **Embedded APM Dashboard**: Browse traces, latency percentiles, error graphs, and spans without leaving the PerfAnalyzer UI.
 - **Extensible Integration Catalog**: Pre-configured setup blueprints for over 30+ technologies (FastAPI, Flask, Express, Django, PostgreSQL, Redis, Kubernetes, Docker, and more).
 
----
 
 ## 📡 API Overview
 
@@ -368,7 +355,6 @@ PerfAnalyzer bridges load generation with deep application observability:
 | **Jenkins** | `POST /api/jenkins/webhook` | Bi-directional CI/CD status callback |
 | **WebSockets** | `ws:///ws/test-logs/{test_name}` | Real-time test log streaming |
 
----
 
 ## 📄 License
 

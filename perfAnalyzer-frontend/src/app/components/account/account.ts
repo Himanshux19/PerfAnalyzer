@@ -837,8 +837,378 @@ export class Account implements OnInit, OnDestroy {
     this.selectedTransaction = null;
   }
 
-  printReceipt() {
-    window.print();
+  downloadReceiptPdf() {
+    const tx = this.selectedTransaction;
+    if (!tx) return;
+
+    const currencySymbol = tx.currency === 'INR' ? '₹' : '$';
+    const amount = (tx.amount || 0).toFixed(2);
+    const date = new Date(tx.createdAt);
+    const dateFormatted = date.toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    });
+    const timeFormatted = date.toLocaleTimeString('en-IN', {
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+    const invoiceNumber = `INV-${tx.id.toString().padStart(6, '0')}`;
+    const planLabel = (tx.plan || 'Free').charAt(0).toUpperCase() + (tx.plan || 'free').slice(1);
+    const statusLabel = tx.status === 'success' ? 'PAID & VERIFIED' : tx.status === 'failed' ? 'PAYMENT FAILED' : 'PENDING';
+    const statusColor = tx.status === 'success' ? '#15803d' : tx.status === 'failed' ? '#dc2626' : '#b45309';
+    const statusBg = tx.status === 'success' ? '#dcfce7' : tx.status === 'failed' ? '#fee2e2' : '#fef9c3';
+    const userEmail = this.profile?.email || '';
+    const userName = [this.profile?.firstName, this.profile?.lastName].filter(Boolean).join(' ') || 'Customer';
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Invoice ${invoiceNumber} – PerfAnalyzer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: #1e293b;
+      background: #fff;
+      padding: 48px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    /* Header */
+    .invoice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 36px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .brand-name {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+    .brand-tagline {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+    .invoice-meta { text-align: right; }
+    .invoice-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #94a3b8;
+    }
+    .invoice-number {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 2px;
+    }
+    .invoice-date {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    /* Status stamp */
+    .status-stamp {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      background: ${statusBg};
+      color: ${statusColor};
+      border: 1.5px solid ${statusColor}33;
+      margin-top: 8px;
+    }
+    /* Parties */
+    .parties {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 32px;
+    }
+    .party { flex: 1; }
+    .party-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+    .party-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .party-detail {
+      font-size: 11.5px;
+      color: #64748b;
+      margin-top: 3px;
+      line-height: 1.6;
+    }
+    /* Line items table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+    thead tr {
+      background: #f8fafc;
+    }
+    th {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #94a3b8;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th.right { text-align: right; }
+    th.center { text-align: center; }
+    td {
+      padding: 14px;
+      font-size: 12.5px;
+      color: #334155;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    td.right { text-align: right; }
+    td.center { text-align: center; }
+    .item-desc { font-weight: 600; color: #0f172a; }
+    .item-sub { font-size: 11px; color: #94a3b8; margin-top: 3px; font-weight: 400; }
+    /* Totals */
+    .totals-section {
+      margin-top: 0;
+      border-top: 2px solid #e2e8f0;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 48px;
+      padding: 9px 14px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .totals-row:last-child { border-bottom: none; }
+    .totals-label {
+      font-size: 12px;
+      color: #64748b;
+      min-width: 100px;
+      text-align: right;
+    }
+    .totals-value {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #334155;
+      min-width: 80px;
+      text-align: right;
+    }
+    .totals-row.grand {
+      background: #f8fafc;
+      border-radius: 6px;
+      margin: 4px 0;
+    }
+    .totals-row.grand .totals-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .totals-row.grand .totals-value {
+      font-size: 16px;
+      font-weight: 800;
+      color: ${tx.status === 'success' ? '#15803d' : '#dc2626'};
+    }
+    /* References */
+    .references {
+      margin-top: 28px;
+      padding: 16px 18px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .ref-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+    .ref-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 6px;
+      align-items: baseline;
+    }
+    .ref-row:last-child { margin-bottom: 0; }
+    .ref-key {
+      font-size: 11px;
+      color: #64748b;
+      min-width: 120px;
+      flex-shrink: 0;
+    }
+    .ref-val {
+      font-size: 11px;
+      font-family: 'Courier New', Courier, monospace;
+      color: #334155;
+      font-weight: 600;
+      word-break: break-all;
+    }
+    /* Footer */
+    .invoice-footer {
+      margin-top: 36px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-note {
+      font-size: 10.5px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+    .footer-secure {
+      font-size: 10px;
+      color: #94a3b8;
+      text-align: right;
+    }
+    .footer-secure strong { color: #64748b; }
+    @media print {
+      body { padding: 32px; }
+      @page { margin: 0.5in; size: A4; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="invoice-header">
+    <div>
+      <div class="brand-name">PerfAnalyzer</div>
+      <div class="brand-tagline">Automated Load &amp; Performance Testing Platform</div>
+    </div>
+    <div class="invoice-meta">
+      <div class="invoice-title">Invoice</div>
+      <div class="invoice-number">${invoiceNumber}</div>
+      <div class="invoice-date">${dateFormatted} &nbsp;·&nbsp; ${timeFormatted}</div>
+      <div class="status-stamp">${statusLabel}</div>
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div class="parties">
+    <div class="party">
+      <div class="party-label">From</div>
+      <div class="party-name">PerfAnalyzer</div>
+      <div class="party-detail">Load Testing SaaS Platform<br/>support@perfanalyzer.io</div>
+    </div>
+    <div class="party">
+      <div class="party-label">Billed To</div>
+      <div class="party-name">${userName}</div>
+      <div class="party-detail">${userEmail}</div>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:55%">Description</th>
+        <th class="center" style="width:15%">Qty</th>
+        <th class="right" style="width:15%">Unit Price</th>
+        <th class="right" style="width:15%">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="item-desc">PerfAnalyzer ${planLabel} Plan — Monthly Subscription</div>
+          <div class="item-sub">Full Platform Access · Cloud Test Runner · ${dateFormatted}</div>
+        </td>
+        <td class="center">1</td>
+        <td class="right">${currencySymbol}${amount}</td>
+        <td class="right">${currencySymbol}${amount}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Totals -->
+  <div class="totals-section">
+    <div class="totals-row">
+      <span class="totals-label">Subtotal</span>
+      <span class="totals-value">${currencySymbol}${amount}</span>
+    </div>
+    <div class="totals-row">
+      <span class="totals-label">Tax / GST</span>
+      <span class="totals-value">Inclusive</span>
+    </div>
+    <div class="totals-row grand">
+      <span class="totals-label">Total ${tx.status === 'success' ? 'Paid' : 'Amount'}</span>
+      <span class="totals-value">${currencySymbol}${amount}</span>
+    </div>
+  </div>
+
+  <!-- Reference Numbers -->
+  <div class="references">
+    <div class="ref-title">Payment References</div>
+    <div class="ref-row">
+      <span class="ref-key">Order ID</span>
+      <span class="ref-val">${tx.orderId || '—'}</span>
+    </div>
+    <div class="ref-row">
+      <span class="ref-key">Payment ID</span>
+      <span class="ref-val">${tx.paymentId || '—'}</span>
+    </div>
+    <div class="ref-row">
+      <span class="ref-key">Invoice Number</span>
+      <span class="ref-val">${invoiceNumber}</span>
+    </div>
+    <div class="ref-row">
+      <span class="ref-key">Payment Gateway</span>
+      <span class="ref-val">Razorpay</span>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="invoice-footer">
+    <div class="footer-note">
+      Thank you for using PerfAnalyzer.<br/>
+      This is a system-generated invoice and does not require a signature.
+    </div>
+    <div class="footer-secure">
+      <strong>Secured by Razorpay</strong><br/>
+    </div>
+  </div>
+
+</body>
+</html>`;
+
+    // Open in hidden iframe, trigger print dialog (Save as PDF)
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      iframe.contentWindow?.focus();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      }, 500);
+    }
   }
 
   copyToClipboard(text: string) {

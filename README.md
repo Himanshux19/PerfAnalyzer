@@ -7,9 +7,10 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Enabled-000000.svg?style=flat&logo=opentelemetry&logoColor=white)](https://opentelemetry.io)
 [![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939.svg?style=flat&logo=jenkins&logoColor=white)](https://www.jenkins.io)
+[![Razorpay](https://img.shields.io/badge/Razorpay-Payment%20Gateway-072654.svg?style=flat&logo=razorpay&logoColor=white)](https://razorpay.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**PerfAnalyzer** is an enterprise-ready, web-based performance testing, load automation, and APM observability platform. It automates test creation, execution, queue orchestration, and telemetry analytics using **Apache JMeter** and **Taurus**, coupled with deep distributed tracing via **OpenTelemetry** and **Uptrace**, and bi-directional **Jenkins CI/CD** automation.
+**PerfAnalyzer** is an enterprise-ready, web-based performance testing, load automation, and APM observability platform. It automates test creation, execution, queue orchestration, and telemetry analytics using **Apache JMeter** and **Taurus**, coupled with deep distributed tracing via **OpenTelemetry** and **Uptrace**, bi-directional **Jenkins CI/CD** automation, and a full **Razorpay**-powered subscription billing system.
 
 
 ## 📑 Table of Contents
@@ -24,6 +25,7 @@
   - [2. Backend Configuration](#2-backend-configuration)
   - [3. Frontend Setup](#3-frontend-setup)
 - [Environment Variables](#-environment-variables)
+- [Subscription Plans & Billing](#-subscription-plans--billing)
 - [Jenkins CI/CD Integration](#-jenkins-cicd-integration)
 - [APM & Observability (OpenTelemetry & Uptrace)](#-apm--observability-opentelemetry--uptrace)
 - [API Overview](#-api-overview)
@@ -41,6 +43,7 @@
 - **Local Taurus Engine**: On-demand test execution powered by the Taurus CLI (`bzt`) with the bundled Apache JMeter 5.6.3 engine.
 - **Distributed & Remote CI/CD Execution**: Seamless integration with **Jenkins Declarative Pipelines** to offload and execute load tests across dedicated Jenkins test agents.
 - **Test Scenarios**: Execute Load, Stress, Spike, Soak, and Endurance performance scenarios.
+- **Plan-Enforced Quotas**: VU limits, monthly run caps, and workspace limits enforced both server-side (HTTP 403) and client-side before dispatch.
 
 ### 3. 📊 Real-Time Monitoring & Deep Analytics
 - **Live WebSocket Streaming**: Real-time test log streaming and status synchronization directly to the frontend.
@@ -54,13 +57,22 @@
 - **Monitoring Catalog**: Guided setup catalog for tracing across languages (Python, Go, Node.js, Java, .NET), web frameworks, and infrastructure.
 - **Encrypted Credentials**: Secrets and DSNs encrypted at rest using Fernet cryptography (`monitoring_crypto.py`).
 
-### 5. 🗂️ Project Workspaces & Unified Queue
+### 5. 💳 Subscription Billing & Payment Gateway
+- **Razorpay Integration**: Full Razorpay Checkout payment flow — create orders, verify HMAC signatures, and activate plan subscriptions atomically.
+- **Three Subscription Tiers**: Free, Pro, and Enterprise plans with enforced per-tier limits on VUs, test runs, and workspaces.
+- **Payment History & Invoices**: Full transaction history with status badges (Completed / Failed / Pending), copy-able Razorpay order/payment IDs, and downloadable PDF invoices (A4 format, auto-generated, no external library).
+- **Real-Time Plan Propagation**: Subscription changes broadcast live to all open sessions via WebSocket (`SUBSCRIPTION_UPDATED` event).
+- **Account Activity Log**: Chronological audit trail of login, profile changes, and subscription events per user.
+
+### 6. 🗂️ Project Workspaces & Unified Queue
 - **Workspaces**: Group test scripts, dataset files (`.csv`), and generated reports by project workspace.
 - **Unified Test Queue**: Centrally track and manage local runs, scheduled jobs (APScheduler), and Jenkins-dispatched builds.
 
-### 6. 🔐 Authentication, Multi-Tenancy & Administration
+### 7. 🔐 Authentication, Multi-Tenancy & Administration
 - **JWT Authentication**: Secure role-based access control with token verification and profile management.
-- **Superadmin Portal**: System-wide analytics, user management, subscription tiers (Free, Pro, Enterprise), and account deletion workflows.
+- **User Profile Management**: Avatar upload, full profile editing, phone & address fields, password change with strength validation.
+- **Superadmin Portal**: System-wide analytics, user management, subscription tier overrides, and account deletion workflows.
+- **Account Deletion Requests**: Users submit deletion requests; superadmin approves/rejects with full audit trail.
 
 
 ## 🏛️ System Architecture & Workflow
@@ -71,6 +83,7 @@ flowchart TD
         UI[User / Admin Dashboard]
         WS_Client[WebSocket Log Streamer]
         Mon_UI[APM & Uptrace Viewer]
+        Billing_UI[Subscription & Billing]
     end
 
     subgraph Backend["Backend (FastAPI & Python)"]
@@ -80,6 +93,7 @@ flowchart TD
         Builder[JMX & Taurus Builder]
         Queue[Unified Queue & APScheduler]
         Proxy[Uptrace Reverse Proxy]
+        Payment[Razorpay Payment Handler]
     end
 
     subgraph Database["Persistence"]
@@ -98,10 +112,15 @@ flowchart TD
         Uptrace[Uptrace APM Platform]
     end
 
+    subgraph Payments["Payment Gateway"]
+        Razorpay[Razorpay Checkout]
+    end
+
     UI -->|REST API| API
     UI -->|Live Logs| WS_Client
     WS_Client <-->|WebSocket| API
     Mon_UI -->|Proxy| Proxy --> Uptrace
+    Billing_UI -->|Create Order / Verify| Payment --> Razorpay
 
     API --> Auth
     API --> Crawler
@@ -109,10 +128,11 @@ flowchart TD
     API --> Queue
     API --> Postgres
     API --> Storage
+    Payment --> Postgres
 
     Queue -->|Local Run| Taurus --> JMeter
     Queue -->|Remote CI/CD| Jenkins --> JMeter
-    
+
     JMeter -->|kpi.jtl & HTML Report| Storage
     API -->|Telemetry Traces| OTel --> Uptrace
 ```
@@ -122,13 +142,14 @@ flowchart TD
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | Angular 21, TypeScript 5.9, RxJS, Angular Router, Modern Responsive CSS |
+| **Frontend** | Angular 21, TypeScript 5.9, RxJS, Angular Router, Bootstrap 5, Bootstrap Icons |
 | **Backend** | FastAPI, Uvicorn, Python 3.10+, Pydantic v2, APScheduler |
 | **Database & ORM** | PostgreSQL, psycopg2-binary (connection pool), SQLAlchemy |
 | **Load Testing** | Apache JMeter 5.6.3, Taurus CLI (`bzt`) |
 | **Automation & Crawling** | Playwright, BeautifulSoup4, lxml |
 | **Observability & APM** | OpenTelemetry SDK/API, Uptrace, Jaeger |
 | **Security & Crypto** | PyJWT (HMAC/RSA), Cryptography (Fernet) |
+| **Payment Gateway** | Razorpay (Orders API, Checkout, HMAC signature verification) |
 | **CI/CD** | Jenkins Declarative Pipeline, Webhook Callbacks |
 
 
@@ -138,7 +159,7 @@ flowchart TD
 PerfAnalyzer/
 ├── .env.example                     ← Example root environment variables
 ├── Jenkinsfile                      ← Jenkins Declarative Pipeline for remote execution
-├── requirements.txt                 ← Python backend dependencies
+├── requirements.txt                 ← Python backend dependencies (pinned versions)
 ├── JMeter/
 │   └── apache-jmeter-5.6.3/         ← Bundled Apache JMeter binaries and extensions
 ├── Test Result/                     ← Test execution outputs, KPIs, and HTML reports
@@ -149,7 +170,7 @@ PerfAnalyzer/
 │           └── index.html           ← Interactive JMeter dashboard report
 ├── perfAnalyzer-backend/
 │   ├── .env.example                 ← Backend environment configuration template
-│   ├── main.py                      ← FastAPI routes, WebSockets, queue & proxies
+│   ├── main.py                      ← FastAPI routes, WebSockets, queue, payments & proxies
 │   ├── models.py                    ← Pydantic request/response schemas
 │   ├── jmx_builder.py               ← Dynamic JMeter JMX XML script generator
 │   ├── yaml_builder.py              ← Taurus YAML scenario generator
@@ -164,16 +185,17 @@ PerfAnalyzer/
 │       └── endpoint_discovery.py    ← 5-strategy crawler & API discovery engine
 └── perfAnalyzer-frontend/
     ├── package.json                 ← Frontend dependencies and build scripts
+    ├── angular.json                 ← Angular workspace and build configuration
     ├── src/
     │   ├── index.html
-    │   ├── styles.css
+    │   ├── styles.css               ← Global CSS variables & shared utility classes
     │   └── app/
-    │       ├── api.service.ts       ← Unified Angular HTTP service
+    │       ├── api.service.ts       ← Unified Angular HTTP + signal-based state service
     │       ├── app.routes.ts        ← Angular client-side routes
     │       └── components/
     │           ├── auth/            ← User authentication (login/register)
     │           ├── setup-profile/   ← Initial user profile configuration
-    │           ├── account/         ← User profile & credentials management
+    │           ├── account/         ← Profile, security, subscription & billing tabs
     │           ├── admin-auth/      ← Superadmin authentication
     │           ├── admin-dashboard/ ← Administrative user & platform analytics
     │           ├── overview-dashboard/ ← High-level test summary & KPI charts
@@ -185,7 +207,9 @@ PerfAnalyzer/
     │           ├── reports/         ← JMeter HTML report viewer
     │           ├── reports-history/ ← Historical report archive
     │           ├── monitoring/      ← APM integrations catalog & Uptrace viewer
-    │           ├── subscribe/       ← Tier subscription management
+    │           ├── subscribe/       ← Tier subscription & Razorpay checkout
+    │           ├── payment-success/ ← Post-payment success confirmation page
+    │           ├── payment-failure/ ← Payment failure & retry page
     │           ├── logs/            ← System and execution log viewer
     │           └── navbar/          ← Global navigation header
 ```
@@ -201,6 +225,7 @@ Ensure you have the following installed on your host system:
 - **PostgreSQL**: Version 13 or higher.
 - **Taurus (bzt)**: Install globally or within your virtual environment (`pip install bzt`).
 - *(Optional)* **Jenkins**: With Pipeline and Lockable Resources plugins installed (if using distributed execution).
+- *(Optional)* **Razorpay Account**: API Key ID and Secret for payment gateway (admin configures via `.env`).
 
 
 ## 🚀 Installation & Getting Started
@@ -215,7 +240,7 @@ CREATE USER perfuser WITH ENCRYPTED PASSWORD 'your_password';
 GRANT ALL PRIVILEGES ON DATABASE perfanalyzer TO perfuser;
 ```
 
-*(Note: PerfAnalyzer automatically initializes and migrates required tables upon backend startup).*
+> **Note:** PerfAnalyzer automatically initializes and migrates all required tables upon backend startup — no manual schema scripts needed.
 
 
 ### 2. Backend Configuration
@@ -247,7 +272,7 @@ GRANT ALL PRIVILEGES ON DATABASE perfanalyzer TO perfuser;
    ```bash
    cp .env.example .env
    ```
-   Fill in your PostgreSQL credentials, JWT secret, and optional Uptrace / Jenkins settings.
+   Fill in your PostgreSQL credentials, JWT secret, Razorpay keys, and optional Uptrace / Jenkins settings.
 
 5. Start the FastAPI development server:
    ```bash
@@ -296,6 +321,11 @@ DB_PASS=your_db_password
 JWT_SECRET=your_super_secret_jwt_key
 JWT_ALGORITHM=HS256
 
+# --- Razorpay Payment Gateway ---
+RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+RAZORPAY_CURRENCY=INR
+
 # --- Jenkins CI/CD Integration (Optional) ---
 JENKINS_URL=http://localhost:8080
 JENKINS_USER=admin
@@ -313,6 +343,38 @@ UPTRACE_AUTH_TOKEN=your_uptrace_token
 UPTRACE_PROJECT_ID=your_project_id
 OTEL_SERVICE_NAME=perfanalyzer-backend
 ```
+
+
+## 💳 Subscription Plans & Billing
+
+PerfAnalyzer uses **Razorpay** for payment processing. The admin sets `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `.env` — no keys are hardcoded.
+
+### Plan Tiers
+
+| Feature | Free | Pro | Enterprise |
+|---|---|---|---|
+| Virtual Users (VUs) | 10 | 500 | 10,000 |
+| Test Runs / Month | 5 | 100 | Unlimited |
+| Workspaces | 1 | 10 | Unlimited |
+| JMeter HTML Reports | ✅ | ✅ | ✅ |
+| Jenkins CI/CD | ❌ | ✅ | ✅ |
+| APM / Uptrace | ❌ | ✅ | ✅ |
+| Priority Support | ❌ | ❌ | ✅ |
+
+### Payment Flow
+
+1. User selects a plan on the **Subscribe** page.
+2. Frontend calls `GET /api/payments/config` to fetch the Razorpay Key ID.
+3. Frontend calls `POST /api/payments/create-order` — backend creates a Razorpay order and returns `order_id`.
+4. Razorpay Checkout modal opens in the browser.
+5. On success, frontend calls `POST /api/payments/verify-payment` — backend verifies the HMAC-SHA256 signature and atomically activates the subscription.
+6. On failure, frontend calls `POST /api/payments/report-failure` to record the failed attempt.
+7. Full payment history is accessible in **Account Settings → Billing & Transactions**, with downloadable PDF invoices.
+
+### Quota Enforcement
+
+- **Server-side**: All `/run-test` and `/projects` endpoints return HTTP 403 if the user's plan limits are exceeded.
+- **Client-side**: The dashboard checks quotas before dispatching a test run, showing a clear upgrade prompt if limits are reached.
 
 
 ## 🔄 Jenkins CI/CD Integration
@@ -335,7 +397,7 @@ PerfAnalyzer includes first-class Jenkins integration:
 PerfAnalyzer bridges load generation with deep application observability:
 - **Trace Context Propagation**: Automatic trace correlation using OpenTelemetry ASGI instrumentation.
 - **Embedded APM Dashboard**: Browse traces, latency percentiles, error graphs, and spans without leaving the PerfAnalyzer UI.
-- **Extensible Integration Catalog**: Pre-configured setup blueprints for over 30+ technologies (FastAPI, Flask, Express, Django, PostgreSQL, Redis, Kubernetes, Docker, and more).
+- **Extensible Integration Catalog**: Pre-configured setup blueprints for 30+ technologies (FastAPI, Flask, Express, Django, PostgreSQL, Redis, Kubernetes, Docker, and more).
 
 
 ## 📡 API Overview
@@ -344,13 +406,25 @@ PerfAnalyzer bridges load generation with deep application observability:
 |---|---|---|
 | **Auth** | `POST /register`, `POST /login` | User registration & JWT authentication |
 | **Superadmin** | `POST /superadmin/login`, `GET /superadmin/users` | Admin portal & user management |
+| **Profile** | `GET /api/users/me`, `PUT /api/users/me` | Fetch & update user profile |
+| **Profile** | `POST /api/users/me/change-password` | Change account password |
+| **Profile** | `POST /api/users/me/avatar` | Upload / update profile avatar |
+| **Profile** | `POST /api/users/me/deletion-request` | Submit account deletion request |
+| **Subscription** | `GET /api/users/me/subscription` | Fetch current plan, usage & renewal info |
+| **Payments** | `GET /api/payments/config` | Fetch Razorpay publishable Key ID |
+| **Payments** | `POST /api/payments/create-order` | Create a Razorpay payment order |
+| **Payments** | `POST /api/payments/verify-payment` | Verify HMAC signature & activate subscription |
+| **Payments** | `POST /api/payments/report-failure` | Record a failed payment attempt |
+| **Payments** | `GET /api/payments/history` | Fetch full transaction history |
+| **Activities** | `GET /api/users/me/activities` | User account activity audit log |
 | **Tests** | `POST /create-test` | Auto-generate JMX/YAML using crawler or URL specs |
 | **Tests** | `POST /run-test` | Dispatch load test to local engine or Jenkins |
 | **Tests** | `GET /test-status/{test_name}` | Fetch status & metrics of an active or finished test |
 | **Queue** | `GET /test-queue` | Unified queue of all local and remote runs |
 | **Projects** | `GET /projects`, `POST /projects` | Workspace management & file handling |
+| **Reports** | `GET /list-reports`, `GET /dashboard/summary` | Report listing & KPI dashboard summary |
 | **Monitoring** | `GET /api/monitoring/catalog` | APM integration catalog |
-| **Monitoring** | `GET /api/monitoring/integrations` | Saved APM monitor configurations |
+| **Monitoring** | `GET/POST /api/monitoring/integrations` | Saved APM monitor configurations |
 | **Jenkins** | `POST /api/jenkins/test-connection` | Verify Jenkins credentials and connectivity |
 | **Jenkins** | `POST /api/jenkins/webhook` | Bi-directional CI/CD status callback |
 | **WebSockets** | `ws:///ws/test-logs/{test_name}` | Real-time test log streaming |

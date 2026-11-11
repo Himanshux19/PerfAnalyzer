@@ -9,6 +9,7 @@ import { PaymentFailure } from './components/payment-failure/payment-failure';
 
 export const routes: Routes = [
   { path: 'login', component: Auth },
+  { path: 'reset-password', component: Auth },
   { path: 'setup-profile', component: SetupProfile },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'payment/success', component: PaymentSuccess },

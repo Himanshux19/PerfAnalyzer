@@ -562,6 +562,33 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/login`, formData);
   }
 
+  forgotPassword(username: string): Observable<{
+    message: string;
+    reset_link: string;
+    token: string;
+    expires_in_minutes: number;
+  }> {
+    return this.http.post<{
+      message: string;
+      reset_link: string;
+      token: string;
+      expires_in_minutes: number;
+    }>(`${this.baseUrl}/forgot-password`, { username });
+  }
+
+  verifyResetToken(token: string): Observable<{ valid: boolean; username: string }> {
+    return this.http.get<{ valid: boolean; username: string }>(
+      `${this.baseUrl}/verify-reset-token?token=${encodeURIComponent(token)}`,
+    );
+  }
+
+  resetPassword(token: string, newPassword: string): Observable<{ message: string; username: string }> {
+    return this.http.post<{ message: string; username: string }>(`${this.baseUrl}/reset-password`, {
+      token,
+      new_password: newPassword,
+    });
+  }
+
   superadminRegister(username: string, password: string, fullName: string = ''): Observable<any> {
     const formData = new FormData();
     formData.append('username', username);

@@ -1,5 +1,5 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, ChangeDetectorRef, OnInit } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 
@@ -9,8 +9,9 @@ import { ApiService } from '../../api.service';
   templateUrl: './auth.html',
   styleUrl: './auth.css',
 })
-export class Auth {
+export class Auth implements OnInit {
   isLoginMode = true;
+  authSubView: 'default' | 'forgot' | 'reset' = 'default';
   isLoading = false;
 
   // Login bindings
@@ -23,6 +24,17 @@ export class Auth {
   regConfirmPassword = '';
   regFullName = '';
 
+  // Forgot & Reset Password bindings
+  forgotEmail = '';
+  generatedResetLink: string | null = null;
+  generatedResetToken: string | null = null;
+  linkCopied = false;
+
+  resetToken = '';
+  resetAccountEmail = '';
+  resetNewPassword = '';
+  resetConfirmPassword = '';
+
   // Form feedback alert states
   errorMessage: string | null = null;
   successMessage: string | null = null;
@@ -30,17 +42,174 @@ export class Auth {
   constructor(
     private api: ApiService,
     private router: Router,
+    private route: ActivatedRoute,
     private cdr: ChangeDetectorRef,
-  ) {
-    // Skip login if already authenticated
-    if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
-      this.router.navigate(['/dashboard']);
-    }
+  ) {}
+
+  ngOnInit() {
+    this.route.queryParams.subscribe((params) => {
+      const tokenParam = params['token'] || params['reset_token'];
+      if (tokenParam) {
+        this.openResetWithToken(tokenParam);
+        return;
+      }
+
+      // Skip login if already authenticated and not resetting password
+      if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
+        this.router.navigate(['/dashboard']);
+      }
+    });
   }
 
   toggleMode(isLogin: boolean) {
     this.isLoginMode = isLogin;
+    this.authSubView = 'default';
+    this.generatedResetLink = null;
+    this.generatedResetToken = null;
     this.clearMessages();
+  }
+
+  openForgotPassword() {
+    this.authSubView = 'forgot';
+    this.forgotEmail = this.loginUsername || '';
+    this.generatedResetLink = null;
+    this.generatedResetToken = null;
+    this.linkCopied = false;
+    this.clearMessages();
+  }
+
+  backToLogin() {
+    this.authSubView = 'default';
+    this.isLoginMode = true;
+    this.generatedResetLink = null;
+    this.generatedResetToken = null;
+    this.clearMessages();
+    this.router.navigate(['/login'], { replaceUrl: true });
+  }
+
+  openResetWithToken(token: string) {
+    this.authSubView = 'reset';
+    this.resetToken = token;
+    this.resetNewPassword = '';
+    this.resetConfirmPassword = '';
+    this.clearMessages();
+    this.isLoading = true;
+
+    this.api.verifyResetToken(token).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.resetAccountEmail = res.username;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = err.error?.detail || 'Invalid or expired password reset link.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onSubmitForgotPassword(event: Event) {
+    event.preventDefault();
+    this.clearMessages();
+    this.generatedResetLink = null;
+    this.generatedResetToken = null;
+    this.linkCopied = false;
+
+    if (!this.forgotEmail.trim()) {
+      this.errorMessage = 'Please enter your registered Gmail address.';
+      return;
+    }
+
+    if (!this.isValidGmail(this.forgotEmail)) {
+      this.errorMessage = 'Only valid Gmail addresses (@gmail.com) are allowed.';
+      return;
+    }
+
+    this.isLoading = true;
+    this.api.forgotPassword(this.forgotEmail.trim().toLowerCase()).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.generatedResetLink = res.reset_link;
+        this.generatedResetToken = res.token;
+        this.copyResetLink(true);
+        this.successMessage =
+          'Password reset link generated! It has been printed to the backend terminal and copied to your clipboard.';
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage =
+          err.error?.detail || err.message || 'Could not generate password reset link.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  copyResetLink(silent = false) {
+    if (!this.generatedResetLink || typeof navigator === 'undefined') return;
+    navigator.clipboard?.writeText(this.generatedResetLink).then(() => {
+      this.linkCopied = true;
+      this.cdr.detectChanges();
+      setTimeout(() => {
+        this.linkCopied = false;
+        this.cdr.detectChanges();
+      }, 3000);
+    }).catch(() => {
+      if (!silent) {
+        this.errorMessage = 'Failed to copy to clipboard automatically. Please select and copy the link manually.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  proceedToResetDirectly() {
+    if (!this.generatedResetToken) return;
+    this.router.navigate(['/reset-password'], { queryParams: { token: this.generatedResetToken } });
+  }
+
+  onSubmitResetPassword(event: Event) {
+    event.preventDefault();
+    this.clearMessages();
+
+    if (!this.resetToken) {
+      this.errorMessage = 'Missing password reset token.';
+      return;
+    }
+
+    if (!this.resetNewPassword) {
+      this.errorMessage = 'Please enter a new password.';
+      return;
+    }
+
+    if (this.resetNewPassword.length < 6) {
+      this.errorMessage = 'Password must be at least 6 characters long.';
+      return;
+    }
+
+    if (this.resetNewPassword !== this.resetConfirmPassword) {
+      this.errorMessage = 'Passwords do not match.';
+      return;
+    }
+
+    this.isLoading = true;
+    this.api.resetPassword(this.resetToken, this.resetNewPassword).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.loginUsername = res.username || this.resetAccountEmail || this.loginUsername;
+        this.loginPassword = '';
+        this.authSubView = 'default';
+        this.isLoginMode = true;
+        this.successMessage = res.message || 'Password updated! Please sign in with your new password.';
+        this.router.navigate(['/login'], { replaceUrl: true });
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = err.error?.detail || err.message || 'Failed to reset password.';
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   clearMessages() {

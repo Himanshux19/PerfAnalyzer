@@ -19,6 +19,7 @@ import logging
 import re
 import uuid
 import hmac
+import secrets
 from jmx_builder import build_jmx
 from models import (
     CreateTestRequest,
@@ -26,6 +27,8 @@ from models import (
     ApiRequest,
     UserProfileUpdate,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
     DeletionRequestCreate,
     MonitoringIntegrationCreate,
     MonitoringIntegrationUpdate,
@@ -275,6 +278,17 @@ def init_db():
                 error_description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                token VARCHAR(255) UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                used BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
 
@@ -580,6 +594,156 @@ def login(username: str = Form(...), password: str = Form(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error during login: {str(e)}")
+
+
+@app.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, request: Request):
+    validate_gmail(payload.username)
+    username = payload.username.strip().lower()
+
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT id, full_name, status FROM users WHERE username = %s;", (username,))
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="No registered account found with this Gmail address.")
+                    
+                    _, full_name, status_val = row
+                    if status_val == "suspended":
+                        raise HTTPException(status_code=403, detail="Your account is suspended. Please contact the administrator.")
+
+                    # Invalidate previous unused tokens for this user
+                    cur.execute("UPDATE password_reset_tokens SET used = TRUE WHERE username = %s AND used = FALSE;", (username,))
+
+                    reset_token = secrets.token_urlsafe(32)
+                    expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+
+                    cur.execute(
+                        """
+                        INSERT INTO password_reset_tokens (username, token, expires_at, used, created_at)
+                        VALUES (%s, %s, %s, FALSE, CURRENT_TIMESTAMP);
+                        """,
+                        (username, reset_token, expires_at)
+                    )
+
+        origin = request.headers.get("origin") or os.getenv("FRONTEND_URL", "http://localhost:4200")
+        reset_link = f"{origin.rstrip('/')}/reset-password?token={reset_token}"
+
+        # Print clearly to terminal for local dev / before email service is integrated
+        banner = (
+            "\n" + "=" * 75 + "\n"
+            "  [FORGOT PASSWORD - RESET LINK GENERATED]\n"
+            f"  Account    : {username}\n"
+            f"  Expires In : 30 minutes\n"
+            f"  Reset Link : {reset_link}\n"
+            + "=" * 75 + "\n"
+        )
+        print(banner, flush=True)
+        logger.info(f"Password reset link generated for {username}: {reset_link}")
+
+        # Best-effort copy to system clipboard on server host if running locally on Windows
+        try:
+            subprocess.run(["clip"], input=reset_link.encode("utf-8"), check=False, timeout=2)
+        except Exception:
+            pass
+
+        log_user_activity(username, "security", "Password Reset Requested", "Generated password reset link", "warning", "bi-key")
+
+        return JSONResponse({
+            "message": "Password reset link generated! Check the terminal or copy it below.",
+            "reset_link": reset_link,
+            "token": reset_token,
+            "expires_in_minutes": 30
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during forgot password request: {str(e)}")
+
+
+@app.get("/verify-reset-token")
+def verify_reset_token(token: str = Query(...)):
+    token = token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Reset token is required.")
+
+    try:
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT username, expires_at, used
+                    FROM password_reset_tokens
+                    WHERE token = %s;
+                    """,
+                    (token,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=400, detail="Invalid or unknown password reset link.")
+                
+                username, expires_at, used = row
+                if used:
+                    raise HTTPException(status_code=400, detail="This password reset link has already been used.")
+                if datetime.datetime.utcnow() > expires_at:
+                    raise HTTPException(status_code=400, detail="This password reset link has expired. Please request a new one.")
+
+                return JSONResponse({
+                    "valid": True,
+                    "username": username
+                })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error verifying reset token: {str(e)}")
+
+
+@app.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest):
+    token = payload.token.strip()
+    new_password = payload.new_password
+
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long.")
+
+    try:
+        with db_session() as conn:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT id, username, expires_at, used
+                        FROM password_reset_tokens
+                        WHERE token = %s;
+                        """,
+                        (token,)
+                    )
+                    row = cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=400, detail="Invalid password reset token.")
+                    
+                    token_id, username, expires_at, used = row
+                    if used:
+                        raise HTTPException(status_code=400, detail="This password reset link has already been used.")
+                    if datetime.datetime.utcnow() > expires_at:
+                        raise HTTPException(status_code=400, detail="This password reset link has expired. Please request a new one.")
+
+                    new_hash = hash_password(new_password)
+                    cur.execute("UPDATE users SET password_hash = %s WHERE username = %s;", (new_hash, username))
+                    cur.execute("UPDATE password_reset_tokens SET used = TRUE WHERE id = %s;", (token_id,))
+
+        log_user_activity(username, "security", "Password Reset Completed", "Password was reset via recovery link", "success", "bi-shield-lock")
+
+        return JSONResponse({
+            "message": "Your password has been reset successfully. You can now sign in with your new password.",
+            "username": username
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error during password reset: {str(e)}")
 
 
 # ── Active Real-Time Session Manager ─────────────────────────

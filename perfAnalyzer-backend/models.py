@@ -90,6 +90,15 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6)
 
 
+class ForgotPasswordRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=1, max_length=255)
+    new_password: str = Field(..., min_length=6)
+
+
 class DeletionRequestCreate(BaseModel):
     reason: Optional[str] = Field(default="no_longer_needed", max_length=100)
     notes: Optional[str] = Field(default="", max_length=1000)

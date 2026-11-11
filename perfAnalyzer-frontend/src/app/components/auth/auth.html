@@ -28,6 +28,7 @@
     }
 
     <!-- Sliding Auth Tab Toggles -->
+    @if (authSubView === 'default') {
     <div class="auth-tabs mb-4">
       <button type="button" class="auth-tab-btn" [class.active]="isLoginMode" (click)="toggleMode(true)">SIGN
         IN</button>
@@ -49,7 +50,12 @@
       </div>
 
       <div class="form-group-premium mb-4">
-        <label for="login-password" class="form-label-premium">PASSWORD</label>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label for="login-password" class="form-label-premium mb-0">PASSWORD</label>
+          <button type="button" class="btn-forgot-link" (click)="openForgotPassword()">
+            Forgot Password?
+          </button>
+        </div>
         <div class="input-wrapper-premium">
           <i class="bi bi-lock"></i>
           <input type="password" id="login-password" name="password" [(ngModel)]="loginPassword"
@@ -114,6 +120,111 @@
         }
       </button>
     </form>
+    }
+    } @else if (authSubView === 'forgot') {
+    <!-- Forgot Password View -->
+    <div class="subview-header mb-4">
+      <h2 class="subview-title">Forgot Password</h2>
+      <p class="subview-subtitle mb-0">
+        Enter your registered Gmail address to generate a password reset link.
+      </p>
+    </div>
+
+    <form (submit)="onSubmitForgotPassword($event)" class="auth-form">
+      <div class="form-group-premium mb-4">
+        <label for="forgot-email" class="form-label-premium">REGISTERED GMAIL ADDRESS</label>
+        <div class="input-wrapper-premium">
+          <i class="bi bi-envelope"></i>
+          <input type="email" id="forgot-email" name="forgotEmail" [(ngModel)]="forgotEmail"
+            placeholder="e.g. user@gmail.com" required autocomplete="off" />
+        </div>
+      </div>
+
+      <button type="submit" class="btn-auth-action py-3 w-100 mb-3" [disabled]="isLoading">
+        @if (isLoading) {
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        GENERATING LINK...
+        } @else {
+        GENERATE RESET LINK <i class="bi bi-key ms-2"></i>
+        }
+      </button>
+    </form>
+
+    @if (generatedResetLink) {
+    <div class="reset-link-card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="reset-link-badge">
+          <i class="bi bi-terminal me-1"></i> Dev / Clipboard Link (Valid 30m)
+        </span>
+        <button type="button" class="btn-copy-link" (click)="copyResetLink()">
+          @if (linkCopied) {
+          <i class="bi bi-check2 me-1"></i> Copied!
+          } @else {
+          <i class="bi bi-clipboard me-1"></i> Copy Link
+          }
+        </button>
+      </div>
+      <div class="reset-link-url mb-2" title="Password Reset URL">{{ generatedResetLink }}</div>
+      <button type="button" class="btn-open-reset w-100 py-2" (click)="proceedToResetDirectly()">
+        Open Reset Password Page <i class="bi bi-box-arrow-up-right ms-1"></i>
+      </button>
+    </div>
+    }
+
+    <div class="text-center mt-2">
+      <button type="button" class="btn-back-login" (click)="backToLogin()">
+        <i class="bi bi-arrow-left me-1"></i> Back to Sign In
+      </button>
+    </div>
+    } @else if (authSubView === 'reset') {
+    <!-- Reset Password View (from link) -->
+    <div class="subview-header mb-4">
+      <h2 class="subview-title">Set New Password</h2>
+      @if (resetAccountEmail) {
+      <p class="subview-subtitle mb-0">
+        Resetting password for <strong>{{ resetAccountEmail }}</strong>
+      </p>
+      } @else {
+      <p class="subview-subtitle mb-0">
+        Enter and confirm your new account password below.
+      </p>
+      }
+    </div>
+
+    <form (submit)="onSubmitResetPassword($event)" class="auth-form">
+      <div class="form-group-premium mb-3">
+        <label for="reset-new-password" class="form-label-premium">NEW PASSWORD</label>
+        <div class="input-wrapper-premium">
+          <i class="bi bi-lock"></i>
+          <input type="password" id="reset-new-password" name="resetNewPassword" [(ngModel)]="resetNewPassword"
+            placeholder="Enter new password (min 6 chars)" required />
+        </div>
+      </div>
+
+      <div class="form-group-premium mb-4">
+        <label for="reset-confirm-password" class="form-label-premium">CONFIRM NEW PASSWORD</label>
+        <div class="input-wrapper-premium">
+          <i class="bi bi-shield-check"></i>
+          <input type="password" id="reset-confirm-password" name="resetConfirmPassword"
+            [(ngModel)]="resetConfirmPassword" placeholder="Repeat new password" required />
+        </div>
+      </div>
+
+      <button type="submit" class="btn-auth-action py-3 w-100 mb-3" [disabled]="isLoading || !resetAccountEmail">
+        @if (isLoading) {
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        UPDATING PASSWORD...
+        } @else {
+        UPDATE PASSWORD <i class="bi bi-check2-circle ms-2"></i>
+        }
+      </button>
+    </form>
+
+    <div class="text-center mt-2">
+      <button type="button" class="btn-back-login" (click)="backToLogin()">
+        <i class="bi bi-arrow-left me-1"></i> Back to Sign In
+      </button>
+    </div>
     }
   </div>
 </div>

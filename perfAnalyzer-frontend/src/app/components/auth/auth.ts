@@ -130,17 +130,16 @@ export class Auth implements OnInit {
     this.api.forgotPassword(this.forgotEmail.trim().toLowerCase()).subscribe({
       next: (res) => {
         this.isLoading = false;
-        this.generatedResetLink = res.reset_link;
+        this.generatedResetLink = null;
         this.generatedResetToken = res.token;
-        this.copyResetLink(true);
         this.successMessage =
-          'Password reset link generated! It has been printed to the backend terminal and copied to your clipboard.';
+          res.message || `A password reset link has been sent to ${this.forgotEmail.trim()}. Please check your email inbox.`;
         this.cdr.detectChanges();
       },
       error: (err) => {
         this.isLoading = false;
         this.errorMessage =
-          err.error?.detail || err.message || 'Could not generate password reset link.';
+          err.error?.detail || err.message || 'Could not process password reset request.';
         this.cdr.detectChanges();
       },
     });

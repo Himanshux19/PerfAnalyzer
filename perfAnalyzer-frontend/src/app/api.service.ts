@@ -567,12 +567,16 @@ export class ApiService {
     reset_link: string;
     token: string;
     expires_in_minutes: number;
+    email_sent?: boolean;
+    dispatch_method?: string;
   }> {
     return this.http.post<{
       message: string;
       reset_link: string;
       token: string;
       expires_in_minutes: number;
+      email_sent?: boolean;
+      dispatch_method?: string;
     }>(`${this.baseUrl}/forgot-password`, { username });
   }
 

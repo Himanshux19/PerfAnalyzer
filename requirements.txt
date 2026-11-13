@@ -17,6 +17,8 @@ psycopg2-binary==2.9.12
 # Authentication & Security
 PyJWT==2.13.0
 cryptography==50.0.1
+dnspython>=2.6.0
+email-validator>=2.1.0
 
 # HTTP Client, Endpoint Discovery & Crawling
 httpx==0.28.1

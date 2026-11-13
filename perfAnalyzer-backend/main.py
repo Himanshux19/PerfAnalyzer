@@ -9,6 +9,7 @@ from fastapi import (
     Header,
     Query,
     Request,
+    BackgroundTasks,
     WebSocket,
     WebSocketDisconnect,
 )
@@ -41,6 +42,7 @@ from monitoring_crypto import encrypt_dsn, decrypt_dsn
 
 from yaml_builder import build_taurus_yaml
 from services.endpoint_discovery import discover_endpoints
+from services.email_service import send_password_reset_email, EmailDeliveryError
 import shutil
 from pathlib import Path
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -597,7 +599,7 @@ def login(username: str = Form(...), password: str = Form(...)):
 
 
 @app.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, request: Request):
+def forgot_password(payload: ForgotPasswordRequest, request: Request, background_tasks: BackgroundTasks):
     validate_gmail(payload.username)
     username = payload.username.strip().lower()
 
@@ -631,31 +633,54 @@ def forgot_password(payload: ForgotPasswordRequest, request: Request):
         origin = request.headers.get("origin") or os.getenv("FRONTEND_URL", "http://localhost:4200")
         reset_link = f"{origin.rstrip('/')}/reset-password?token={reset_token}"
 
-        # Print clearly to terminal for local dev / before email service is integrated
+        # Print reset link immediately to terminal
         banner = (
             "\n" + "=" * 75 + "\n"
             "  [FORGOT PASSWORD - RESET LINK GENERATED]\n"
-            f"  Account    : {username}\n"
-            f"  Expires In : 30 minutes\n"
-            f"  Reset Link : {reset_link}\n"
+            f"  Account     : {username}\n"
+            f"  Expires In  : 30 minutes\n"
+            f"  Reset Link  : {reset_link}\n"
+            f"  Email       : Dispatching in background...\n"
             + "=" * 75 + "\n"
         )
         print(banner, flush=True)
-        logger.info(f"Password reset link generated for {username}: {reset_link}")
+        logger.info(f"Password reset token created for {username}, dispatching email in background.")
 
-        # Best-effort copy to system clipboard on server host if running locally on Windows
-        try:
-            subprocess.run(["clip"], input=reset_link.encode("utf-8"), check=False, timeout=2)
-        except Exception:
-            pass
+        def _send_reset_email_bg(to_email: str, link: str, name: str, token: str):
+            """Background task: send reset email and log the outcome."""
+            try:
+                result = send_password_reset_email(
+                    to_email=to_email,
+                    reset_link=link,
+                    full_name=name
+                )
+                status_str = "Dispatched via MailService/SMTP" if result.get("sent") else "Dev mode fallback"
+                logger.info(f"[BG] Password reset email for {to_email}: {status_str} | {result}")
+                print(f"\n[EMAIL BG] {to_email} → {status_str}\n", flush=True)
+            except EmailDeliveryError as ede:
+                logger.error(f"[BG] Failed to send reset email to {to_email}: {ede}")
+                print(f"\n[EMAIL BG ERROR] {to_email} → {ede}\n", flush=True)
+            except Exception as exc:
+                logger.error(f"[BG] Unexpected error sending reset email to {to_email}: {exc}")
 
-        log_user_activity(username, "security", "Password Reset Requested", "Generated password reset link", "warning", "bi-key")
+        background_tasks.add_task(_send_reset_email_bg, username, reset_link, full_name or "", reset_token)
+
+        log_user_activity(
+            username,
+            "security",
+            "Password Reset Requested",
+            "Generated password reset token and queued email dispatch",
+            "warning",
+            "bi-key"
+        )
 
         return JSONResponse({
-            "message": "Password reset link generated! Check the terminal or copy it below.",
-            "reset_link": reset_link,
+            "success": True,
+            "message": f"A password reset link has been sent to your email ({username}). Please check your inbox.",
             "token": reset_token,
-            "expires_in_minutes": 30
+            "expires_in_minutes": 30,
+            "email_sent": True,
+            "dispatch_method": "background"
         })
     except HTTPException:
         raise

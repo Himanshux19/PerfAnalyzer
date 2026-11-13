@@ -1,0 +1,910 @@
+/* PerfAnalyzer Product Showcase Styles
+   Theme: Light Slate & Clean White (Consistent with PerfAnalyzer SaaS Theme)
+   Tone: Humanized, clean, unbloated, non-gradient focused
+*/
+
+:host {
+  display: block;
+  font-family: var(--font-sans, 'Inter', system-ui, -apple-system, sans-serif);
+  color: #0f172a;
+  background-color: #f8fafc;
+  line-height: 1.5;
+}
+
+.showcase-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Typography & Utilites ─────────────────────────────────────────── */
+.text-slate-800 {
+  color: #1e293b;
+}
+
+.font-mono {
+  font-family: Consolas, 'Fira Code', Monaco, monospace;
+}
+
+.fs-7 {
+  font-size: 0.95rem;
+}
+
+.fs-8 {
+  font-size: 0.85rem;
+}
+
+.fs-9 {
+  font-size: 0.75rem;
+}
+
+.max-w-700 {
+  max-width: 700px;
+}
+
+.max-w-800 {
+  max-width: 800px;
+}
+
+/* ── 1. Navbar ──────────────────────────────────────────────────────── */
+.showcase-navbar {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e2e8f0;
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.brand-link {
+  color: #0f172a;
+}
+
+.brand-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.badge-version {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+}
+
+.nav-link-item {
+  color: #475569;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.nav-link-item:hover {
+  color: #2563eb;
+}
+
+.btn-nav-ghost {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.825rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-nav-ghost:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.btn-nav-primary {
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+  color: #ffffff;
+  font-size: 0.825rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-nav-primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+/* ── 2. Hero Section ────────────────────────────────────────────────── */
+.hero-section {
+  padding: 64px 0 48px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.hero-badge {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.775rem;
+  font-weight: 600;
+}
+
+.pulse-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.hero-title {
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  max-width: 860px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 1.95rem;
+  }
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  color: #475569;
+  line-height: 1.6;
+  max-width: 680px;
+  margin-bottom: 32px;
+}
+
+.btn-primary-hero {
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 11px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
+  transition: all 0.2s ease;
+}
+
+.btn-primary-hero:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.btn-secondary-hero {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 11px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary-hero:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.btn-ghost-hero {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 11px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.btn-ghost-hero:hover {
+  color: #2563eb;
+  background-color: #f1f5f9;
+}
+
+.trust-pill {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+/* Metric Cards */
+.metric-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: left;
+  transition: transform 0.15s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.metric-sub {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.metric-positive {
+  color: #10b981;
+}
+
+/* ── 3. Section Common Headers ─────────────────────────────────────── */
+.section-eyebrow {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.section-heading {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+  .section-heading {
+    font-size: 1.6rem;
+  }
+}
+
+.section-subheading {
+  font-size: 0.95rem;
+  color: #475569;
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+/* ── 4. Interactive Browser Frame Mockup ────────────────────────────── */
+.browser-frame {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
+}
+
+.browser-topbar {
+  background: #f8fafc;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-red {
+  background-color: #ef4444;
+}
+
+.dot-yellow {
+  background-color: #f59e0b;
+}
+
+.dot-green {
+  background-color: #10b981;
+}
+
+.browser-url-bar {
+  font-family: Consolas, monospace;
+  font-size: 0.75rem;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 3px 12px;
+  border-radius: 6px;
+}
+
+.live-status-pill {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+/* Preview Tabs */
+.preview-tabs {
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.preview-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  font-size: 0.825rem;
+  font-weight: 600;
+  padding: 12px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.preview-tab-btn:hover {
+  color: #0f172a;
+}
+
+.preview-tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.preview-tab-content {
+  background-color: #ffffff;
+  min-height: 380px;
+}
+
+/* Preview Tables */
+.table-preview {
+  border-collapse: collapse;
+  font-size: 0.825rem;
+}
+
+.table-preview th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table-preview td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.badge-method {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.badge-get {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-post {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.param-tag {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.btn-demo-action {
+  background: #2563eb;
+  color: #ffffff;
+  border: 1px solid #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-demo-action:hover {
+  background: #1d4ed8;
+}
+
+/* Execution Mockup */
+.mini-kpi-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.mini-kpi-label {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748b;
+  display: block;
+}
+
+.mini-kpi-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.mini-kpi-badge {
+  font-size: 0.725rem;
+  font-weight: 600;
+}
+
+.progress-bar-wrap {
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #2563eb;
+}
+
+.mock-terminal {
+  background: #0f172a;
+  color: #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.terminal-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-cursor {
+  animation: blink 1s infinite;
+  color: #2563eb;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Trace Waterfall */
+.trace-waterfall {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.trace-bar-container {
+  height: 18px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.trace-bar {
+  height: 100%;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 3px;
+}
+
+.bar-total {
+  background-color: #2563eb;
+}
+
+.bar-auth {
+  background-color: #64748b;
+}
+
+.bar-db {
+  background-color: #4f46e5;
+}
+
+.bar-ext {
+  background-color: #d97706;
+}
+
+/* Reports Tab */
+.report-insights-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+/* ── 5. Comparison Cards ───────────────────────────────────────────── */
+.comparison-card {
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.15s ease;
+}
+
+.comparison-card:hover {
+  transform: translateY(-2px);
+}
+
+.card-old {
+  border-left: 4px solid #ef4444;
+}
+
+.card-new {
+  border-left: 4px solid #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.06);
+}
+
+.comp-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+/* ── 6. Capabilities Grid ──────────────────────────────────────────── */
+.capability-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.capability-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+}
+
+.cap-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.cap-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.cap-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cap-desc {
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.cap-bullets {
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+/* ── 7. Workflow Steps ─────────────────────────────────────────────── */
+.step-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.step-number {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  width: 44px;
+  height: 44px;
+  line-height: 42px;
+  border-radius: 50%;
+  margin: 0 auto;
+}
+
+/* ── 8. Pricing Section ────────────────────────────────────────────── */
+.pricing-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.pricing-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.pricing-featured {
+  border: 2px solid #2563eb;
+  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.1);
+}
+
+.featured-ribbon {
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.pricing-tier-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.badge-free {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-pro {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.badge-enterprise {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.price-val {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.price-period {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.btn-plan-outline {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-plan-outline:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.btn-plan-primary {
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-plan-primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+/* ── 9. FAQ Section ────────────────────────────────────────────────── */
+.faq-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faq-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  transition: border-color 0.15s ease;
+}
+
+.faq-item.open {
+  border-color: #cbd5e1;
+}
+
+.faq-question-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 16px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.faq-question-btn:hover {
+  color: #2563eb;
+}
+
+.faq-answer-pane {
+  padding: 0 20px 16px 20px;
+  border-top: 1px solid #f1f5f9;
+  line-height: 1.6;
+}
+
+/* ── 10. CTA Banner Section ────────────────────────────────────────── */
+.cta-banner-section {
+  background: #0f172a;
+  color: #ffffff;
+  border-top: 1px solid #1e293b;
+}
+
+.cta-banner-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.cta-banner-sub {
+  font-size: 1rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.btn-cta-white {
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cta-white:hover {
+  background: #f1f5f9;
+  transform: translateY(-1px);
+}
+
+.btn-cta-ghost {
+  background: transparent;
+  border: 1px solid #475569;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cta-ghost:hover {
+  background: #1e293b;
+  border-color: #64748b;
+  color: #ffffff;
+}
+
+/* ── 11. Footer ────────────────────────────────────────────────────── */
+.showcase-footer {
+  background-color: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}

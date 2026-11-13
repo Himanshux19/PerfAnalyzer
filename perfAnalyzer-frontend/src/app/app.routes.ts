@@ -6,12 +6,16 @@ import { AdminAuth } from './components/admin-auth/admin-auth';
 import { AdminDashboard } from './components/admin-dashboard/admin-dashboard';
 import { PaymentSuccess } from './components/payment-success/payment-success';
 import { PaymentFailure } from './components/payment-failure/payment-failure';
+import { Showcase } from './components/showcase/showcase';
 
 export const routes: Routes = [
+  { path: '', component: Showcase },
+  { path: 'showcase', component: Showcase },
   { path: 'login', component: Auth },
+  { path: 'signup', component: Auth },
+  { path: 'register', component: Auth },
   { path: 'reset-password', component: Auth },
   { path: 'setup-profile', component: SetupProfile },
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'payment/success', component: PaymentSuccess },
   { path: 'payment/failure', component: PaymentFailure },
   { path: 'dashboard', component: Projects, data: { section: 'dashboard' } },
@@ -28,5 +32,5 @@ export const routes: Routes = [
   { path: 'account', component: Projects, data: { section: 'account' } },
   { path: 'admin/login', component: AdminAuth },
   { path: 'admin/dashboard', component: AdminDashboard },
-  { path: '**', redirectTo: 'dashboard' },
+  { path: '**', redirectTo: '' },
 ];

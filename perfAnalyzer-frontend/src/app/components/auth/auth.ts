@@ -1,11 +1,11 @@
 import { Component, ChangeDetectorRef, OnInit } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-auth',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './auth.html',
   styleUrl: './auth.css',
 })
@@ -52,6 +52,19 @@ export class Auth implements OnInit {
       if (tokenParam) {
         this.openResetWithToken(tokenParam);
         return;
+      }
+
+      // Automatically switch to Sign Up if mode=signup or on /signup / /register route
+      const mode = params['mode'] || params['tab'];
+      if (
+        mode === 'signup' ||
+        mode === 'register' ||
+        this.router.url.includes('signup') ||
+        this.router.url.includes('register')
+      ) {
+        this.isLoginMode = false;
+      } else if (mode === 'login' || mode === 'signin') {
+        this.isLoginMode = true;
       }
 
       // Skip login if already authenticated and not resetting password

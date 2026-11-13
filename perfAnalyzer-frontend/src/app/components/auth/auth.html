@@ -3,9 +3,18 @@
   <div class="auth-card p-5">
     <div class="auth-header text-center mb-4">
       <div class="tech-brand-logo mb-2 d-flex align-items-center justify-content-center gap-2">
-        <img src="/logo.png" alt="PerfAnalyzer Logo" style="width: 44px; height: 44px; object-fit: contain;" />
+        <a routerLink="/" title="PerfAnalyzer Showcase" class="d-inline-flex align-items-center text-decoration-none">
+          <img src="/logo.png" alt="PerfAnalyzer Logo" style="width: 44px; height: 44px; object-fit: contain;" />
+        </a>
       </div>
-      <h1 class="tech-title">PerfAnalyzer</h1>
+      <h1 class="tech-title">
+        <a routerLink="/" class="text-decoration-none" style="color: inherit;">PerfAnalyzer</a>
+      </h1>
+      <div class="mt-1">
+        <a routerLink="/" class="text-decoration-none text-muted" style="font-size: 0.775rem;">
+          <i class="bi bi-arrow-left me-1"></i> Back to Product Showcase
+        </a>
+      </div>
     </div>
 
     <!-- Alert Banners -->

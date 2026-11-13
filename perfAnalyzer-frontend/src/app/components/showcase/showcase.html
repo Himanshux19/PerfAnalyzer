@@ -1,0 +1,873 @@
+<!-- PerfAnalyzer Product Showcase Landing Page -->
+<div class="showcase-root">
+
+  <!-- ── 1. Top Navigation Bar ─────────────────────────────────────────── -->
+  <header class="showcase-navbar sticky-top">
+    <div class="container d-flex align-items-center justify-content-between py-3">
+      <!-- Brand Logo & Name -->
+      <a routerLink="/" class="d-flex align-items-center gap-2 text-decoration-none brand-link">
+        <img src="/logo.png" alt="PerfAnalyzer Logo" class="brand-logo-img" />
+        <span class="brand-name">PerfAnalyzer</span>
+        <span class="badge-version">v2.1</span>
+      </a>
+
+      <!-- Center Navigation Links -->
+      <nav class="d-none d-lg-flex align-items-center gap-4 nav-menu">
+        <a href="javascript:void(0)" (click)="scrollTo('preview')" class="nav-link-item">Product Demo</a>
+        <a href="javascript:void(0)" (click)="scrollTo('features')" class="nav-link-item">Capabilities</a>
+        <a href="javascript:void(0)" (click)="scrollTo('workflow')" class="nav-link-item">How It Works</a>
+        <a href="javascript:void(0)" (click)="scrollTo('pricing')" class="nav-link-item">Plans & Pricing</a>
+        <a href="javascript:void(0)" (click)="scrollTo('faq')" class="nav-link-item">FAQ</a>
+      </nav>
+
+      <!-- Right Action CTA Buttons -->
+      <div class="d-flex align-items-center gap-2">
+        @if (isLoggedIn) {
+        <button type="button" class="btn btn-outline-primary btn-sm px-3 fw-semibold" (click)="goToDashboard()">
+          <i class="bi bi-speedometer2 me-1"></i> Go to Dashboard
+        </button>
+        } @else {
+        <button type="button" class="btn-nav-ghost" (click)="goToSignIn()">
+          Sign In
+        </button>
+        <button type="button" class="btn-nav-primary" (click)="goToSignUp()">
+          Get Started Free <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 2. Hero Section ──────────────────────────────────────────────── -->
+  <section class="hero-section text-center">
+    <div class="container">
+      <!-- Announcement Tag -->
+      <div class="d-inline-flex align-items-center gap-2 hero-badge mb-3">
+        <span class="pulse-indicator"></span>
+        <span class="badge-text">Automated Load Testing & Distributed APM Observability</span>
+      </div>
+
+      <!-- Main Heading (Humanized, clear value prop) -->
+      <h1 class="hero-title mx-auto">
+        Performance testing that respects your time and your engineering stack.
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="hero-subtitle mx-auto">
+        Stop wrestling with complex XML configurations and brittle load scripts.
+        PerfAnalyzer crawls your endpoints, compiles Apache JMeter & Taurus test plans on the fly,
+        runs realistic stress simulations, and streams live telemetry directly to your browser.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="hero-actions d-flex align-items-center justify-content-center gap-3 flex-wrap">
+        @if (isLoggedIn) {
+        <button type="button" class="btn-primary-hero" (click)="goToDashboard()">
+          <i class="bi bi-speedometer2 me-2"></i> Open Workspace Dashboard
+        </button>
+        } @else {
+        <button type="button" class="btn-primary-hero" (click)="goToSignUp()">
+          Start Testing for Free <i class="bi bi-arrow-right ms-2"></i>
+        </button>
+        <button type="button" class="btn-secondary-hero" (click)="goToSignIn()">
+          <i class="bi bi-box-arrow-in-right me-2"></i> Sign In to Account
+        </button>
+        }
+        <button type="button" class="btn-ghost-hero" (click)="scrollTo('preview')">
+          <i class="bi bi-play-circle me-1"></i> Explore Interactive Demo
+        </button>
+      </div>
+
+      <!-- Humanized Trust Signals -->
+      <div class="hero-trust-row d-flex align-items-center justify-content-center gap-4 flex-wrap mt-4">
+        <span class="trust-pill"><i class="bi bi-check2 text-primary me-1"></i> No credit card required</span>
+        <span class="trust-pill"><i class="bi bi-check2 text-primary me-1"></i> Bundled Apache JMeter 5.6.3</span>
+        <span class="trust-pill"><i class="bi bi-check2 text-primary me-1"></i> Native OpenTelemetry Traces</span>
+        <span class="trust-pill"><i class="bi bi-check2 text-primary me-1"></i> Declarative Jenkins CI/CD</span>
+      </div>
+
+      <!-- Metric Highlights Strip -->
+      <div class="row g-3 justify-content-center mt-5 hero-metrics-grid">
+        @for (item of metrics; track item.label) {
+        <div class="col-6 col-md-3">
+          <div class="metric-card">
+            <span class="metric-label">{{ item.label }}</span>
+            <div class="metric-value">{{ item.value }}</div>
+            <span class="metric-sub" [class.metric-positive]="item.positive">
+              <i class="bi bi-arrow-up-right me-1"></i>{{ item.change }}
+            </span>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. Interactive Product Showcase Preview ──────────────────────── -->
+  <section id="preview" class="preview-section py-5">
+    <div class="container">
+      <div class="text-center mb-4">
+        <span class="section-eyebrow">Interactive Overview</span>
+        <h2 class="section-heading">See PerfAnalyzer in action before you sign up</h2>
+        <p class="section-subheading">
+          Explore the workflow from automated route discovery to live execution logs and APM bottleneck diagnosis.
+        </p>
+      </div>
+
+      <!-- Browser Window Mockup -->
+      <div class="browser-frame shadow-sm">
+        <!-- Mockup Title Bar -->
+        <div class="browser-topbar d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            <span class="browser-url-bar ms-3 d-none d-sm-inline-block">
+              <i class="bi bi-lock-fill text-muted me-1"></i> app.perfanalyzer.internal/workspace/checkout-service
+            </span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="live-status-pill">
+              <span class="pulse-dot"></span> Taurus Engine Active
+            </span>
+          </div>
+        </div>
+
+        <!-- Preview Tabs Navigation -->
+        <div class="preview-tabs d-flex border-bottom bg-white px-3">
+          <button type="button" class="preview-tab-btn" [class.active]="activePreviewTab === 'discovery'"
+            (click)="setPreviewTab('discovery')">
+            <i class="bi bi-compass me-1"></i> 1. Auto-Discovery
+          </button>
+          <button type="button" class="preview-tab-btn" [class.active]="activePreviewTab === 'execution'"
+            (click)="setPreviewTab('execution')">
+            <i class="bi bi-speedometer2 me-1"></i> 2. Live Execution
+          </button>
+          <button type="button" class="preview-tab-btn" [class.active]="activePreviewTab === 'observability'"
+            (click)="setPreviewTab('observability')">
+            <i class="bi bi-diagram-3 me-1"></i> 3. APM & Traces
+          </button>
+          <button type="button" class="preview-tab-btn" [class.active]="activePreviewTab === 'reports'"
+            (click)="setPreviewTab('reports')">
+            <i class="bi bi-bar-chart-line me-1"></i> 4. HTML Dashboards
+          </button>
+        </div>
+
+        <!-- Tab Content Panes -->
+        <div class="preview-tab-content p-4">
+
+          <!-- 1. Discovery View -->
+          @if (activePreviewTab === 'discovery') {
+          <div class="preview-pane-discovery">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h5 class="fw-bold mb-1 text-slate-800">Target Discovered: E-Commerce REST API</h5>
+                <p class="text-muted fs-8 mb-0">Crawl completed via Playwright & DOM scanner. 5 endpoints synthesized into JMX test scenario.</p>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-9">
+                <i class="bi bi-check-circle me-1"></i> Auto-Generated JMX Ready
+              </span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table-preview w-100">
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th>Route / Action</th>
+                    <th>Extracted Parameters</th>
+                    <th>Status</th>
+                    <th>Scenario Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="badge-method badge-get">GET</span></td>
+                    <td class="font-mono">/api/v1/catalog/products</td>
+                    <td><code class="param-tag">page=1</code> <code class="param-tag">limit=20</code></td>
+                    <td><span class="text-success"><i class="bi bi-check2"></i> 200 OK</span></td>
+                    <td>Ramp-up Browse Flow</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge-method badge-post">POST</span></td>
+                    <td class="font-mono">/api/v1/auth/login</td>
+                    <td><code class="param-tag">&#123; user_id, auth_token &#125;</code></td>
+                    <td><span class="text-success"><i class="bi bi-check2"></i> 200 OK</span></td>
+                    <td>Session Token Extractor</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge-method badge-post">POST</span></td>
+                    <td class="font-mono">/api/v1/cart/items</td>
+                    <td><code class="param-tag">item_id: CSV_DATA</code></td>
+                    <td><span class="text-success"><i class="bi bi-check2"></i> 201 Created</span></td>
+                    <td>High-Contention Load</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge-method badge-post">POST</span></td>
+                    <td class="font-mono">/api/v1/checkout/process</td>
+                    <td><code class="param-tag">idempotency_key, total</code></td>
+                    <td><span class="text-success"><i class="bi bi-check2"></i> 200 OK</span></td>
+                    <td>Stress & Idempotency Check</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="preview-actions-bar mt-3 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="text-muted fs-8">
+                <i class="bi bi-info-circle me-1"></i> Test script ready. Click Run to execute on local Taurus or Jenkins.
+              </span>
+              <button type="button" class="btn-demo-action" (click)="setPreviewTab('execution')">
+                Run Simulation Now <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+          </div>
+          }
+
+          <!-- 2. Execution View -->
+          @if (activePreviewTab === 'execution') {
+          <div class="preview-pane-execution">
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-md-3">
+                <div class="mini-kpi-card">
+                  <span class="mini-kpi-label">Active Virtual Users</span>
+                  <div class="mini-kpi-val text-primary">500 <span class="fs-8 fw-normal text-muted">/ 500 VUs</span></div>
+                  <div class="progress-bar-wrap mt-2">
+                    <div class="progress-bar-fill" style="width: 100%;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="mini-kpi-card">
+                  <span class="mini-kpi-label">Throughput Rate</span>
+                  <div class="mini-kpi-val text-slate-800">1,420 <span class="fs-8 fw-normal text-muted">req/sec</span></div>
+                  <span class="mini-kpi-badge text-success"><i class="bi bi-arrow-up"></i> Steady Peak</span>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="mini-kpi-card">
+                  <span class="mini-kpi-label">Average Response Time</span>
+                  <div class="mini-kpi-val text-slate-800">38.4 <span class="fs-8 fw-normal text-muted">ms</span></div>
+                  <span class="mini-kpi-badge text-success"><i class="bi bi-shield-check"></i> Below 50ms SLA</span>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="mini-kpi-card">
+                  <span class="mini-kpi-label">Error Rate (Failures)</span>
+                  <div class="mini-kpi-val text-success">0.02% <span class="fs-8 fw-normal text-muted">(3 / 14,200)</span></div>
+                  <span class="mini-kpi-badge text-success">Health 99.98%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Streaming Terminal Simulation -->
+            <div class="mock-terminal p-3 font-mono">
+              <div class="terminal-line"><span class="text-primary">[TAURUS]</span> Initializing Apache JMeter 5.6.3 execution harness...</div>
+              <div class="terminal-line"><span class="text-primary">[TAURUS]</span> Ramping up thread group: 500 threads over 60s hold duration...</div>
+              <div class="terminal-line text-muted">[00:15] Active: 125 VUs | Throughput: 420 RPS | Latency Avg: 32ms | Errors: 0%</div>
+              <div class="terminal-line text-muted">[00:30] Active: 350 VUs | Throughput: 980 RPS | Latency Avg: 36ms | Errors: 0%</div>
+              <div class="terminal-line text-success">[00:45] Active: 500 VUs | Throughput: 1,420 RPS | Latency Avg: 38ms | Errors: 0.02%</div>
+              <div class="terminal-line text-warning">[APM] OpenTelemetry trace sampled: /api/v1/checkout/process [Trace ID: 7a8f190e2...]</div>
+              <div class="terminal-line"><span class="terminal-cursor">█</span> WebSocket streaming live telemetry at 1000ms intervals...</div>
+            </div>
+
+            <div class="preview-actions-bar mt-3 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="text-muted fs-8">
+                <i class="bi bi-clock-history me-1"></i> Running on local Taurus CLI engine. Jenkins cluster standby.
+              </span>
+              <button type="button" class="btn-demo-action" (click)="setPreviewTab('observability')">
+                View OpenTelemetry Traces <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+          </div>
+          }
+
+          <!-- 3. Observability View -->
+          @if (activePreviewTab === 'observability') {
+          <div class="preview-pane-observability">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h5 class="fw-bold mb-1 text-slate-800">Distributed APM Trace: POST /api/v1/checkout/process</h5>
+                <p class="text-muted fs-8 mb-0">Total transaction duration: 42.1 ms. Traced across FastAPI, PostgreSQL, and Payment Gateway.</p>
+              </div>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-9">
+                <i class="bi bi-check-all me-1"></i> OpenTelemetry + Uptrace
+              </span>
+            </div>
+
+            <!-- Trace Waterfall Mockup -->
+            <div class="trace-waterfall">
+              <div class="trace-row d-flex align-items-center py-2 border-bottom">
+                <div class="trace-name fw-semibold font-mono fs-8" style="width: 32%;">
+                  <i class="bi bi-box me-1 text-primary"></i> HTTP POST /checkout
+                </div>
+                <div class="trace-bar-container flex-grow-1 mx-3">
+                  <div class="trace-bar bar-total" style="width: 100%;">42.1 ms</div>
+                </div>
+                <div class="trace-duration font-mono fs-9 text-muted" style="width: 60px;">42.1ms</div>
+              </div>
+
+              <div class="trace-row d-flex align-items-center py-2 border-bottom">
+                <div class="trace-name ps-3 font-mono fs-8" style="width: 32%;">
+                  <i class="bi bi-shield-lock me-1 text-muted"></i> auth_jwt_verify()
+                </div>
+                <div class="trace-bar-container flex-grow-1 mx-3">
+                  <div class="trace-bar bar-auth" style="margin-left: 2%; width: 12%;">5.2 ms</div>
+                </div>
+                <div class="trace-duration font-mono fs-9 text-muted" style="width: 60px;">5.2ms</div>
+              </div>
+
+              <div class="trace-row d-flex align-items-center py-2 border-bottom">
+                <div class="trace-name ps-3 font-mono fs-8" style="width: 32%;">
+                  <i class="bi bi-database me-1 text-indigo"></i> SELECT inventory FOR UPDATE
+                </div>
+                <div class="trace-bar-container flex-grow-1 mx-3">
+                  <div class="trace-bar bar-db" style="margin-left: 15%; width: 22%;">9.4 ms</div>
+                </div>
+                <div class="trace-duration font-mono fs-9 text-muted" style="width: 60px;">9.4ms</div>
+              </div>
+
+              <div class="trace-row d-flex align-items-center py-2 border-bottom">
+                <div class="trace-name ps-3 font-mono fs-8" style="width: 32%;">
+                  <i class="bi bi-credit-card me-1 text-warning"></i> Razorpay Order Creation
+                </div>
+                <div class="trace-bar-container flex-grow-1 mx-3">
+                  <div class="trace-bar bar-ext" style="margin-left: 38%; width: 44%;">18.6 ms</div>
+                </div>
+                <div class="trace-duration font-mono fs-9 text-muted" style="width: 60px;">18.6ms</div>
+              </div>
+
+              <div class="trace-row d-flex align-items-center py-2">
+                <div class="trace-name ps-3 font-mono fs-8" style="width: 32%;">
+                  <i class="bi bi-database me-1 text-indigo"></i> COMMIT transaction
+                </div>
+                <div class="trace-bar-container flex-grow-1 mx-3">
+                  <div class="trace-bar bar-db" style="margin-left: 83%; width: 16%;">6.8 ms</div>
+                </div>
+                <div class="trace-duration font-mono fs-9 text-muted" style="width: 60px;">6.8ms</div>
+              </div>
+            </div>
+
+            <div class="preview-actions-bar mt-3 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="text-muted fs-8">
+                <i class="bi bi-search me-1"></i> Zero guesswork: pinpoint slow database queries during stress tests.
+              </span>
+              <button type="button" class="btn-demo-action" (click)="setPreviewTab('reports')">
+                View Generated Reports <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+          </div>
+          }
+
+          <!-- 4. Reports View -->
+          @if (activePreviewTab === 'reports') {
+          <div class="preview-pane-reports">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h5 class="fw-bold mb-1 text-slate-800">Executive Performance Report</h5>
+                <p class="text-muted fs-8 mb-0">Generated automatically at test conclusion. JMeter HTML Dashboard ready to export.</p>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 fs-9">
+                  <i class="bi bi-download me-1"></i> Raw .JTL
+                </button>
+                <button type="button" class="btn btn-sm btn-primary py-1 px-2 fs-9">
+                  <i class="bi bi-file-earmark-zip me-1"></i> Download HTML Report
+                </button>
+              </div>
+            </div>
+
+            <!-- Percentiles Table -->
+            <div class="row g-3">
+              <div class="col-md-7">
+                <div class="table-responsive">
+                  <table class="table-preview w-100">
+                    <thead>
+                      <tr>
+                        <th>Transaction Label</th>
+                        <th>Samples</th>
+                        <th>Avg (ms)</th>
+                        <th>P90 (ms)</th>
+                        <th>P99 (ms)</th>
+                        <th>Pass Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>GET /catalog</strong></td>
+                        <td>5,200</td>
+                        <td>28.4</td>
+                        <td>42.0</td>
+                        <td>68.2</td>
+                        <td><span class="text-success">100%</span></td>
+                      </tr>
+                      <tr>
+                        <td><strong>POST /cart</strong></td>
+                        <td>4,100</td>
+                        <td>34.1</td>
+                        <td>51.5</td>
+                        <td>88.0</td>
+                        <td><span class="text-success">100%</span></td>
+                      </tr>
+                      <tr>
+                        <td><strong>POST /checkout</strong></td>
+                        <td>3,800</td>
+                        <td>42.1</td>
+                        <td>66.0</td>
+                        <td>112.4</td>
+                        <td><span class="text-success">99.92%</span></td>
+                      </tr>
+                      <tr class="fw-bold bg-light">
+                        <td>TOTAL SUMMARY</td>
+                        <td>13,100</td>
+                        <td>34.2</td>
+                        <td>52.8</td>
+                        <td>112.4</td>
+                        <td><span class="text-success">99.98%</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="col-md-5">
+                <div class="report-insights-card p-3">
+                  <h6 class="fw-bold text-slate-800 mb-2">Automated SLA Assessment</h6>
+                  <ul class="list-unstyled mb-3 fs-8">
+                    <li class="mb-2 d-flex align-items-start gap-2">
+                      <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                      <span><strong>P95 Latency SLA:</strong> 58ms (Target &lt; 200ms) - Passed</span>
+                    </li>
+                    <li class="mb-2 d-flex align-items-start gap-2">
+                      <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                      <span><strong>Error Rate Threshold:</strong> 0.02% (Target &lt; 1%) - Passed</span>
+                    </li>
+                    <li class="d-flex align-items-start gap-2">
+                      <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                      <span><strong>Sustained Concurrency:</strong> 500 VUs maintained for 60s without degradation.</span>
+                    </li>
+                  </ul>
+                  <div class="d-grid">
+                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="goToSignUp()">
+                      Run This Test on Your Application →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="preview-actions-bar mt-3 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="text-muted fs-8">
+                <i class="bi bi-check2-all me-1"></i> All test results are automatically archived to your workspace history.
+              </span>
+              <button type="button" class="btn-demo-action" (click)="scrollTo('pricing')">
+                View Subscription Plans <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+          </div>
+          }
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. Humanized Value Comparison: Traditional vs PerfAnalyzer ───── -->
+  <section class="py-5 bg-white border-top border-bottom">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="section-eyebrow">Why PerfAnalyzer?</span>
+        <h2 class="section-heading">Built to solve real developer and QA headaches</h2>
+        <p class="section-subheading">
+          Traditional performance testing is slow, brittle, and disconnected from your backend code.
+          Here is how PerfAnalyzer turns a multi-day ordeal into a 3-minute flow.
+        </p>
+      </div>
+
+      <div class="row g-4 justify-content-center">
+        <!-- The Old Way -->
+        <div class="col-md-6 col-lg-5">
+          <div class="comparison-card card-old h-100 p-4">
+            <div class="comparison-header d-flex align-items-center gap-2 mb-3">
+              <div class="comp-icon-box text-danger bg-danger-subtle"><i class="bi bi-x-lg"></i></div>
+              <h5 class="fw-bold mb-0 text-slate-800">The Traditional Nightmare</h5>
+            </div>
+            <ul class="comp-list list-unstyled fs-8 text-secondary">
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-dash-circle text-danger mt-1"></i>
+                <span>Wrestling with cumbersome JMeter Java GUI interfaces and manual XML files.</span>
+              </li>
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-dash-circle text-danger mt-1"></i>
+                <span>Manually copying cookies, tokens, and header authorizations into every HTTP request.</span>
+              </li>
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-dash-circle text-danger mt-1"></i>
+                <span>Setting up distributed agent machines and SSH tunnels just to simulate 1,000 users.</span>
+              </li>
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-dash-circle text-danger mt-1"></i>
+                <span>Blind test failures: you see HTTP 500 errors but have no idea which database query stalled.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- The PerfAnalyzer Way -->
+        <div class="col-md-6 col-lg-5">
+          <div class="comparison-card card-new h-100 p-4">
+            <div class="comparison-header d-flex align-items-center gap-2 mb-3">
+              <div class="comp-icon-box text-primary bg-primary-subtle"><i class="bi bi-check-lg"></i></div>
+              <h5 class="fw-bold mb-0 text-slate-800">The PerfAnalyzer Approach</h5>
+            </div>
+            <ul class="comp-list list-unstyled fs-8 text-secondary">
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                <span>Automatic endpoint discovery crawls routes and outputs standard JMX scripts for you.</span>
+              </li>
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                <span>Sensible defaults for virtual users, ramp-up schedules, CSV feeds, and headers.</span>
+              </li>
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                <span>Instant execution on local Taurus engine or one-click dispatch to your Jenkins agents.</span>
+              </li>
+              <li class="d-flex align-items-start gap-2 mb-3">
+                <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                <span>Live OpenTelemetry APM traces show you the exact bottleneck in your code or database.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5. Platform Capabilities Grid ────────────────────────────────── -->
+  <section id="features" class="py-5">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="section-eyebrow">Complete Feature Suite</span>
+        <h2 class="section-heading">Everything needed to ship resilient software</h2>
+        <p class="section-subheading">
+          A coherent toolchain built for full-cycle performance engineering.
+        </p>
+      </div>
+
+      <div class="row g-4">
+        @for (cap of capabilities; track cap.title) {
+        <div class="col-md-6 col-lg-4">
+          <div class="capability-card h-100 p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="cap-icon-box">
+                <i class="bi" [ngClass]="cap.icon"></i>
+              </div>
+              <span class="cap-badge">{{ cap.badge }}</span>
+            </div>
+            <h5 class="cap-title mb-2">{{ cap.title }}</h5>
+            <p class="cap-desc mb-3">{{ cap.description }}</p>
+            <ul class="cap-bullets list-unstyled mb-0">
+              @for (bullet of cap.bullets; track bullet) {
+              <li class="d-flex align-items-start gap-2 mb-1">
+                <i class="bi bi-check2 text-primary mt-1"></i>
+                <span>{{ bullet }}</span>
+              </li>
+              }
+            </ul>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 6. How It Works (3 Clear Steps) ──────────────────────────────── -->
+  <section id="workflow" class="py-5 bg-white border-top border-bottom">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="section-eyebrow">Simple Workflow</span>
+        <h2 class="section-heading">From zero to load tested in 3 simple steps</h2>
+        <p class="section-subheading">
+          No complicated agents or tedious installations. Run your first scenario today.
+        </p>
+      </div>
+
+      <div class="row g-4 justify-content-center">
+        <!-- Step 1 -->
+        <div class="col-md-4">
+          <div class="step-card h-100 p-4 text-center">
+            <div class="step-number mb-3">01</div>
+            <h5 class="fw-bold mb-2 text-slate-800">Discover or Import</h5>
+            <p class="text-muted fs-8">
+              Paste your application URL for automated crawling, upload an existing OpenAPI spec, or upload your team's custom .jmx files.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="col-md-4">
+          <div class="step-card h-100 p-4 text-center">
+            <div class="step-number mb-3">02</div>
+            <h5 class="fw-bold mb-2 text-slate-800">Configure Concurrency</h5>
+            <p class="text-muted fs-8">
+              Set target virtual users (from 10 to 100,000+), define ramp-up duration, inject CSV test data, and select local or Jenkins dispatch.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="col-md-4">
+          <div class="step-card h-100 p-4 text-center">
+            <div class="step-number mb-3">03</div>
+            <h5 class="fw-bold mb-2 text-slate-800">Stream & Resolve</h5>
+            <p class="text-muted fs-8">
+              Watch live WebSocket execution graphs, view distributed APM bottleneck traces, and export comprehensive JMeter HTML reports.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick CTA inside workflow -->
+      <div class="text-center mt-5">
+        <button type="button" class="btn-primary-hero" (click)="goToSignUp()">
+          Create Your Free Account Now <i class="bi bi-arrow-right ms-2"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7. Transparent Plans & Pricing ───────────────────────────────── -->
+  <section id="pricing" class="py-5">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="section-eyebrow">Clear, Predictable Pricing</span>
+        <h2 class="section-heading">Choose a plan that fits your testing scale</h2>
+        <p class="section-subheading">
+          Transparent limits. No surprise overage bills. Seamless upgrades powered by Razorpay.
+        </p>
+      </div>
+
+      <div class="row g-4 justify-content-center">
+        <!-- 1. Free Tier -->
+        <div class="col-12 col-md-4">
+          <div class="pricing-card h-100 d-flex flex-column p-4">
+            <div class="pricing-header mb-3">
+              <span class="pricing-tier-badge badge-free">Free Tier</span>
+              <div class="price-wrap my-3">
+                <span class="price-val">$0</span>
+                <span class="price-period">/ month</span>
+              </div>
+              <p class="text-muted fs-8 mb-0">Ideal for individual developers and small API health checks.</p>
+            </div>
+            <ul class="pricing-features list-unstyled flex-grow-1 fs-8 text-secondary">
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>30</strong> Test Runs / month</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>500</strong> Virtual Users (VUs)</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>3</strong> Project Workspaces</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>1 GB</strong> Storage for Artifacts</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Local Taurus CLI Engine</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2 text-muted">
+                <i class="bi bi-x text-muted"></i> <span>Scheduled Cron Tests</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2 text-muted">
+                <i class="bi bi-x text-muted"></i> <span>Priority Jenkins Dispatch</span>
+              </li>
+            </ul>
+            <div class="pricing-footer mt-3">
+              <button type="button" class="btn-plan-outline w-100" (click)="goToSignUp()">
+                Get Started Free
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Pro Plan (Featured) -->
+        <div class="col-12 col-md-4">
+          <div class="pricing-card pricing-featured h-100 d-flex flex-column p-4">
+            <div class="featured-ribbon">Most Popular</div>
+            <div class="pricing-header mb-3">
+              <span class="pricing-tier-badge badge-pro">Professional</span>
+              <div class="price-wrap my-3">
+                <span class="price-val">$29</span>
+                <span class="price-period">/ month</span>
+              </div>
+              <p class="text-muted fs-8 mb-0">For growing engineering teams requiring automation & scheduling.</p>
+            </div>
+            <ul class="pricing-features list-unstyled flex-grow-1 fs-8 text-secondary">
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>100</strong> Test Runs / month</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>10,000</strong> Virtual Users (VUs)</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>Unlimited</strong> Workspaces</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>10 GB</strong> Artifact Storage</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Scheduled Tests (APScheduler Cron)</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>PDF & JMeter HTML Exports</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Priority Support</span>
+              </li>
+            </ul>
+            <div class="pricing-footer mt-3">
+              <button type="button" class="btn-plan-primary w-100" (click)="goToSignUp()">
+                Start 14-Day Trial or Upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Enterprise Plan -->
+        <div class="col-12 col-md-4">
+          <div class="pricing-card h-100 d-flex flex-column p-4">
+            <div class="pricing-header mb-3">
+              <span class="pricing-tier-badge badge-enterprise">Enterprise</span>
+              <div class="price-wrap my-3">
+                <span class="price-val">$99</span>
+                <span class="price-period">/ month</span>
+              </div>
+              <p class="text-muted fs-8 mb-0">For large organizations with distributed CI/CD requirements.</p>
+            </div>
+            <ul class="pricing-features list-unstyled flex-grow-1 fs-8 text-secondary">
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>Unlimited</strong> Test Runs</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span><strong>100,000+</strong> Virtual Users</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Dedicated Jenkins Agent Nodes</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Full OpenTelemetry APM Suite</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Custom SLAs & Dedicated Support</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Superadmin Multi-Tenant Control</span>
+              </li>
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-check2 text-primary"></i> <span>Invoice Billing Available</span>
+              </li>
+            </ul>
+            <div class="pricing-footer mt-3">
+              <button type="button" class="btn-plan-outline w-100" (click)="goToSignUp()">
+                Contact Enterprise / Upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 8. Frequently Asked Questions (FAQ) ──────────────────────────── -->
+  <section id="faq" class="py-5 bg-white border-top border-bottom">
+    <div class="container max-w-800">
+      <div class="text-center mb-5">
+        <span class="section-eyebrow">Clear Answers</span>
+        <h2 class="section-heading">Frequently asked questions</h2>
+        <p class="section-subheading">
+          Everything you need to know about PerfAnalyzer, our engine, and our integrations.
+        </p>
+      </div>
+
+      <div class="faq-accordion">
+        @for (faq of faqs; track faq.question; let idx = $index) {
+        <div class="faq-item" [class.open]="openFaqIndex === idx">
+          <button type="button" class="faq-question-btn" (click)="toggleFaq(idx)">
+            <span>{{ faq.question }}</span>
+            <i class="bi" [ngClass]="openFaqIndex === idx ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+          </button>
+          @if (openFaqIndex === idx) {
+          <div class="faq-answer-pane">
+            <p class="mb-0 fs-8 text-secondary">{{ faq.answer }}</p>
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 9. Final Call-To-Action Banner ────────────────────────────────── -->
+  <section class="cta-banner-section py-5 text-center">
+    <div class="container max-w-700">
+      <h2 class="cta-banner-title mb-3">
+        Ready to make your application resilient?
+      </h2>
+      <p class="cta-banner-sub mb-4">
+        Join developers and QA engineers who catch performance bottlenecks before production.
+        Create your free account and launch your first test in less than 3 minutes.
+      </p>
+      <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap">
+        @if (isLoggedIn) {
+        <button type="button" class="btn-cta-white" (click)="goToDashboard()">
+          Go to Your Dashboard <i class="bi bi-arrow-right ms-2"></i>
+        </button>
+        } @else {
+        <button type="button" class="btn-cta-white" (click)="goToSignUp()">
+          Sign Up for Free <i class="bi bi-arrow-right ms-2"></i>
+        </button>
+        <button type="button" class="btn-cta-ghost" (click)="goToSignIn()">
+          Sign In to Existing Account
+        </button>
+        }
+      </div>
+      <div class="mt-3 text-muted fs-9">
+        No credit card required · Instant access · Standard Apache JMeter engine
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 10. Footer ────────────────────────────────────────────────────── -->
+  <footer class="showcase-footer py-4">
+    <div class="container">
+      <div class="row g-4 align-items-center justify-content-between">
+        <div class="col-md-6 text-center text-md-start">
+          <div class="d-flex align-items-center gap-2 justify-content-center justify-content-md-start mb-2">
+            <img src="/logo.png" alt="PerfAnalyzer Logo" style="width: 24px; height: 24px; object-fit: contain;" />
+            <span class="fw-bold text-slate-800">PerfAnalyzer</span>
+          </div>
+          <p class="text-muted fs-8 mb-0">
+            Enterprise performance testing, load automation, and APM observability.
+            Built on Apache JMeter™, Taurus, OpenTelemetry, FastAPI, and Angular.
+          </p>
+        </div>
+
+        <div class="col-md-6 text-center text-md-end">
+          <div class="footer-links d-flex gap-3 justify-content-center justify-content-md-end fs-8 mb-2">
+            <a routerLink="/" class="text-muted text-decoration-none">Home</a>
+            <a routerLink="/login" class="text-muted text-decoration-none">Sign In</a>
+            <a routerLink="/login" [queryParams]="{ mode: 'signup' }" class="text-muted text-decoration-none">Sign Up</a>
+            @if (isLoggedIn) {
+            <a routerLink="/dashboard" class="text-primary text-decoration-none fw-semibold">Dashboard</a>
+            }
+          </div>
+          <p class="text-muted fs-9 mb-0">
+            &copy; 2026 PerfAnalyzer. All rights reserved. Open-source powered under MIT License.
+          </p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</div>

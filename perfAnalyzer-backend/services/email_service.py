@@ -3,9 +3,18 @@ import os
 import smtplib
 import socket
 from email.message import EmailMessage
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import httpx
+from dotenv import load_dotenv
+
+# Ensure .env in perfAnalyzer-backend is loaded even when imported from elsewhere
+_backend_env = Path(__file__).resolve().parent.parent / ".env"
+if _backend_env.exists():
+    load_dotenv(dotenv_path=_backend_env)
+else:
+    load_dotenv()
 
 try:
     import dns.resolver

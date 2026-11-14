@@ -41,12 +41,8 @@ from models import (
 from monitoring_crypto import encrypt_dsn, decrypt_dsn
 
 from yaml_builder import build_taurus_yaml
-from services.endpoint_discovery import discover_endpoints
-from services.email_service import send_password_reset_email, EmailDeliveryError
+import os
 import shutil
-from pathlib import Path
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-import yaml
 import subprocess
 import hashlib
 import json
@@ -60,8 +56,11 @@ from typing import Optional, Dict, List
 from contextlib import contextmanager
 import psycopg2
 from psycopg2 import pool as pg_pool
-import os
 import httpx
+from pathlib import Path
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+import yaml
+
 def load_env_file():
     env_path = Path(__file__).resolve().parent / ".env"
     if not env_path.exists():
@@ -73,6 +72,11 @@ def load_env_file():
                 if line and not line.startswith("#") and "=" in line:
                     key, val = line.split("=", 1)
                     os.environ[key.strip()] = val.strip()
+
+load_env_file()
+
+from services.endpoint_discovery import discover_endpoints
+from services.email_service import send_password_reset_email, EmailDeliveryError
 
 load_env_file()
 

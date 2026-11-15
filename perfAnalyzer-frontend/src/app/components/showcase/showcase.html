@@ -349,14 +349,14 @@
       </p>
       <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap">
         @if (isLoggedIn) {
-        <button type="button" class="btn-cta-white" (click)="goToDashboard()">
+        <button type="button" class="btn-cta-primary" (click)="goToDashboard()">
           Go to Your Dashboard <i class="bi bi-arrow-right ms-2"></i>
         </button>
         } @else {
-        <button type="button" class="btn-cta-white" (click)="goToSignUp()">
+        <button type="button" class="btn-cta-primary" (click)="goToSignUp()">
           Sign Up for Free <i class="bi bi-arrow-right ms-2"></i>
         </button>
-        <button type="button" class="btn-cta-ghost" (click)="goToSignIn()">
+        <button type="button" class="btn-cta-secondary" (click)="goToSignIn()">
           Sign In to Existing Account
         </button>
         }
@@ -367,32 +367,39 @@
     </div>
   </section>
 
-  <!-- ── 8. Footer ────────────────────────────────────────────────────── -->
-  <footer class="showcase-footer py-4">
-    <div class="container">
-      <div class="row g-4 align-items-center justify-content-between">
-        <div class="col-md-6 text-center text-md-start">
-          <div class="d-flex align-items-center gap-2 justify-content-center justify-content-md-start mb-2">
-            <img src="/logo.png" alt="PerfAnalyzer Logo" style="width: 24px; height: 24px; object-fit: contain;" />
-            <span class="fw-bold text-slate-800">PerfAnalyzer</span>
+  <!-- ── 8. Comprehensive Modern Showcase Footer ────────────────────────── -->
+  <footer class="showcase-footer bg-white border-top">
+    <!-- Bottom Bar (Matching user's reference image layout in page theme) -->
+    <div class="footer-bottom-section border-top py-4">
+      <div class="container">
+        <div class="footer-card-bar">
+          <!-- Col 1: Brand -->
+          <div class="footer-col footer-col-brand">
+            <a routerLink="/" class="footer-brand-link">
+              <img src="/logo.png" alt="PerfAnalyzer Logo" class="footer-bar-logo" />
+              <span class="footer-bar-title">PerfAnalyzer</span>
+            </a>
           </div>
-          <p class="text-muted fs-8 mb-0">
-            Automated performance testing, load simulation, and APM observability.
-          </p>
-        </div>
 
-        <div class="col-md-6 text-center text-md-end">
-          <div class="footer-links d-flex gap-3 justify-content-center justify-content-md-end fs-8 mb-2">
-            <a routerLink="/" class="text-muted text-decoration-none">Home</a>
-            <a routerLink="/login" class="text-muted text-decoration-none">Sign In</a>
-            <a routerLink="/login" [queryParams]="{ mode: 'signup' }" class="text-muted text-decoration-none">Sign Up</a>
-            @if (isLoggedIn) {
-            <a routerLink="/dashboard" class="text-primary text-decoration-none fw-semibold">Dashboard</a>
-            }
+          <!-- Col 2: Legal -->
+          <div class="footer-col footer-col-links">
+            <a routerLink="/about" class="footer-link">Terms and conditions</a>
+            <a routerLink="/about" class="footer-link">Privacy Policy</a>
           </div>
-          <p class="text-muted fs-9 mb-0">
-            &copy; 2026 PerfAnalyzer. All rights reserved.
-          </p>
+
+          <!-- Col 3: Engine / Technology -->
+          <div class="footer-col footer-col-backed">
+            <span class="footer-sublabel">Powered by</span>
+            <div class="footer-partner-mark">
+              <span class="engine-badge">Apache JMeter & Taurus</span>
+            </div>
+          </div>
+
+          <!-- Col 4: Copyright & Reliability -->
+          <div class="footer-col footer-col-meta">
+            <span class="footer-meta-item">&copy; 2026 PerfAnalyzer</span>
+            <span class="footer-meta-sub">Built for high-scale reliability</span>
+          </div>
         </div>
       </div>
     </div>

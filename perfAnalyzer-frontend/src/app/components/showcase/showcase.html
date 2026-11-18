@@ -321,13 +321,15 @@
         <div class="faq-item" [class.open]="openFaqIndex === idx">
           <button type="button" class="faq-question-btn" (click)="toggleFaq(idx)">
             <span>{{ faq.question }}</span>
-            <i class="bi" [ngClass]="openFaqIndex === idx ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+            <span class="faq-chevron">
+              <i class="bi bi-chevron-down"></i>
+            </span>
           </button>
-          @if (openFaqIndex === idx) {
-          <div class="faq-answer-pane">
-            <p class="mb-0 fs-8 text-secondary">{{ faq.answer }}</p>
+          <div class="faq-answer-pane" [class.faq-answer-visible]="openFaqIndex === idx">
+            <div class="faq-answer-inner">
+              <p class="mb-0 fs-8 text-secondary">{{ faq.answer }}</p>
+            </div>
           </div>
-          }
         </div>
         }
       </div>

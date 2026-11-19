@@ -182,29 +182,44 @@ export class Showcase implements OnInit {
   // ── FAQs ───────────────────────────────────────────────────────────
   faqs: FaqItem[] = [
     {
-      question: 'Do I need prior experience with Apache JMeter to use PerfAnalyzer?',
+      question: 'Do I need to know JMeter or write any scripts to get started?',
       answer:
-        'No. PerfAnalyzer eliminates JMeter’s steep learning curve. You simply enter your website or API address, choose how many visitors to simulate, and launch. The platform auto-generates standard test scenarios and displays results in clear, visual graphs. Advanced users can also upload custom .jmx files directly.',
+        "Not at all. You just paste your website or API URL, choose how many users to simulate, and hit run. PerfAnalyzer handles all the scripting in the background. If you are an advanced user and already have a custom .jmx test file, you can upload that too — but it is completely optional.",
     },
     {
-      question: 'Can running load tests harm or crash my live website?',
+      question: 'Will running a load test break or slow down my live site?',
       answer:
-        'You have full control over the test volume and ramp-up rate. You can start small (e.g. 50 or 100 users) and observe the live response speed in real time. If your servers begin to struggle, click the instant Stop button at any moment. We also recommend testing on staging environments whenever possible.',
+        "Only if it is already at its limit — which is exactly what you want to find out. You are in full control: start with a small number of users, watch how your server responds in real time, and stop immediately with one click if anything looks off. We always recommend testing on a staging environment first if you want to be extra safe.",
     },
     {
-      question: 'How does real-time streaming work?',
+      question: 'What exactly do I see while a test is running?',
       answer:
-        'PerfAnalyzer uses high-frequency WebSockets to stream latency, throughput (requests per second), active thread counts, and console output directly from the test engine to your browser without needing page refreshes.',
+        "You get a live dashboard that updates every second — how many users are active, how fast your server is responding, how many requests are going through per second, and whether any errors are appearing. You do not need to refresh the page or wait for it to finish. Everything streams directly to your screen as it happens.",
     },
     {
-      question: 'Can I download reports to send to clients or leadership?',
+      question: "How do I know what is actually causing slowness in my app?",
       answer:
-        'Yes! Every test generates complete, downloadable artifacts including raw .jtl files, executive PDF summaries, and interactive self-contained JMeter HTML dashboard bundles.',
+        "PerfAnalyzer goes beyond just showing that something is slow. The monitoring view breaks down each request step by step — so you can see whether the delay is in your database, a third-party API call, or your own server logic. This means you spend time fixing the actual problem, not hunting for it.",
     },
     {
-      question: 'Is there a free version to try out?',
+      question: 'Can I share results with my team or clients after a test?',
       answer:
-        'Yes. The Free Tier includes 30 test runs per month, up to 500 virtual users, and 3 project workspaces. No credit card is required to sign up.',
+        "Yes. When a test finishes, you get a full report you can download and share. It includes a clean summary of how the app performed, response time breakdowns, pass/fail results against your targets, and a full interactive HTML dashboard. No extra setup needed — just download and send.",
+    },
+    {
+      question: 'How many users can I simulate at once?',
+      answer:
+        "The Free Tier lets you simulate up to 500 virtual users. The Professional plan goes up to 10,000, and Enterprise supports 100,000+ for large-scale stress testing. You can adjust the number at any time before running a test, and ramp them up gradually so your server is not hit all at once.",
+    },
+    {
+      question: 'Is there a free plan? Do I need a credit card to sign up?',
+      answer:
+        "Yes, there is a free plan — and no credit card is required. The Free Tier gives you 30 test runs per month, up to 500 virtual users, and 3 project workspaces. It is a full working version of the product, not a limited trial. You can upgrade any time if you need more capacity.",
+    },
+    {
+      question: 'Can I test APIs as well as websites?',
+      answer:
+        "Absolutely. PerfAnalyzer works with any HTTP or HTTPS target — REST APIs, GraphQL endpoints, web apps, or individual pages. You can test a single endpoint or a full user journey across multiple routes. Just paste the base URL and let the auto-discovery find your routes, or define them manually.",
     },
   ];
 

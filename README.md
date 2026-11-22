@@ -208,6 +208,7 @@ PerfAnalyzer/
     │           ├── reports-history/ ← Historical report archive
     │           ├── monitoring/      ← APM integrations catalog & Uptrace viewer
     │           ├── subscribe/       ← Tier subscription & Razorpay checkout
+    │           ├── showcase/       ← Product showcase page
     │           ├── payment-success/ ← Post-payment success confirmation page
     │           ├── payment-failure/ ← Payment failure & retry page
     │           ├── logs/            ← System and execution log viewer

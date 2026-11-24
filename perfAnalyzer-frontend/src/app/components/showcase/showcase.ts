@@ -207,19 +207,9 @@ export class Showcase implements OnInit {
         "Yes. When a test finishes, you get a full report you can download and share. It includes a clean summary of how the app performed, response time breakdowns, pass/fail results against your targets, and a full interactive HTML dashboard. No extra setup needed — just download and send.",
     },
     {
-      question: 'How many users can I simulate at once?',
-      answer:
-        "The Free Tier lets you simulate up to 500 virtual users. The Professional plan goes up to 10,000, and Enterprise supports 100,000+ for large-scale stress testing. You can adjust the number at any time before running a test, and ramp them up gradually so your server is not hit all at once.",
-    },
-    {
       question: 'Is there a free plan? Do I need a credit card to sign up?',
       answer:
         "Yes, there is a free plan — and no credit card is required. The Free Tier gives you 30 test runs per month, up to 500 virtual users, and 3 project workspaces. It is a full working version of the product, not a limited trial. You can upgrade any time if you need more capacity.",
-    },
-    {
-      question: 'Can I test APIs as well as websites?',
-      answer:
-        "Absolutely. PerfAnalyzer works with any HTTP or HTTPS target — REST APIs, GraphQL endpoints, web apps, or individual pages. You can test a single endpoint or a full user journey across multiple routes. Just paste the base URL and let the auto-discovery find your routes, or define them manually.",
     },
   ];
 
